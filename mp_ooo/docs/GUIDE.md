@@ -55,8 +55,7 @@ Here are some resources to help with your design process:
 - [HP2] *Computer Architecture: A Quantitative Approach (6th Ed.)* by John L. Hennessy and David A. Patterson
 - [RISCV-BOOM Documentation](https://docs.boom-core.org/en/latest/) - This is a more advanced out-of-order RISC-V processor designed at UC Berkeley. You may find some of the documentation useful for understanding out-of-order execution.
 - [*Processor Microarchitecture: An Implementation Perspective*](https://link.springer.com/book/10.1007/978-3-031-01729-2) - This book is a good resource for understanding the details of processor microarchitecture, including out-of-order execution (both Tomasulo's algorithm and explicit renaming). It is available for free as part of the *Synthesis Lectures on Computer Architecture*.
-
-ADD MORE RESOURCES, LINKS TO OTHER STUFF
+- [Alpha 21264](https://acg.cis.upenn.edu/milom/cis501-Fall09/papers/Alpha21264.pdf) - One of the OG out-of-order processors. This used explicit register renaming.
 
 ## Testing
 

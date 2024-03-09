@@ -165,6 +165,4 @@ This is the same magic memory model you are familiar with from mp_pipeline. It h
 
 Will be posted before CP2 deadline. You will use this in CP3 onward. It will be very similar to what you used in mp_cache.
 
-
-
 Good Luck! :)
