@@ -33,6 +33,6 @@ module fetch_stage
     end
 
     assign fetch_output.fetch_pc_curr = pc_reg; 
-    assign fetch_output.fetch_pc_wdata = pc_reg + 32'd4; 
+    assign fetch_output.fetch_pc_next = pc_reg + 32'd4; 
     
     endmodule : fetch_stage

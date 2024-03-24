@@ -39,42 +39,6 @@ module id_stage
     assign rs2_s  = imem_rdata[24:20];
     assign rd_s   = imem_rdata[11:7];
 
-    // typedef struct packed {
-    //     logic   [2:0]   funct3;
-    //     logic   [6:0]   funct7;
-    //     logic   [6:0]   opcode;
-    //     logic   [4:0]   rs1_s;
-    //     logic   [4:0]   rs2_s;
-    //     logic   [4:0]   rd_s;   
-
-    //     logic   [31:0]  alu_operand_1;
-    //     logic   [31:0]  alu_operand_2;
-    //     logic   [31:0]  cmp_operand_1;
-    //     logic   [31:0]  cmp_operand_1;
-    //     logic [2:0] alu_operation; 
-    //     logic [2:0] cmp_operation; 
-    //     logic alu_en; 
-    //     logic cmp_en; 
-
-    //     logic is_branch; 
-    //     logic is_jump; 
-    //     bit valid; id_stage::
-id_stage::
-id_stage::
-id_stage::
-id_stage::
-id_stage::
-id_stage::
-id_stage::
-    // } instruction_info_reg_t;
-
-    // // Add more things here . . .
-    // typedef struct packed {
-    //     logic [31:0] fetch_pc_curr, //rvfi pc_rdata
-    //     // For rvfi purposes (fetch_pc_curr + 4)
-    //     logic [31:0] fetch_pc_wdata
-    // } fetch_output_reg_t;
-
     always_comb begin
         instruction_info.funct3 = funct3; 
         instruction_info.funct7 = funct7; 
@@ -88,14 +52,20 @@ id_stage::
         instruction_info.b_imm = b_imm;
         instruction_info.u_imm = u_imm;
         instruction_info.j_imm = j_imm;
+        instruction_info.alu_en = '1; 
+        instruction_info.cmp_en = '1;  
+        instruction_info.is_branch = '0;  
+        instruction_info.is_jump = '0;
+        instruction_info.alu_operation = alu_add; 
+        instruction_info.cmp_operation = funct3;
+
+        instruction_info.pc_curr = fetch_output.fetch_pc_curr; 
+        instruction_info.pc_next = fetch_output.fetch_pc_next; 
+
 
         unique case (opcode) 
             op_b_reg : begin 
-                unique case (funct3)
-                    instruction_info.alu_en = '1; 
-                    instruction_info.cmp_en = '1;  
-                    instruction_info.is_branch = '0;  
-                    instruction_info.is_jump = '0;  
+                unique case (funct3)  
                     slt: begin
                         instruction_info.cmp_operation = blt;
                         instruction_info.alu_en = 1'b0;
@@ -126,36 +96,53 @@ id_stage::
                     end
                 endcase
             end
-            op_b_imm : begin
-                instruction_info.alu_en = '1; 
-                instruction_info.cmp_en = '1;  
-                instruction_info.is_branch = '0;  
-                instruction_info.is_jump = '0;  
-
+            op_b_imm : begin 
                 unique case (funct3)
                     slt: begin
-                        instruction_info.alu_operation = blt;
+                        instruction_info.cmp_operation = blt;
                         instruction_info.alu_en = 1'b0;
                     end
                     sltu: begin
-                        instruction_info.alu_operation = bltu;
+                        instruction_info.cmp_operation = bltu;
                         instruction_info.alu_en = 1'b0;
                     end
                     sr: begin
                         if (funct7[5]) begin
-                            instruction_info.aluop = alu_sra;
+                            instruction_info.alu_operation = alu_sra;
                         end else begin
-                            instruction_info.aluop = alu_srl;
+                            instruction_info.alu_operation = alu_srl;
                         end
-                        instruction_info.alu_operation = funct3; 
+                        instruction_info.cmp_operation = funct3; 
                     end
                     default : begin
-                        instruction_info.aluop = funct3; 
                         instruction_info.alu_operation = funct3; 
+                        instruction_info.cmp_operation = funct3; 
                     end
                 endcase
-
-
+            end
+            op_b_auipc : begin
+                instruction_info.alu_operation = alu_add; 
+                instruction_info.cmp_operation = '0; 
+            end
+            op_b_br : begin
+                instruction_info.is_branch = '1;   
+            end
+            op_b_jal : begin
+                instruction_info.is_jump = '1;   
+                instruction_info.cmp_en = '0;  
+            end
+            op_b_jalr : begin
+                instruction_info.is_jump = '1;   
+                instruction_info.cmp_en = '0;  
+            end 
+            op_b_load : begin
+                instruction_info.cmp_en = '0;  
+            end
+            op_b_store : begin
+                instruction_info.cmp_en = '1;  
+            end
+            default : ; 
+        endcase            
     end
 
     
