@@ -41,9 +41,9 @@ fetch_stage fetch_stage_i (
     .rst(rst), 
     .predict_branch('0), // Change this later
     .stall_inst(inst_queue_full), 
-    .branch_pc('0) // Change this later
+    .branch_pc('0), // Change this later
     .fetch_output(if_id_reg_next)    
-)
+);
 
 
 

@@ -17,7 +17,7 @@ module fetch_stage
 
     always_ff @ (posedge clk) begin
         if(rst) begin
-            pc_reg <= 32b'h60000000;
+            pc_reg <= 32'h60000000;
         end
         // if you are not stalling
         if(~stall_inst) begin

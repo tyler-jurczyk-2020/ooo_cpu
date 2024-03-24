@@ -4,7 +4,7 @@ module circular_queue
     parameter DEPTH = 16,
     parameter DEPTH_BITS = 4, 
     parameter SUPERSCALAR = 4,
-    parameter SUPERSCALAR_BITS = 2,
+    parameter SUPERSCALAR_BITS = 2
 )(
     input logic clk, rst,
     input logic push, pop, 
@@ -12,7 +12,7 @@ module circular_queue
     input logic [WIDTH-1:0] in [SUPERSCALAR], // Values pushed in
     input logic [WIDTH-1:0] reg_in [SUPERSCALAR], // Values used to modify entries
     input logic [DEPTH_BITS-1:0] reg_select_in [SUPERSCALAR], reg_select_out [SUPERSCALAR],
-    input logic [SUPERSCALAR-1:0] in_bitmask, out_bitmask
+    input logic [SUPERSCALAR-1:0] in_bitmask, out_bitmask,
 
     // Need to consider potentially how partial pushes/pops may work in superscalar context
     output logic empty,
@@ -23,11 +23,16 @@ module circular_queue
 
 logic [WIDTH-1:0] entries [DEPTH];
 logic [DEPTH_BITS:0] head, tail; // One bit to differentiate between full/empty
+logic [31:0] sext_head, sext_tail, sext_amount;
 
 assign full = (head[DEPTH_BITS-1:0] == tail[DEPTH_BITS-1:0]) && (head[DEPTH_BITS] != tail[DEPTH_BITS]);
 assign empty = (head == tail);
 
-always_ff begin
+assign sext_head = {{(32-DEPTH_BITS-1){1'b0}}, head};
+assign sext_tail = {{(32-DEPTH_BITS-1){1'b0}}, tail};
+assign sext_amount = {{(32-SUPERSCALAR_BITS){1'b0}}, amount};
+
+always_ff @(posedge clk) begin
     if(rst) begin
         head <= 0;
         tail <= 0;
@@ -35,20 +40,22 @@ always_ff begin
             entries[i] <= 0;
         end
         for(int i = 0; i < SUPERSCALAR; i++) begin
-            reg_out[i] = 0;
+            reg_out[i] <= 0;
         end
     end
     else begin
         if(push) begin
-            head <= head + amount;
-            for(int i = head; i >= head - amount; i--) begin
-                entries[i] <= in[i];
+            head <= head + {{(DEPTH_BITS-SUPERSCALAR_BITS+1){1'b0}}, amount};
+            for(int i = 0; i < DEPTH; i++) begin
+                if(i <= sext_head && i > sext_head - sext_amount)
+                    entries[i] <= in[sext_head - i];
             end
         end
         else if(pop)  begin
-            tail <= tail + amount;
-            for(int i = tail; i >= tail - amount; i--) begin
-                out[i] <= entries[i];
+            tail <= tail + {{(DEPTH_BITS-SUPERSCALAR_BITS+1){1'b0}}, amount};
+            for(int i = 0; i < DEPTH; i++) begin
+                if(i <= sext_tail && i > sext_tail - sext_amount)
+                    out[i] <= entries[sext_tail - i];
             end
         end
 

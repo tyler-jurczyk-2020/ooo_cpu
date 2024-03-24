@@ -39,7 +39,20 @@ module monitor (
             end
         end
         if ($isunknown(itf.rd_addr)) begin
-            $error("RVFIhead == tailitf.pc_wdata)) begin
+            $error("RVFI Interface Error: rd_addr contains 'x");
+            itf.error <= 1'b1;
+        end
+        if (itf.rd_addr) begin
+            if ($isunknown(itf.rd_wdata)) begin
+                $error("RVFI Interface Error: rd_wdata contains 'x");
+                itf.error <= 1'b1;
+            end
+        end
+        if ($isunknown(itf.pc_rdata)) begin
+            $error("RVFI Interface Error: pc_rdata contains 'x");
+            itf.error <= 1'b1;
+        end
+        if ($isunknown(itf.pc_wdata)) begin
             $error("RVFI Interface Error: pc_wdata contains 'x");
             itf.error <= 1'b1;
         end
