@@ -18,6 +18,40 @@ package rv32i_types;
         op_b_csr   = 7'b1110011  // I control and status register 
     } rv32i_op_b_t;
 
+    typedef struct packed {
+        logic   [2:0]   funct3;
+        logic   [6:0]   funct7;
+        logic   [6:0]   opcode;
+        logic   [4:0]   rs1_s;
+        logic   [4:0]   rs2_s;
+        logic   [4:0]   rd_s;   
+
+        logic   [31:0]  alu_operand_1;
+        logic   [31:0]  alu_operand_2;
+        logic   [31:0]  cmp_operand_1;
+        logic   [31:0]  cmp_operand_1;
+        logic [2:0] alu_operation; 
+        logic [2:0] cmp_operation; 
+        logic alu_en; 
+        logic cmp_en; 
+
+        logic is_branch; 
+        logic is_jump; 
+        bit valid; 
+
+        logic   [31:0]  i_imm;
+        logic   [31:0]  s_imm;
+        logic   [31:0]  b_imm;
+        logic   [31:0]  u_imm;
+        logic   [31:0]  j_imm;
+    } instruction_info_reg_t;
+
     // Add more things here . . .
+    typedef struct packed {
+        logic [31:0] fetch_pc_curr, //rvfi pc_rdata
+        // For rvfi purposes (fetch_pc_curr + 4)
+        logic [31:0] fetch_pc_wdata
+    } fetch_output_reg_t;
+
 
 endpackage

@@ -14,15 +14,18 @@ module circular_queue
     input logic [DEPTH_BITS-1:0] reg_select_in [SUPERSCALAR], reg_select_out [SUPERSCALAR],
     input logic [SUPERSCALAR-1:0] in_bitmask, out_bitmask
 
+    // Need to consider potentially how partial pushes/pops may work in superscalar context
+    output logic empty,
     output logic full,
-    output logic [WIDTH-1:0] out [SUPERSCALAR],
-    output logic [WIDTH-1:0] reg_out [SUPERSCALAR]
+    output logic [WIDTH-1:0] out [SUPERSCALAR], // Values pushed out
+    output logic [WIDTH-1:0] reg_out [SUPERSCALAR] // Values selected to be observed
 );
 
 logic [WIDTH-1:0] entries [DEPTH];
 logic [DEPTH_BITS:0] head, tail; // One bit to differentiate between full/empty
 
-assign full = (head[DEPTH_BITS-1:0] == tail[DEPTH_BITS]) && (head[DEPTH_BITS] != tail[DEPTH_BITS]);
+assign full = (head[DEPTH_BITS-1:0] == tail[DEPTH_BITS-1:0]) && (head[DEPTH_BITS] != tail[DEPTH_BITS]);
+assign empty = (head == tail);
 
 always_ff begin
     if(rst) begin
@@ -42,8 +45,12 @@ always_ff begin
                 entries[i] <= in[i];
             end
         end
-        else if(pop) 
+        else if(pop)  begin
             tail <= tail + amount;
+            for(int i = tail; i >= tail - amount; i--) begin
+                out[i] <= entries[i];
+            end
+        end
 
         for(int i = 0; i < SUPERSCALAR; i++) begin
             if(in_bitmask[i])

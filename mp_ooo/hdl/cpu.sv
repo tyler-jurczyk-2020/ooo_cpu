@@ -28,4 +28,32 @@ import rv32i_types::*;
     */
 );
 
+///////////////////// INSTRUCTION QUEUE /////////////////////
+
+logic inst_queue_full; 
+
+///////////////////// INSTRUCTION FETCH (SIMILAR TO MP2) /////////////////////
+
+fetch_output_reg_t if_id_reg, if_id_reg_next;
+
+fetch_stage fetch_stage_i (
+    .clk(clk), 
+    .rst(rst), 
+    .predict_branch('0), // Change this later
+    .stall_inst(inst_queue_full), 
+    .branch_pc('0) // Change this later
+    .fetch_output(if_id_reg_next)    
+)
+
+
+
+always_ff @ (posedge clk) begin
+    if(imem_resp && ~inst_queue_full)
+        if_id_reg <= if_id_reg_next; 
+end
+
+assign imem_rmask = '1; 
+assign imem_rdata = if_id_reg_next.fetch_pc_curr; 
+
+
 endmodule : cpu
