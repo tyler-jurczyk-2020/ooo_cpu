@@ -33,8 +33,15 @@ import rv32i_types::*;
 
 logic inst_queue_full; 
 
+// says that two instructions are ready for the instruction queue
+logic valid_buffer_flag; 
+
 // Circular queue
-circular_queue cq(.clk(clk), .rst(rst), .full(inst_queue_full));
+logic [394:0] valid_inst_conversion [2];
+assign valid_inst_conversion[0] = valid_inst[0].megaword;
+assign valid_inst_conversion[1] = valid_inst[1].megaword;
+circular_queue #(.WIDTH(395)) cq(.clk(clk), .rst(rst), .full(inst_queue_full), .in(valid_inst_conversion),
+                 .push(valid_buffer_flag));
 
 // Temporary 
 assign dmem_rmask = 4'b0;
@@ -59,8 +66,6 @@ instruction_info_reg_t decoded_inst;
 instruction_info_reg_t valid_inst[2];
 // says that a instruction is ready for the buffer
 logic valid_inst_flag; 
-// says that two instructions are ready for the instruction queue
-logic valid_buffer_flag; 
 
 id_stage id_stage_i (
     .clk(clk),
@@ -88,7 +93,9 @@ end
 
 always_comb begin
     if(imem_resp && ~inst_queue_full)
-        valid_inst_flag <= 1'b1;
+        valid_inst_flag = 1'b1;
+    else
+        valid_inst_flag = 1'b0;
 end
 
 assign imem_rmask = '1;

@@ -32,7 +32,7 @@ always_ff @ (posedge clk) begin
         counter <= counter + 1'b1; 
     end
 
-    if(counter == 1'b1)
+    if(counter == 1'b1 && valid)
         valid_out <= 1'b1; 
     else 
         valid_out <= 1'b0;
