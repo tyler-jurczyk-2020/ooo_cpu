@@ -5,10 +5,10 @@ module id_stage
         input   logic           rst,
 
         // DA PC to propogate for RVFI
-        output fetch_output_reg_t fetch_output, 
+        input fetch_output_reg_t fetch_output, 
 
         input [31:0] imem_rdata, 
-        input [31:0] imem_resp, 
+        input imem_resp, 
 
         input stall_inst, 
 

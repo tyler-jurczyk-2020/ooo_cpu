@@ -25,11 +25,11 @@ module fetch_stage
             if(~predict_branch) begin
                 pc_reg <= pc_reg + 32'd4; 
             end
-            // If you are branching 
+            // If you are branching
             else begin
                 pc_reg <= branch_pc; 
             end
-        end            
+        end
     end
 
     assign fetch_output.fetch_pc_curr = pc_reg; 

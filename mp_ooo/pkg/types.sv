@@ -75,7 +75,7 @@ package rv32i_types;
         logic   [31:0]  alu_operand_1;
         logic   [31:0]  alu_operand_2;
         logic   [31:0]  cmp_operand_1;
-        logic   [31:0]  cmp_operand_1;
+        logic   [31:0]  cmp_operand_2;
         logic [2:0] alu_operation; 
         logic [2:0] cmp_operation; 
         logic alu_en; 
