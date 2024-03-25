@@ -21,13 +21,13 @@ import rv32i_types::*;
 
 logic [WIDTH-1:0] entries [DEPTH];
 logic [DEPTH_BITS:0] head, tail, head_next, tail_next; // One bit to differentiate between full/empty
-logic [31:0] sext_head_next, sext_tail_next, sext_amount;
+logic [31:0] sext_head, sext_tail, sext_amount;
 
 assign full = (head[DEPTH_BITS-1:0] == tail[DEPTH_BITS-1:0]) && (head[DEPTH_BITS] != tail[DEPTH_BITS]);
 assign empty = (head == tail);
 
-assign sext_head_next = {{(32-DEPTH_BITS-1){1'b0}}, head_next};
-assign sext_tail_next = {{(32-DEPTH_BITS-1){1'b0}}, tail_next};
+assign sext_head = {{(32-DEPTH_BITS-1){1'b0}}, head[DEPTH_BITS-1:0]}; // Excludes top bit so queue is indexed properly
+assign sext_tail = {{(32-DEPTH_BITS-1){1'b0}}, tail[DEPTH_BITS-1:0]};
 assign sext_amount = 32'h2;
 
 assign head_next = head + {{(DEPTH_BITS-1){1'b0}}, 2'h2};
@@ -48,16 +48,16 @@ always_ff @(posedge clk) begin
         if(push) begin
             head <= head_next;
             for(int i = 0; i < DEPTH; i++) begin
-                if(i < sext_head_next && i >= sext_head_next - sext_amount) begin
-                    entries[i] <= in[i - (sext_head_next - sext_amount)];
+                if(i < sext_head + sext_amount && i >= sext_head) begin
+                    entries[i] <= in[i - sext_head];
                 end
             end
         end
         else if(pop)  begin
             tail <= tail_next;
             for(int i = 0; i < DEPTH; i++) begin
-                if(i < sext_tail_next && i >= sext_tail_next - sext_amount)
-                    out[i] <= entries[i - (sext_tail_next - sext_amount)];
+                if(i < sext_tail + sext_amount && i >= sext_tail)
+                    out[i - sext_tail] <= entries[i];
             end
         end
 

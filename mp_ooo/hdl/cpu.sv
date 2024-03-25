@@ -40,8 +40,21 @@ logic valid_buffer_flag;
 logic [394:0] valid_inst_conversion [2];
 assign valid_inst_conversion[0] = valid_inst[0].megaword;
 assign valid_inst_conversion[1] = valid_inst[1].megaword;
+
+// Test logic to read out. To be removed
+logic pop_queue;
+logic empty;
+always_ff @(posedge clk) begin
+    if(rst)
+        pop_queue <= 1'b0;
+    else if(inst_queue_full && ~empty)
+        pop_queue <= 1'b1;
+    else
+        pop_queue <= 1'b0;
+end
+
 circular_queue #(.WIDTH(395)) cq(.clk(clk), .rst(rst), .full(inst_queue_full), .in(valid_inst_conversion),
-                 .push(valid_buffer_flag));
+                 .push(valid_buffer_flag), .pop(pop_queue), .empty(empty));
 
 // Temporary 
 assign dmem_rmask = 4'b0;
