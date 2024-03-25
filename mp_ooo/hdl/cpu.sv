@@ -36,6 +36,10 @@ logic inst_queue_full;
 // Circular queue
 circular_queue cq(.clk(clk), .rst(rst), .full(inst_queue_full));
 
+// Temporary 
+assign dmem_rmask = 4'b0;
+assign dmem_wmask = 4'b0;
+
 ///////////////////// INSTRUCTION FETCH (SIMILAR TO MP2) /////////////////////
 
 fetch_output_reg_t if_id_reg, if_id_reg_next;
@@ -80,7 +84,11 @@ two_inst_buff buff (
 always_ff @(posedge clk) begin
     if(imem_resp && ~inst_queue_full)
         if_id_reg <= if_id_reg_next;
-        valid_inst_flag <= '1; 
+end
+
+always_comb begin
+    if(imem_resp && ~inst_queue_full)
+        valid_inst_flag <= 1'b1;
 end
 
 assign imem_rmask = '1;

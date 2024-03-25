@@ -19,6 +19,7 @@ parameter SUPERSCALAR_BITS = 1
 
 instruction_info_reg_t buffer[2]; 
 logic counter; 
+logic update_output;
 
 always_ff @ (posedge clk) begin
     if(rst) begin
@@ -30,15 +31,16 @@ always_ff @ (posedge clk) begin
         buffer[counter] <= decoded_inst; 
         counter <= counter + 1'b1; 
     end
+
+    if(counter == 1'b1)
+        valid_out <= 1'b1; 
+    else 
+        valid_out <= 1'b0;
 end
 
 always_comb begin
-    valid_out = '0; 
-    if(counter == 1'b1) begin
-        valid_inst = buffer; 
-        valid_out = 1'b1; 
-    end
+   if(valid_out) 
+       valid_inst = buffer;
 end
-
 
 endmodule : two_inst_buff

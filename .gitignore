@@ -6,4 +6,4 @@
 !mp_ooo
 **/.vscode
 **/.DS_Store
-
+.nvim
