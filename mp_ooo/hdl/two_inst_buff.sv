@@ -39,6 +39,7 @@ always_ff @ (posedge clk) begin
 end
 
 always_comb begin
+    valid_inst = '0; 
    if(valid_out) 
        valid_inst = buffer;
 end

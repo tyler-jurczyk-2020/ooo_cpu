@@ -1,16 +1,9 @@
 module id_stage
     import rv32i_types::*;
     (   
-        input   logic           clk,
-        input   logic           rst,
-
-        // DA PC to propogate for RVFI
         input fetch_output_reg_t fetch_output, 
 
-        input [31:0] imem_rdata, 
-        input imem_resp, 
-
-        input stall_inst, 
+        input [31:0] imem_rdata,
 
         output instruction_info_reg_t instruction_info
     );

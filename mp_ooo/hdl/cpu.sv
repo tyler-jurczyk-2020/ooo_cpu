@@ -81,12 +81,8 @@ instruction_info_reg_t valid_inst[2];
 logic valid_inst_flag; 
 
 id_stage id_stage_i (
-    .clk(clk),
-    .rst(rst),
     .fetch_output(if_id_reg),
     .imem_rdata(imem_rdata),
-    .imem_resp(imem_resp),
-    .stall_inst(inst_queue_full),
     .instruction_info(decoded_inst)
 );
 
