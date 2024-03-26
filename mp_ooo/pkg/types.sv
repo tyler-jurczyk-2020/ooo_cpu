@@ -65,7 +65,7 @@ package rv32i_types;
     } alu_ops;
 
     typedef union packed {
-        logic [394:0] megaword;
+        logic [266:0] megaword;
         struct packed {
             logic   [2:0]   funct3;
             logic   [6:0]   funct7;
@@ -74,10 +74,6 @@ package rv32i_types;
             logic   [4:0]   rs2_s;
             logic   [4:0]   rd_s;   
 
-            logic   [31:0]  alu_operand_1;
-            logic   [31:0]  alu_operand_2;
-            logic   [31:0]  cmp_operand_1;
-            logic   [31:0]  cmp_operand_2;
             logic [2:0] alu_operation; 
             logic [2:0] cmp_operation; 
             logic alu_en; 

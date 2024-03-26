@@ -48,16 +48,16 @@ always_ff @(posedge clk) begin
         if(push) begin
             head <= head_next;
             for(int i = 0; i < DEPTH; i++) begin
-                if(i < sext_head + sext_amount && i >= sext_head) begin
-                    entries[i] <= in[i - sext_head];
+                if(unsigned'(i) < sext_head + sext_amount && unsigned'(i) >= sext_head) begin
+                    entries[unsigned'(i)] <= in[unsigned'(i) - sext_head];
                 end
             end
         end
         else if(pop)  begin
             tail <= tail_next;
             for(int i = 0; i < DEPTH; i++) begin
-                if(i < sext_tail + sext_amount && i >= sext_tail)
-                    out[i - sext_tail] <= entries[i];
+                if(unsigned'(i) < sext_tail + sext_amount && unsigned'(i) >= sext_tail)
+                    out[unsigned'(i) - sext_tail] <= entries[unsigned'(i)];
             end
         end
 

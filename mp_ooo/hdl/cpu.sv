@@ -15,7 +15,6 @@ import rv32i_types::*;
     output  logic   [3:0]   dmem_wmask,
     input   logic   [31:0]  dmem_rdata,
     output  logic   [31:0]  dmem_wdata,
-    output  logic   [31:0]  dmem_imem_addr,
     input   logic           dmem_resp
 
     // Single memory port connection when caches are integrated into design (CP3 and after)
@@ -32,14 +31,22 @@ import rv32i_types::*;
 ///////////////////// INSTRUCTION QUEUE /////////////////////
 
 logic inst_queue_full; 
-
 // says that two instructions are ready for the instruction queue
 logic valid_buffer_flag; 
+fetch_output_reg_t if_id_reg, if_id_reg_next;
+// two valid instructions for superscalar
+instruction_info_reg_t valid_inst[2];
+// singular decoded inst output from decode stage
+instruction_info_reg_t decoded_inst;
+// says that a instruction is ready for the buffer
+logic valid_inst_flag; 
+
 
 // Circular queue
-logic [394:0] valid_inst_conversion [2];
-assign valid_inst_conversion[0] = valid_inst[0].megaword;
-assign valid_inst_conversion[1] = valid_inst[1].megaword;
+logic [266:0] valid_inst_conversion [2];
+// Flipped to ensure the oldest instruction is the head of the queue
+assign valid_inst_conversion[0] = valid_inst[1].megaword;
+assign valid_inst_conversion[1] = valid_inst[0].megaword;
 
 // Test logic to read out. To be removed
 logic pop_queue;
@@ -53,8 +60,24 @@ always_ff @(posedge clk) begin
         pop_queue <= 1'b0;
 end
 
-circular_queue #(.WIDTH(395)) cq(.clk(clk), .rst(rst), .full(inst_queue_full), .in(valid_inst_conversion),
-                 .push(valid_buffer_flag), .pop(pop_queue), .empty(empty));
+// Dummy signals, to be removed
+logic dummy_dmem_resp;
+logic [31:0] dummy_dmem_data;
+logic [1:0] dummy [2];
+logic [266:0] dummy_reg [2];
+assign dummy_dmem_resp = dmem_resp;
+assign dummy_dmem_data = dmem_rdata;
+assign dummy[0] = '0;
+assign dummy[1] = '0;
+assign dummy_reg[0] = '0;
+assign dummy_reg[1] = '0;
+// Dummy assign 
+assign dmem_addr = '0;
+assign dmem_wdata = '0;
+
+circular_queue #(.WIDTH(267)) cq(.clk(clk), .rst(rst), .full(inst_queue_full), .in(valid_inst_conversion),
+                 .push(valid_buffer_flag), .pop(pop_queue), .empty(empty),
+                 .out_bitmask('0), .in_bitmask('0), .reg_select_in(dummy), .reg_select_out(dummy), .reg_in(dummy_reg));
 
 // Temporary 
 assign dmem_rmask = 4'b0;
@@ -62,7 +85,6 @@ assign dmem_wmask = 4'b0;
 
 ///////////////////// INSTRUCTION FETCH (SIMILAR TO MP2) /////////////////////
 
-fetch_output_reg_t if_id_reg, if_id_reg_next;
 
 fetch_stage fetch_stage_i (
     .clk(clk), 
@@ -72,13 +94,6 @@ fetch_stage fetch_stage_i (
     .branch_pc('0), // Change thveribleis later
     .fetch_output(if_id_reg_next)    
 );
-
-// singular decoded inst output from decode stage
-instruction_info_reg_t decoded_inst;
-// two valid instructions for superscalar
-instruction_info_reg_t valid_inst[2];
-// says that a instruction is ready for the buffer
-logic valid_inst_flag; 
 
 id_stage id_stage_i (
     .fetch_output(if_id_reg),

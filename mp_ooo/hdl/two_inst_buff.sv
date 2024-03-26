@@ -39,9 +39,13 @@ always_ff @ (posedge clk) begin
 end
 
 always_comb begin
-    valid_inst = '0; 
    if(valid_out) 
        valid_inst = buffer;
+   else begin
+       for(int i = 0; i < 2; i++) begin
+            valid_inst[i] = '0;
+       end
+   end
 end
 
 endmodule : two_inst_buff
