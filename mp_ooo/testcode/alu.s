@@ -54,6 +54,8 @@ halt:                 # Infinite loop to keep the processor
     beq x0, x0, halt  # from trying to execute the data below.
                       # Your own programs should also make use
                       # of an infinite loop at the end.
+    
+    slti x0, x0, -256 # this is the magic instruction to end the simulation
 
 .section .rodata
 
