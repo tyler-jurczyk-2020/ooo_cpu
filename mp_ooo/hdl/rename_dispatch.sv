@@ -1,4 +1,4 @@
-// wus up
+// rename/dispatch shit
 module rename_dispatch
 import rv32i_types::*;
 (
@@ -18,6 +18,7 @@ import rv32i_types::*;
     input logic rs_full,
 
 
+////// Output
     // RAT
     output logic modify_rat,
     output logic [5:0] rat_dest [2],
@@ -30,17 +31,15 @@ import rv32i_types::*;
     output logic pop_free_list,
 
     // ROB
-    output logic [5:0] rob_rat_dest [2],
-    output logic [4:0] rob_isa_dest [2]
+    output rob_t updated_rob
 
     // Reservation Station
 );
 
-//
 logic avail_inst;
 always_ff @(posedge clk) begin
     if(rst)
-        avail_inst <= '0;
+        avail_inst <= 1'b0;
     else
         avail_inst <= pop_free_list;
 end
@@ -48,23 +47,21 @@ end
 // Lookup RAT source regs and modify dest reg:
 always_comb begin
     if(avail_inst) begin
-        isa_rs1[0] = instruction[0].internal.rs1_s;
-        isa_rs2[0] = instruction[0].internal.rs2_s;
+        isa_rs1[0] = instruction[0].rs1_s;
+        isa_rs2[0] = instruction[0].rs2_s;
 
-        isa_rs1[1] = instruction[1].internal.rs1_s;
-        isa_rs2[1] = instruction[1].internal.rs2_s;
+        isa_rs1[1] = instruction[1].rs1_s;
+        isa_rs2[1] = instruction[1].rs2_s;
 
         rat_dest = free_list_regs;
         modify_rat = 1'b1;
     end
     else begin
-        isa_rs1[0] = 'x;
-        isa_rs2[0] = 'x;
-
-        isa_rs1[1] = 'x;
-        isa_rs2[1] = 'x;
-
-        rat_dest = 'x;
+        for(int i = 0; i < 2; i++) begin
+            isa_rs1[i] = 'x;
+            isa_rs2[i] = 'x;
+            rat_dest[i] = 'x;
+        end
         modify_rat = 1'b0;
     end
 end

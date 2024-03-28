@@ -20,13 +20,15 @@ import rv32i_types::*;
                 data[i] <= '0;
             end
         end else if (regf_we && (rd_s != 5'd0)) begin
-            data[rd_s] <= rd_v;
+            for (int i = 0; i < 2; i++)
+                data[rd_s] <= rd_v[i];
         end
     end
 
     always_comb begin
-        rs1_v = (rs1_s != 5'd0) ? data[rs1_s] : '0;
-        rs2_v = (rs2_s != 5'd0) ? data[rs2_s] : '0;
+        for (int i = 0; i < 2; i++) begin
+            rs1_v[i] = (rs1_s[i] != 5'd0) ? data[rs1_s[i]] : '0;
+            rs2_v[i] = (rs2_s[i] != 5'd0) ? data[rs2_s[i]] : '0;
+        end
     end
-
 endmodule : reg_file

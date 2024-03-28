@@ -1,25 +1,26 @@
 module circular_queue
 import rv32i_types::*;
 #(
+    type QUEUE_TYPE = instruction_info_reg_t,
     parameter WIDTH = 32,
     parameter DEPTH = 4,
     parameter DEPTH_BITS = 2
 )(
     input logic clk, rst,
     input logic push, pop,
-    input logic [WIDTH-1:0] in [2], // Values pushed in
-    input logic [WIDTH-1:0] reg_in [2], // Values used to modify entries
+    input QUEUE_TYPE in [2], // Values pushed in
+    input QUEUE_TYPE reg_in [2], // Values used to modify entries
     input logic [DEPTH_BITS-1:0] reg_select_in [2], reg_select_out [2],
     input logic [1:0] in_bitmask, out_bitmask,
 
     // Need to consider potentially how partial pushes/pops may work in superscalar context
     output logic empty,
     output logic full,
-    output logic [WIDTH-1:0] out [2], // Values pushed out
-    output logic [WIDTH-1:0] reg_out [2] // Values selected to be observed
+    output QUEUE_TYPE out [2], // Values pushed out
+    output QUEUE_TYPE reg_out [2] // Values selected to be observed
 );
 
-logic [WIDTH-1:0] entries [DEPTH];
+QUEUE_TYPE entries [DEPTH];
 logic [DEPTH_BITS:0] head, tail, head_next, tail_next; // One bit to differentiate between full/empty
 logic [31:0] sext_head, sext_tail, sext_amount;
 

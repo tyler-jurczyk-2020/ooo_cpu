@@ -42,12 +42,7 @@ instruction_info_reg_t decoded_inst;
 logic valid_inst_flag;
 
 
-// Circular queue
-logic [266:0] valid_inst_conversion [2];
 // Flipped to ensure the oldest instruction is the head of the queue
-assign valid_inst_conversion[0] = valid_inst[1].megaword;
-assign valid_inst_conversion[1] = valid_inst[0].megaword;
-
 logic pop_queue;
 logic inst_q_empty;
 
@@ -55,7 +50,7 @@ logic inst_q_empty;
 logic dummy_dmem_resp;
 logic [31:0] dummy_dmem_data;
 logic [1:0] dummy [2];
-logic [266:0] dummy_reg [2];
+instruction_info_reg_t dummy_reg [2];
 assign dummy_dmem_resp = dmem_resp;
 assign dummy_dmem_data = dmem_rdata;
 assign dummy[0] = '0;
@@ -69,27 +64,29 @@ assign dmem_wdata = '0;
 // Instruction Queue:
 instruction_info_reg_t instruction [2];
 logic pop_inst_q;
-circular_queue #(.WIDTH(267)) instruction_queue(.clk(clk), .rst(rst),
-                 .full(inst_queue_full), .in(valid_inst_conversion),
+circular_queue instruction_queue(.clk(clk), .rst(rst), // Defaults to instruction queue type
+                 .full(inst_queue_full), .in(valid_inst),
                  .out(instruction),
                  .push(valid_buffer_flag), .pop(pop_inst_q), .empty(inst_q_empty),
                  .out_bitmask('0), .in_bitmask('0), .reg_select_in(dummy), .reg_select_out(dummy), .reg_in(dummy_reg));
 
 // Free List:
-logic [5:0] free_list_regs[2]
+free_list_t free_list_regs[2];
 logic pop_free_list;
-circular_queue #(.WIDTH(6)) free_list(.clk(clk), .rst(rst), .push(),
-                  .out(free_list_out), .pop(pop_free_list));
+circular_queue #(.QUEUE_TYPE(free_list_t)) free_list(.clk(clk), .rst(rst), .push(),
+                  .out(free_list_regs), .pop(pop_free_list));
 
-// Rename/Dispatch
-rename_dispatch rd(.*);
+// Rename/Dispatch:
+rename_dispatch rd();
 
-// Temporary
+// Reservation Station: 
+reservation rs();
+
+// Temporary:
 assign dmem_rmask = 4'b0;
 assign dmem_wmask = 4'b0;
 
 ///////////////////// INSTRUCTION FETCH (SIMILAR TO MP2) /////////////////////
-
 
 fetch_stage fetch_stage_i (
     .clk(clk),
@@ -165,7 +162,5 @@ assign mem_rmask = '0;
 assign mem_wmask = '0;
 assign mem_rdata = '0;
 assign mem_wdata = '0;
-
-
 
 endmodule : cpu

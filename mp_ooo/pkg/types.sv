@@ -64,16 +64,14 @@ package rv32i_types;
         alu_and = 3'b111
     } alu_ops;
 
-    typedef union packed {
-        logic [266:0] megaword;
-        struct packed {
+    typedef struct packed {
             logic   [2:0]   funct3;
             logic   [6:0]   funct7;
             logic   [6:0]   opcode;
             logic   [4:0]   rs1_s;
             logic   [4:0]   rs2_s;
             logic   [4:0]   rd_s;
-
+            
             logic [2:0] alu_operation;
             logic [2:0] cmp_operation;
             logic alu_en;
@@ -89,9 +87,10 @@ package rv32i_types;
             logic   [31:0]  u_imm;
             logic   [31:0]  j_imm;
 
+            logic [31:0] inst;
+
             logic [31:0] pc_curr;
             logic [31:0] pc_next;
-        } internal;
     } instruction_info_reg_t;
 
     // Add more things here . . .
@@ -100,6 +99,40 @@ package rv32i_types;
         // For rvfi purposes (fetch_pc_curr + 4)
         logic [31:0] fetch_pc_next; 
     } fetch_output_reg_t;
+
+    typedef struct packed {
+        // ROB id
+        logic [7:0] rob_id;
+        // Commit
+        logic commit;
+        // Opcode
+        logic [6:0] opcode;
+        // RAT regs
+        logic [5:0] rat_rs1, rat_rs2, rat_dest;
+        // ISA regs
+        logic [4:0] isa_rs1, isa_rs2;
+    } rob_t;
+
+    typedef struct packed {
+        // ROB id
+        logic [7:0] rob_id;
+        // Opcode
+        logic   [6:0]   opcode;
+        // Functional Unit info
+        logic [2:0] alu_operation;
+        logic [2:0] cmp_operation;
+        // RAT regs
+        logic   [5:0]   rat_rs1, rat_rs2, rat_rd;
+        
+        logic   [31:0]  i_imm;
+        logic   [31:0]  s_imm;
+        logic   [31:0]  b_imm;
+        logic   [31:0]  u_imm;
+        logic   [31:0]  j_imm;
+
+    } reservation_station_t;
+
+    typedef logic [7:0] free_list_t;
 
 
 endpackage
