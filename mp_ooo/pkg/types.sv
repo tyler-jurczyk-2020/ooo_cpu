@@ -55,7 +55,7 @@ package rv32i_types;
 
     typedef enum bit [2:0] {
         alu_add = 3'b000,
-        alu_sll = 3'b001,
+        alu_sll = 3'b001, 
         alu_sra = 3'b010,
         alu_sub = 3'b011,
         alu_xor = 3'b100,
@@ -72,16 +72,16 @@ package rv32i_types;
             logic   [6:0]   opcode;
             logic   [4:0]   rs1_s;
             logic   [4:0]   rs2_s;
-            logic   [4:0]   rd_s;   
+            logic   [4:0]   rd_s;
 
-            logic [2:0] alu_operation; 
-            logic [2:0] cmp_operation; 
-            logic alu_en; 
-            logic cmp_en; 
+            logic [2:0] alu_operation;
+            logic [2:0] cmp_operation;
+            logic alu_en;
+            logic cmp_en;
 
-            logic is_branch; 
-            logic is_jump; 
-            bit valid; 
+            logic is_branch;
+            logic is_jump;
+            bit valid;
 
             logic   [31:0]  i_imm;
             logic   [31:0]  s_imm;
@@ -89,7 +89,7 @@ package rv32i_types;
             logic   [31:0]  u_imm;
             logic   [31:0]  j_imm;
 
-            logic [31:0] pc_curr; 
+            logic [31:0] pc_curr;
             logic [31:0] pc_next;
         } internal;
     } instruction_info_reg_t;

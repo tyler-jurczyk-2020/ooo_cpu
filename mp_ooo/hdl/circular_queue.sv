@@ -3,10 +3,10 @@ import rv32i_types::*;
 #(
     parameter WIDTH = 32,
     parameter DEPTH = 4,
-    parameter DEPTH_BITS = 2 
+    parameter DEPTH_BITS = 2
 )(
     input logic clk, rst,
-    input logic push, pop, 
+    input logic push, pop,
     input logic [WIDTH-1:0] in [2], // Values pushed in
     input logic [WIDTH-1:0] reg_in [2], // Values used to modify entries
     input logic [DEPTH_BITS-1:0] reg_select_in [2], reg_select_out [2],

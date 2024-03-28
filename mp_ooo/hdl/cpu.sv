@@ -30,16 +30,16 @@ import rv32i_types::*;
 
 ///////////////////// INSTRUCTION QUEUE /////////////////////
 
-logic inst_queue_full; 
+logic inst_queue_full;
 // says that two instructions are ready for the instruction queue
-logic valid_buffer_flag; 
+logic valid_buffer_flag;
 fetch_output_reg_t if_id_reg, if_id_reg_next;
 // two valid instructions for superscalar
 instruction_info_reg_t valid_inst[2];
 // singular decoded inst output from decode stage
 instruction_info_reg_t decoded_inst;
 // says that a instruction is ready for the buffer
-logic valid_inst_flag; 
+logic valid_inst_flag;
 
 
 // Circular queue
@@ -48,17 +48,8 @@ logic [266:0] valid_inst_conversion [2];
 assign valid_inst_conversion[0] = valid_inst[1].megaword;
 assign valid_inst_conversion[1] = valid_inst[0].megaword;
 
-// Test logic to read out. To be removed
 logic pop_queue;
-logic empty;
-always_ff @(posedge clk) begin
-    if(rst)
-        pop_queue <= 1'b0;
-    else if(inst_queue_full && ~empty)
-        pop_queue <= 1'b1;
-    else
-        pop_queue <= 1'b0;
-end
+logic inst_q_empty;
 
 // Dummy signals, to be removed
 logic dummy_dmem_resp;
@@ -75,11 +66,25 @@ assign dummy_reg[1] = '0;
 assign dmem_addr = '0;
 assign dmem_wdata = '0;
 
-circular_queue #(.WIDTH(267)) cq(.clk(clk), .rst(rst), .full(inst_queue_full), .in(valid_inst_conversion),
-                 .push(valid_buffer_flag), .pop(pop_queue), .empty(empty),
+// Instruction Queue:
+instruction_info_reg_t instruction [2];
+logic pop_inst_q;
+circular_queue #(.WIDTH(267)) instruction_queue(.clk(clk), .rst(rst),
+                 .full(inst_queue_full), .in(valid_inst_conversion),
+                 .out(instruction),
+                 .push(valid_buffer_flag), .pop(pop_inst_q), .empty(inst_q_empty),
                  .out_bitmask('0), .in_bitmask('0), .reg_select_in(dummy), .reg_select_out(dummy), .reg_in(dummy_reg));
 
-// Temporary 
+// Free List:
+logic [5:0] free_list_regs[2]
+logic pop_free_list;
+circular_queue #(.WIDTH(6)) free_list(.clk(clk), .rst(rst), .push(),
+                  .out(free_list_out), .pop(pop_free_list));
+
+// Rename/Dispatch
+rename_dispatch rd(.*);
+
+// Temporary
 assign dmem_rmask = 4'b0;
 assign dmem_wmask = 4'b0;
 
@@ -87,12 +92,12 @@ assign dmem_wmask = 4'b0;
 
 
 fetch_stage fetch_stage_i (
-    .clk(clk), 
-    .rst(rst), 
+    .clk(clk),
+    .rst(rst),
     .predict_branch('0), // Change this later
-    .stall_inst(inst_queue_full), 
+    .stall_inst(inst_queue_full),
     .branch_pc('0), // Change thveribleis later
-    .fetch_output(if_id_reg_next)    
+    .fetch_output(if_id_reg_next)
 );
 
 id_stage id_stage_i (
