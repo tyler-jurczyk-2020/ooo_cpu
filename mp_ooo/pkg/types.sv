@@ -111,6 +111,8 @@ package rv32i_types;
         logic [5:0] rat_rs1, rat_rs2, rat_dest;
         // ISA regs
         logic [4:0] isa_rs1, isa_rs2;
+        // Free Phys Reg to be
+        logic [7:0] coming_free_reg; 
     } rob_t;
 
     typedef struct packed {
@@ -124,13 +126,22 @@ package rv32i_types;
         // RAT regs
         logic   [5:0]   rat_rs1, rat_rs2, rat_rd;
         
-        logic   [31:0]  i_imm;
-        logic   [31:0]  s_imm;
-        logic   [31:0]  b_imm;
-        logic   [31:0]  u_imm;
-        logic   [31:0]  j_imm;
+        instruction_info_reg_t inst; 
+
+        // Bookkeeping
+        logic R_rs1; 
+        logic R_rs2; 
+        logic [7:0] rs1_source; 
+        logic [7:0] rs2_source; 
 
     } reservation_station_t;
+
+    typedef struct packed {
+        // ROB id
+        
+        
+
+    } reservation_bookkeeping_t;
 
     typedef logic [7:0] free_list_t;
 

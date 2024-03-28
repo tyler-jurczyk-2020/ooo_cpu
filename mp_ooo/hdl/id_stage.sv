@@ -40,11 +40,14 @@ module id_stage
         instruction_info.rs2_s = rs2_s; 
         instruction_info.rd_s = rd_s; 
         instruction_info.valid = '0; 
+        // Replace immediate with one immediate 
         instruction_info.i_imm = i_imm;
         instruction_info.s_imm = s_imm;
         instruction_info.b_imm = b_imm;
         instruction_info.u_imm = u_imm;
         instruction_info.j_imm = j_imm;
+        // add signal for if rs1 or rs2 is needed. 
+
         instruction_info.alu_en = '1; 
         instruction_info.cmp_en = '1;  
         instruction_info.is_branch = '0;  
