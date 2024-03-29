@@ -58,16 +58,119 @@ assign dummy_reg[0] = '0;
 assign dummy_reg[1] = '0;
 // Dummy assign 
 assign dmem_addr = '0;
-assign dmem_wdata = '0;
+assign dmem_wdata = '0;////////////////// INSTRUCTION FETCH (SIMILAR TO MP2) ///////
 
 // Instruction Queue:
 instruction_info_reg_t instruction [SS];
 logic inst_q_empty, pop_inst_q;
-circular_queue #(.SS(SS)) instruction_queue(.clk(clk), .rst(rst), // Defaults to instruction queue type
+circular_queue #(.SS(SS)) instruction_queue
+                (.clk(clk), .rst(rst), // Defaults to instruction queue type
                  .full(inst_queue_full), .in(valid_inst),
                  .out(instruction),
                  .push(valid_buffer_flag), .pop(pop_inst_q), .empty(inst_q_empty),
                  .out_bitmask('0), .in_bitmask('0), .reg_select_in(dummy), .reg_select_out(dummy), .reg_in(dummy_reg));
+
+///////////////////// INSTRUCTION FETCH (SIMILAR TO MP2) /////////////////////
+
+fetch_stage fetch_stage_i (
+    .clk(clk),
+    .rst(rst),
+    .predict_branch('0), // Change this later
+    .stall_inst(inst_queue_full),
+    .branch_pc('0), // Change the variables later
+    .fetch_output(if_id_reg_next)
+);
+
+id_stage id_stage_i (
+    .fetch_output(if_id_reg),
+    // this is all ur fault J soumil u r slow
+    // watch the fucking lectures u actual cocksucker imma touch u imma still touch u 
+    .imem_rdata(imem_rdata),
+    .instruction_info(decoded_inst)
+);
+
+two_inst_buff buff (
+    .clk(clk), 
+    .rst(rst), 
+    .valid(valid_inst_flag), 
+    .decoded_inst(decoded_inst), 
+    .valid_inst(valid_inst), 
+    .valid_out(valid_buffer_flag)
+);
+
+always_ff @(posedge clk) begin
+    if(imem_resp && ~inst_queue_full)
+        if_id_reg <= if_id_reg_next;
+end
+
+always_comb begin
+    if(imem_resp && ~inst_queue_full)
+        valid_inst_flag = 1'b1;
+    else
+        valid_inst_flag = 1'b0;
+end
+
+assign imem_rmask = '1;
+assign imem_addr = if_id_reg_next.fetch_pc_curr;
+
+///////////////////// CCCDDDBBB /////////////////////
+// MODULE INPUTS DECLARATION 
+
+// MODULE OUTPUT DECLARATION
+
+// MODULE INSTANTIATION
+
+
+// CYCLE 1
+///////////////////// RENAME/DISPATCH /////////////////////
+// MODULE INPUTS DECLARATION 
+
+// MODULE OUTPUT DECLARATION
+
+// MODULE INSTANTIATION
+
+// CYCLE 1 (UTILIZED IN CYCLE 1)
+///////////////////// FREE LISTS /////////////////////
+// MODULE INPUTS DECLARATION 
+
+// MODULE OUTPUT DECLARATION
+
+// MODULE INSTANTIATION
+
+// CYCLE 1 (UTILIZED IN CYCLE 1)
+///////////////////// ISSUE: PHYSICAL REGISTER FILE /////////////////////
+// MODULE INPUTS DECLARATION 
+
+// MODULE OUTPUT DECLARATION
+
+// MODULE INSTANTIATION
+
+// CYCLE 2 (WRITTEN TO IN CYCLE 1)
+///////////////////// ISSUE: ROB /////////////////////
+// MODULE INPUTS DECLARATION 
+
+// MODULE OUTPUT DECLARATION
+
+// MODULE INSTANTIATION
+
+// CYCLE 2 (WRITTEN TWO BY OTHER ELEMENT IN CYCLE 2) (CYCLE 2 TAKES MULTIPLE CLK CYCLES)
+///////////////////// ISSUE: RESERVATION STATIONS /////////////////////
+// MODULE INPUTS DECLARATION 
+
+// MODULE OUTPUT DECLARATION
+
+// MODULE INSTANTIATION
+
+// CYCLE 3
+///////////////////// EXECUTE: FUNCTIONAL UNITS /////////////////////
+// MODULE INPUTS DECLARATION 
+
+// MODULE OUTPUT DECLARATION
+
+// MODULE INSTANTIATION
+
+
+
 
 // Free List:
 free_list_t free_list_regs[SS];
@@ -114,49 +217,6 @@ rob #(.SS(SS)) rb(.cdb(rs_entries), .rob_entry(rob_entry));
 // Temporary:
 assign dmem_rmask = 4'b0;
 assign dmem_wmask = 4'b0;
-
-///////////////////// INSTRUCTION FETCH (SIMILAR TO MP2) /////////////////////
-
-fetch_stage fetch_stage_i (
-    .clk(clk),
-    .rst(rst),
-    .predict_branch('0), // Change this later
-    .stall_inst(inst_queue_full),
-    .branch_pc('0), // Change thveribleis later
-    .fetch_output(if_id_reg_next)
-);
-
-id_stage id_stage_i (
-    .fetch_output(if_id_reg),
-    // this is all ur fault J soumil u r slow
-    // watch the fucking lectures u actual cocksucker imma touch u imma still touch u 
-    .imem_rdata(imem_rdata),
-    .instruction_info(decoded_inst)
-);
-
-two_inst_buff buff (
-    .clk(clk), 
-    .rst(rst), 
-    .valid(valid_inst_flag), 
-    .decoded_inst(decoded_inst), 
-    .valid_inst(valid_inst), 
-    .valid_out(valid_buffer_flag)
-);
-
-always_ff @(posedge clk) begin
-    if(imem_resp && ~inst_queue_full)
-        if_id_reg <= if_id_reg_next;
-end
-
-always_comb begin
-    if(imem_resp && ~inst_queue_full)
-        valid_inst_flag = 1'b1;
-    else
-        valid_inst_flag = 1'b0;
-end
-
-assign imem_rmask = '1;
-assign imem_addr = if_id_reg_next.fetch_pc_curr;
 
 //RVFI Signals
 logic           valid;

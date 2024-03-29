@@ -133,7 +133,16 @@ package rv32i_types;
        rvfi_t rvfi; 
        instruction_info_reg_t inst;
        rat_t rat;
-    } reservation_station_t;
+       logic rs1_met; 
+       logic rs2_met; 
+       logic [ROB_DEPTH-1:0] rs1_source; 
+       logic [ROB_DEPTH-1:0] rs2_source; 
+    } dispatch_reservation_t;
+
+    typedef struct packed {
+        dispatch_reservation_t reservation_entry; 
+        logic valid; 
+    } reserevation_entry_t; 
     
     typedef struct packed {
         // ROB id
@@ -159,8 +168,10 @@ package rv32i_types;
 
     typedef struct packed {
         logic [31:0] register_value; 
-        logic [7:0] ROB_ID; 
-    } physical_reg_packet; 
+        logic [ROB_DEPTH-1:0] ROB_ID; 
+    } physical_reg_data_t; 
+
+    
 
 
 endpackage
