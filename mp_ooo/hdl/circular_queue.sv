@@ -2,22 +2,22 @@ module circular_queue
 import rv32i_types::*;
 #(
     type QUEUE_TYPE = instruction_info_reg_t,
-    parameter WIDTH = 32,
+    parameter SS = 2,
     parameter DEPTH = 4,
-    parameter DEPTH_BITS = 2
+    parameter DEPTH_BITS = 2 
 )(
     input logic clk, rst,
     input logic push, pop,
-    input QUEUE_TYPE in [2], // Values pushed in
-    input QUEUE_TYPE reg_in [2], // Values used to modify entries
-    input logic [DEPTH_BITS-1:0] reg_select_in [2], reg_select_out [2],
+    input QUEUE_TYPE in [SS], // Values pushed in
+    input QUEUE_TYPE reg_in [SS], // Values used to modify entries
+    input logic [DEPTH_BITS-1:0] reg_select_in [SS], reg_select_out [SS],
     input logic [1:0] in_bitmask, out_bitmask,
 
     // Need to consider potentially how partial pushes/pops may work in superscalar context
     output logic empty,
     output logic full,
-    output QUEUE_TYPE out [2], // Values pushed out
-    output QUEUE_TYPE reg_out [2] // Values selected to be observed
+    output QUEUE_TYPE out [SS], // Values pushed out
+    output QUEUE_TYPE reg_out [SS] // Values selected to be observed
 );
 
 QUEUE_TYPE entries [DEPTH];
@@ -31,8 +31,8 @@ assign sext_head = {{(32-DEPTH_BITS-1){1'b0}}, head[DEPTH_BITS-1:0]}; // Exclude
 assign sext_tail = {{(32-DEPTH_BITS-1){1'b0}}, tail[DEPTH_BITS-1:0]};
 assign sext_amount = 32'h2;
 
-assign head_next = head + {{(DEPTH_BITS-1){1'b0}}, 2'h2};
-assign tail_next = tail + {{(DEPTH_BITS-1){1'b0}}, 2'h2};
+assign head_next = head + {{(DEPTH_BITS-1){1'b0}}, {SS{1'b1}}};
+assign tail_next = tail + {{(DEPTH_BITS-1){1'b0}}, {SS{1'b1}}};
 
 always_ff @(posedge clk) begin
     if(rst) begin
@@ -41,7 +41,7 @@ always_ff @(posedge clk) begin
         for(int i = 0; i < DEPTH; i++) begin
             entries[i] <= '0;
         end
-        for(int i = 0; i < 2; i++) begin
+        for(int i = 0; i < SS; i++) begin
             reg_out[i] <= '0;
         end
     end
@@ -63,7 +63,7 @@ always_ff @(posedge clk) begin
             end
         end
 
-        for(int i = 0; i < 2; i++) begin
+        for(int i = 0; i < SS; i++) begin
             if(in_bitmask[i])
                 entries[reg_select_in[i]] <= reg_in[i];
             if(out_bitmask[i])

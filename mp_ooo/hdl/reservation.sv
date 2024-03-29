@@ -1,8 +1,9 @@
 module reservation
 import rv32i_types::*;
+#(parameter SS = 2)
 (
     // reservation station struct 
-    input reservation_station_t info [2],
+    input reservation_station_t info [SS],
     input logic enable,
     output logic rs_full
 );

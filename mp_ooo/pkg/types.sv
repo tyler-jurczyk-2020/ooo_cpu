@@ -137,7 +137,7 @@ package rv32i_types;
     
     typedef struct packed {
         // ROB id
-        logic [7:0] rob_id;
+        logic [7:0] ROB_ID;
         // Commit
         logic commit;
         // Opcode
@@ -151,6 +151,11 @@ package rv32i_types;
     } rob_t;
         
     typedef logic [7:0] free_list_t;
+
+    typedef struct packed {
+        logic [31:0] register_value; 
+        logic [7:0] ROB_ID; 
+    } physical_reg_packet; 
 
 
 endpackage

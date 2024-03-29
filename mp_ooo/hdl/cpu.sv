@@ -1,5 +1,8 @@
 module cpu
 import rv32i_types::*;
+#(
+    parameter SS = 2
+)
 (
     // Explicit dual port connections when caches are not integrated into design yet (Before CP3)
     input   logic           clk,
@@ -34,8 +37,8 @@ logic inst_queue_full;
 // says that two instructions are ready for the instruction queue
 logic valid_buffer_flag;
 fetch_output_reg_t if_id_reg, if_id_reg_next;
-// two valid instructions for superscalar
-instruction_info_reg_t valid_inst[2];
+// two valid instructions for SS
+instruction_info_reg_t valid_inst[SS];
 // singular decoded inst output from decode stage
 instruction_info_reg_t decoded_inst;
 // says that a instruction is ready for the buffer
@@ -45,8 +48,8 @@ logic valid_inst_flag;
 // Dummy signals, to be removed
 logic dummy_dmem_resp;
 logic [31:0] dummy_dmem_data;
-logic [1:0] dummy [2];
-instruction_info_reg_t dummy_reg [2];
+logic [1:0] dummy [SS];
+instruction_info_reg_t dummy_reg [SS];
 assign dummy_dmem_resp = dmem_resp;
 assign dummy_dmem_data = dmem_rdata;
 assign dummy[0] = '0;
@@ -58,25 +61,25 @@ assign dmem_addr = '0;
 assign dmem_wdata = '0;
 
 // Instruction Queue:
-instruction_info_reg_t instruction [2];
+instruction_info_reg_t instruction [SS];
 logic inst_q_empty, pop_inst_q;
-circular_queue instruction_queue(.clk(clk), .rst(rst), // Defaults to instruction queue type
+circular_queue #(.SS(SS)) instruction_queue(.clk(clk), .rst(rst), // Defaults to instruction queue type
                  .full(inst_queue_full), .in(valid_inst),
                  .out(instruction),
                  .push(valid_buffer_flag), .pop(pop_inst_q), .empty(inst_q_empty),
                  .out_bitmask('0), .in_bitmask('0), .reg_select_in(dummy), .reg_select_out(dummy), .reg_in(dummy_reg));
 
 // Free List:
-free_list_t free_list_regs[2];
+free_list_t free_list_regs[SS];
 logic pop_free_list;
-circular_queue #(.QUEUE_TYPE(free_list_t)) free_list(.clk(clk), .rst(rst), .push('0), .out(free_list_regs), .pop(pop_free_list));
+circular_queue #(.QUEUE_TYPE(free_list_t), .SS(SS)) free_list(.clk(clk), .rst(rst), .push('0), .out(free_list_regs), .pop(pop_free_list));
 
 // RAT Instantiation:
 logic modify_rat;
-logic [5:0] rat_rs1[2], rat_rs2[2], rat_rd[2];
-logic [4:0] isa_rs1[2], isa_rs2[2], isa_rd[2];
+logic [5:0] rat_rs1[SS], rat_rs2[SS], rat_rd[SS];
+logic [4:0] isa_rs1[SS], isa_rs2[SS], isa_rd[SS];
 
-rat rt(.clk(clk), .rst(rst), .regf_we(modify_rat),
+rat #(.SS(SS)) rt(.clk(clk), .rst(rst), .regf_we(modify_rat),
      .rat_rd(rat_rd),
      .isa_rd(isa_rd), .isa_rs1(isa_rs1), .isa_rs2(isa_rs2),
      
@@ -84,11 +87,11 @@ rat rt(.clk(clk), .rst(rst), .regf_we(modify_rat),
      );
 
 // Rename/Dispatch:
-reservation_station_t rs_entries [2];
+reservation_station_t rs_entries [SS];
 rob_t rob_entry;
 logic rs_enable, rs_full;
 
-rename_dispatch rd(.clk(clk), .rst(rst), 
+rename_dispatch #(.SS(SS)) rd(.clk(clk), .rst(rst), 
                    .rat_rs1(rat_rs1), .rat_rs2(rat_rs2),
                    .instruction(instruction),
                    .inst_q_empty(inst_q_empty),
@@ -103,11 +106,10 @@ rename_dispatch rd(.clk(clk), .rst(rst),
                    );
 
 // Reservation Station: 
-reservation rs(.info(rs_entries), .enable(rs_enable), .rs_full(rs_full));
-
+reservation #(.SS(SS)) rs(.info(rs_entries), .enable(rs_enable), .rs_full(rs_full));
 
 // ROB:
-// rob rb(.cdb(rs_entries), .rob_entry(rob_entry));
+rob #(.SS(SS)) rb(.cdb(rs_entries), .rob_entry(rob_entry));
 
 // Temporary:
 assign dmem_rmask = 4'b0;
@@ -126,6 +128,8 @@ fetch_stage fetch_stage_i (
 
 id_stage id_stage_i (
     .fetch_output(if_id_reg),
+    // this is all ur fault J soumil u r slow
+    // watch the fucking lectures u actual cocksucker imma touch u imma still touch u 
     .imem_rdata(imem_rdata),
     .instruction_info(decoded_inst)
 );

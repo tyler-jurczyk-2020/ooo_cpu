@@ -1,11 +1,7 @@
 module two_inst_buff
 import rv32i_types::*;
 #(
-parameter WIDTH = 32,
-parameter DEPTH = 4,
-parameter DEPTH_BITS = 2, 
-parameter SUPERSCALAR = 2,
-parameter SUPERSCALAR_BITS = 1
+    parameter SS = 2
 )
 (
     input logic clk, 
@@ -23,8 +19,8 @@ logic update_output;
 
 always_ff @ (posedge clk) begin
     if(rst) begin
-        buffer[0] <= '0; 
-        buffer[1] <= '0;
+        for(int i = 0; i < SS; i++)
+            buffer[i] <= '0; 
         counter <= '0;  
     end
     else if (valid) begin
@@ -42,7 +38,7 @@ always_comb begin
    if(valid_out) 
        valid_inst = buffer;
    else begin
-       for(int i = 0; i < 2; i++) begin
+       for(int i = 0; i < SS; i++) begin
             valid_inst[i] = '0;
        end
    end
