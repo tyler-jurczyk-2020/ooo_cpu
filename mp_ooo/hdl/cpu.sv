@@ -42,10 +42,6 @@ instruction_info_reg_t decoded_inst;
 logic valid_inst_flag;
 
 
-// Flipped to ensure the oldest instruction is the head of the queue
-logic pop_queue;
-logic inst_q_empty;
-
 // Dummy signals, to be removed
 logic dummy_dmem_resp;
 logic [31:0] dummy_dmem_data;
@@ -63,7 +59,7 @@ assign dmem_wdata = '0;
 
 // Instruction Queue:
 instruction_info_reg_t instruction [2];
-logic pop_inst_q;
+logic inst_q_empty, pop_inst_q;
 circular_queue instruction_queue(.clk(clk), .rst(rst), // Defaults to instruction queue type
                  .full(inst_queue_full), .in(valid_inst),
                  .out(instruction),
@@ -73,14 +69,45 @@ circular_queue instruction_queue(.clk(clk), .rst(rst), // Defaults to instructio
 // Free List:
 free_list_t free_list_regs[2];
 logic pop_free_list;
-circular_queue #(.QUEUE_TYPE(free_list_t)) free_list(.clk(clk), .rst(rst), .push(),
-                  .out(free_list_regs), .pop(pop_free_list));
+circular_queue #(.QUEUE_TYPE(free_list_t)) free_list(.clk(clk), .rst(rst), .push('0), .out(free_list_regs), .pop(pop_free_list));
+
+// RAT Instantiation:
+logic modify_rat;
+logic [5:0] rat_rs1[2], rat_rs2[2], rat_rd[2];
+logic [4:0] isa_rs1[2], isa_rs2[2], isa_rd[2];
+
+rat rt(.clk(clk), .rst(rst), .regf_we(modify_rat),
+     .rat_rd(rat_rd),
+     .isa_rd(isa_rd), .isa_rs1(isa_rs1), .isa_rs2(isa_rs2),
+     
+     .rat_rs1(rat_rs1) , .rat_rs2(rat_rs2)
+     );
 
 // Rename/Dispatch:
-rename_dispatch rd();
+reservation_station_t rs_entries [2];
+rob_t rob_entry;
+logic rs_enable, rs_full;
+
+rename_dispatch rd(.clk(clk), .rst(rst), 
+                   .rat_rs1(rat_rs1), .rat_rs2(rat_rs2),
+                   .instruction(instruction),
+                   .inst_q_empty(inst_q_empty),
+                   .free_list_regs(free_list_regs),
+                   .rs_full(rs_full),
+
+                   .modify_rat(modify_rat), .rat_dest(rat_rd),
+                   .isa_rs1(isa_rs1), .isa_rs2(isa_rs2), .isa_rd(isa_rd),
+                   .pop_inst_q(pop_inst_q), .pop_free_list(pop_free_list),
+                   .updated_rob(rob_entry),
+                   .rs_enable(rs_enable), .rs_entries(rs_entries)
+                   );
 
 // Reservation Station: 
-reservation rs();
+reservation rs(.info(rs_entries), .enable(rs_enable), .rs_full(rs_full));
+
+
+// ROB:
+// rob rb(.cdb(rs_entries), .rob_entry(rob_entry));
 
 // Temporary:
 assign dmem_rmask = 4'b0;

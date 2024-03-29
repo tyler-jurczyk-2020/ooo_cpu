@@ -19,9 +19,11 @@ import rv32i_types::*;
             for (int i = 0; i < 32; i++) begin
                 data[i] <= '0;
             end
-        end else if (regf_we && (rd_s != 5'd0)) begin
-            for (int i = 0; i < 2; i++)
-                data[rd_s] <= rd_v[i];
+        end else if (regf_we) begin
+            for (int i = 0; i < 2; i++) begin
+                if(rd_s[i] != 5'b0)
+                    data[rd_s[i]] <= rd_v[i];
+            end
         end
     end
 

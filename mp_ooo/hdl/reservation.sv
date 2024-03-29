@@ -1,18 +1,12 @@
 module reservation
 import rv32i_types::*;
-#(
-    parameter WIDTH = 32
-)
 (
     // reservation station struct 
     input reservation_station_t info [2],
     input logic enable,
-
-    output logic rs_full,
-    output reservation_station_t updated_info
+    output logic rs_full
 );
 
-reservation_station_t internal_table [WIDTH];
-
+circular_queue #(.QUEUE_TYPE(reservation_station_t)) issue_q(.push(enable), .full(rs_full), .in(info));
 
 endmodule : reservation

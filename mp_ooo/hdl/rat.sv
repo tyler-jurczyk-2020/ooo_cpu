@@ -21,9 +21,11 @@ always_ff @(posedge clk) begin
             data[i] <= '0;
     end
 
-    else if (regf_we && (isa_rd != 5'd0)) begin
-        for (int i = 0; i < 2; i++)
-            data[isa_rd[i]] <= {1'b1, rat_rd[i]};
+    else if (regf_we) begin
+        for (int i = 0; i < 2; i++) begin
+            if(isa_rd[i] != 5'd0)
+                data[isa_rd[i]] <= {1'b1, rat_rd[i]};
+        end
     end
 end
 

@@ -54,6 +54,7 @@ always_ff @(posedge clk) begin
                 end
             end
         end
+        
         else if(pop)  begin
             tail <= tail_next;
             for(int i = 0; i < DEPTH; i++) begin
@@ -65,7 +66,6 @@ always_ff @(posedge clk) begin
         for(int i = 0; i < 2; i++) begin
             if(in_bitmask[i])
                 entries[reg_select_in[i]] <= reg_in[i];
-
             if(out_bitmask[i])
                 reg_out[i] <= entries[reg_select_out[i]];
             else
