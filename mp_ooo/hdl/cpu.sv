@@ -106,7 +106,7 @@ rename_dispatch #(.SS(SS)) rd(.clk(clk), .rst(rst),
                    );
 
 // Reservation Station: 
-reservation #(.SS(SS)) rs(.info(rs_entries), .enable(rs_enable), .rs_full(rs_full));
+reservation #(.SS(SS)) rs(.clk(clk), .rst(rst),.info(rs_entries), .enable(rs_enable), .rs_full(rs_full));
 
 // ROB:
 rob #(.SS(SS)) rb(.cdb(rs_entries), .rob_entry(rob_entry));

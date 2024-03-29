@@ -29,10 +29,10 @@ assign empty = (head == tail);
 
 assign sext_head = {{(32-DEPTH_BITS-1){1'b0}}, head[DEPTH_BITS-1:0]}; // Excludes top bit so queue is indexed properly
 assign sext_tail = {{(32-DEPTH_BITS-1){1'b0}}, tail[DEPTH_BITS-1:0]};
-assign sext_amount = 32'h2;
+assign sext_amount = (2'h1 << (SS - 1));
 
-assign head_next = head + {{(DEPTH_BITS-1){1'b0}}, {SS{1'b1}}};
-assign tail_next = tail + {{(DEPTH_BITS-1){1'b0}}, {SS{1'b1}}};
+assign head_next = head + {{(DEPTH_BITS-1){1'b0}}, (2'h1 << (SS - 1))};
+assign tail_next = tail + {{(DEPTH_BITS-1){1'b0}}, (2'h1 << (SS - 1))};
 
 always_ff @(posedge clk) begin
     if(rst) begin
@@ -55,12 +55,16 @@ always_ff @(posedge clk) begin
             end
         end
         
-        else if(pop)  begin
+        if(pop)  begin
             tail <= tail_next;
             for(int i = 0; i < DEPTH; i++) begin
                 if(unsigned'(i) < sext_tail + sext_amount && unsigned'(i) >= sext_tail)
                     out[unsigned'(i) - sext_tail] <= entries[unsigned'(i)];
             end
+        end
+        else begin
+            for(int i = 0; i < SS; i++)
+                out[i] <= 'x;
         end
 
         for(int i = 0; i < SS; i++) begin
