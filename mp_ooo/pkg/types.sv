@@ -140,9 +140,44 @@ package rv32i_types;
         logic [7:0] rob_id;
         // Commit
         logic commit;
-        reservation_station_t rs;
+        // Opcode
+        logic [6:0] opcode;
+        // RAT regs
+        logic [5:0] rat_rs1, rat_rs2, rat_dest;
+        // ISA regs
+        logic [4:0] isa_rs1, isa_rs2;
+        // Free Phys Reg to be
+        logic [7:0] coming_free_reg; 
     } rob_t;
 
+    typedef struct packed {
+        // ROB id
+        logic [7:0] rob_id;
+        // Opcode
+        logic   [6:0]   opcode;
+        // Functional Unit info
+        logic [2:0] alu_operation;
+        logic [2:0] cmp_operation;
+        // RAT regs
+        logic   [5:0]   rat_rs1, rat_rs2, rat_rd;
+        
+        instruction_info_reg_t inst; 
+
+        // Bookkeeping
+        logic R_rs1; 
+        logic R_rs2; 
+        logic [7:0] rs1_source; 
+        logic [7:0] rs2_source; 
+
+    } reservation_station_t;
+>>>>>>> 6b481abaa1db18513116c4e3bad9e4dd0b3345bd
+
+    typedef struct packed {
+        // ROB id
+        
+        
+
+    } reservation_bookkeeping_t;
 
     typedef logic [7:0] free_list_t;
 
