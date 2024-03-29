@@ -7,6 +7,6 @@ import rv32i_types::*;
     output logic rs_full
 );
 
-circular_queue #(.QUEUE_TYPE(reservation_station_t)) issue_q(.push(enable), .full(rs_full), .in(info));
+circular_queue #(.QUEUE_TYPE(reservation_station_t)) issue_q(.push(enable), .full(rs_full), .in(info)); 
 
 endmodule : reservation
