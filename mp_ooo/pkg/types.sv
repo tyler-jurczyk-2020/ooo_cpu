@@ -149,6 +149,11 @@ package rv32i_types;
         // Free Phys Reg to be
         logic [7:0] coming_free_reg; 
     } rob_t;
+
+    typedef enum logic {
+        ZERO,
+        FREE_LIST 
+    } initialization_t;
         
     typedef logic [7:0] free_list_t;
 
