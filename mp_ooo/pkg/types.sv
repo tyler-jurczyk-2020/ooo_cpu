@@ -171,6 +171,7 @@ package rv32i_types;
         logic [31:0] register_value; 
        // Hardcoded ROB depth so it compiles
         logic [7:0] ROB_ID; 
+        logic dependency; 
     } physical_reg_data_t; 
 
     

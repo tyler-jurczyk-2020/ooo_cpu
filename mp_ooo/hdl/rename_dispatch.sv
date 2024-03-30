@@ -2,43 +2,33 @@
 module rename_dispatch
 import rv32i_types::*;
 #(
-    parameter SS = 2
+    parameter SS = 2,
+    parameter PR_ENTRIES = 64
 )
 (
-////// INPUT:
-    input logic clk, rst,
-    // RAT
-    input logic [5:0] rat_rs1 [SS], rat_rs2 [SS],
-
-    // Instruction Queue
+    input logic clk, 
+    input logic rst,
+    
+    // Flag that new data is coming in to be dispatched
+    input logic pop_inst_q, 
+    // popped instruction(s)
     input instruction_info_reg_t instruction [SS],
-    input logic inst_q_empty,
 
-    // Free List
-    input [5:0] free_list_regs [SS],
+    // architectural registers to get renamed passed to RAT
+    output   logic   isa_rs1 [SS], isa_rs2 [SS],
+    // physical registers from RAT
+    input  logic   [5:0]  rat_rs1 [SS], rat_rs2 [SS], 
 
-    // Reservation Station
-    input logic rs_full,
+    // Get a value from the Free List for Destination Register
+    output pop_free_list, 
+    input [5:0] free_list_regs [SS], 
 
-
-////// Output
-    // RAT
-    output logic modify_rat,
-    output logic [5:0] rat_dest [SS],
-    output logic [4:0] isa_rs1 [SS], isa_rs2 [SS], isa_rd[SS],
-
-    // Instruction Queue
-    output logic pop_inst_q,
-
-    // Free List
-    output logic pop_free_list,
-
-    // ROB
-    output rob_t updated_rob,
-
-    // Reservation Station
-    output logic rs_enable,
-    output dispatch_reservation_t rs_entries [SS]
+    // Get source register dependencies from physical register
+    output [$clog2(PR_ENTRIES)-1:0] sel_pr_rs1 [SS], sel_pr_rs2 [SS]
+    input physical_reg_data_t pr_rs1 [SS], pr_rs2 [SS],
+    
+    output rob_t rob_entry, 
+    output dispatch_reservation_t rs_entries [SS],
 );
 
 logic avail_inst;
@@ -57,6 +47,8 @@ always_comb begin
             isa_rs1[i] = instruction[i].rs1_s;
             isa_rs2[i] = instruction[i].rs2_s;
             isa_rd[i] = instruction[i].rd_s;
+            sel_pr_rs1 = rat_rs1[i];
+            sel_pr_rs2 = rat_rs2[i];
         end
 
         rat_dest = free_list_regs;
@@ -64,7 +56,9 @@ always_comb begin
         
         // Setup entries going to reservation station
         for(int i = 0; i < SS; i++) begin
-            // RVFI setup
+            // ROB ID Setup
+
+            // RVFI Setup
             rs_entries[i].rvfi.valid = instruction[i].valid;
             rs_entries[i].rvfi.order = 64'b0; // Need to put actual order here
             rs_entries[i].rvfi.inst = instruction[i].inst;
@@ -90,6 +84,10 @@ always_comb begin
             rs_entries[i].rat.rs1 = rat_rs1[i];
             rs_entries[i].rat.rs2 = rat_rs2[i];
             rs_entries[i].rat.rd = free_list_regs[i];
+
+            //Depedency Setup
+            rs_entries[i].rs1_met = pr_rs1.dependency;
+            rs_entries[i].rs2_met = pr_rs2.dependency;
         end
     end
     else begin
@@ -103,6 +101,8 @@ always_comb begin
 
         // Setup entries going to reservation station
         for(int i = 0; i < SS; i++) begin 
+                // ROB ID Setup
+                
                 // RVFI setup
                 rs_entries[i].rvfi.valid = 'x; // SOUMIL IS SLOW
                 rs_entries[i].rvfi.order = 'x; // SOUMIL IS SLOW // Need to put actual order here
@@ -129,6 +129,10 @@ always_comb begin
                 rs_entries[i].rat.rs1 = 'x;
                 rs_entries[i].rat.rs2 = 'x;
                 rs_entries[i].rat.rd = 'x;
+
+                //Depedency Setup
+                rs_entries[i].rs1_met = pr_rs1.dependency;
+                rs_entries[i].rs2_met = pr_rs2.dependency;
         end
     end
 end

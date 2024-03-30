@@ -6,7 +6,7 @@ import rv32i_types::*;
     parameter SS = 2,
     parameter DEPTH = 4
 )(
-    input logic clk, rst,
+    input logic clk, rst, 
     input logic push, pop,
     input QUEUE_TYPE in [SS], // Values pushed in
     input QUEUE_TYPE reg_in [SS], // Values used to modify entries
@@ -16,6 +16,7 @@ import rv32i_types::*;
     // Need to consider potentially how partial pushes/pops may work in superscalar context
     output logic empty,
     output logic full,
+    output logic [$clog2(DEPTH)-1:0] head_out, tail_out,
     output QUEUE_TYPE out [SS], // Values pushed out
     output QUEUE_TYPE reg_out [SS] // Values selected to be observed
 );
@@ -23,6 +24,9 @@ import rv32i_types::*;
 QUEUE_TYPE entries [DEPTH];
 logic [$clog2(DEPTH):0] head, tail, head_next, tail_next; // One bit to differentiate between full/empty
 logic [31:0] sext_head, sext_tail, sext_amount;
+
+assign head_out = head[$clog2(DEPTH)-1:0];
+assign tail_out = tail[$clog2(DEPTH)-1:0];
 
 assign full = (head[$clog2(DEPTH)-1:0] == tail[$clog2(DEPTH)-1:0]) && (head[$clog2(DEPTH)] != tail[$clog2(DEPTH)]);
 assign empty = (head == tail);

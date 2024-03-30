@@ -128,6 +128,19 @@ assign imem_addr = if_id_reg_next.fetch_pc_curr;
 // MODULE OUTPUT DECLARATION
 
 // MODULE INSTANTIATION
+rename_dispatch #(.SS(SS), .PR_ENTRIES(PR_ENTRIES)) dispatcher(.clk(clk), .rst(rst), 
+                            .pop_inst_q(pop_inst_q), 
+                            .instruction(instruction), 
+                            .isa_rs1(instruction.rs1_s), 
+                            .isa_rs2(instruction.rs1_s), 
+                            .rat_rs1(rat_rs1), 
+                            .rat_rs2(rat_rs2), 
+                            .pop_free_list(), 
+                            .free_list_regs(), 
+                            .sel_pr_rs1(), 
+                            .sel_pr_rs2(), 
+                            .rob_entry(), 
+                            .rs_entries())
 
 // CYCLE 1 (UTILIZED IN CYCLE 1)
 ///////////////////// FREE LISTS /////////////////////
@@ -136,6 +149,9 @@ assign imem_addr = if_id_reg_next.fetch_pc_curr;
 // MODULE OUTPUT DECLARATION
 
 // MODULE INSTANTIATION
+free_list_t free_list_regs[SS];
+logic pop_free_list;
+circular_queue #(.QUEUE_TYPE(free_list_t), .SS(SS)) free_list(.clk(clk), .rst(rst), .push('0), .out(free_list_regs), .pop(pop_free_list));
 
 // CYCLE 1 (UTILIZED IN CYCLE 1)
 ///////////////////// ISSUE: PHYSICAL REGISTER FILE /////////////////////

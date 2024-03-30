@@ -3,7 +3,8 @@
 module phys_reg_file
 import rv32i_types::*;
 #(
-    parameter SS = 2, // Superscalar 
+    parameter SS = 2, // Superscalar
+    parameter TABLE_ENTRIES = 64,
     parameter ROB_DEPTH = 7
 )
 (
@@ -14,7 +15,7 @@ import rv32i_types::*;
     // We write to the physical register file with the associated ROB
     // when we dispatch a new instruction into the issue stage 
     // ROB ID from the ROB directly
-    input logic [6:0] rd_s_ROB_FU_write_destination [SS], 
+    input logic [$clog2(TABLE_ENTRIES)-1:0] rd_s_ROB_FU_write_destination [SS], 
     input logic [ROB_DEPTH-1:0] ROB_ID_ROB_write_destination [SS], 
     
     // We write to the phys reg file also when we have info from the funct. unit
@@ -27,12 +28,12 @@ import rv32i_types::*;
     input logic write_from_rob, 
 
     // registers we'd like to read from the phys. reg. file for the dispatcher
-    input logic [6:0] rs1_s_dispatch_request [SS], 
-    input logic [6:0] rs2_s_dispatch_request [SS], 
+    input logic [$clog2(TABLE_ENTRIES)-1:0] rs1_s_dispatch_request [SS], 
+    input logic [$clog2(TABLE_ENTRIES)-1:0] rs2_s_dispatch_request [SS], 
     output  physical_reg_data_t source_reg_1 [SS], source_reg_2 [SS]
 );
 
-    physical_reg_data_t  data [64];
+    physical_reg_data_t  data [TABLE_ENTRIES];
 
     always_ff @(posedge clk) begin
         if (rst) begin
@@ -61,7 +62,7 @@ import rv32i_types::*;
     always_comb begin
         for (int i = 0; i < SS; i++) begin
             if (rs1_s_dispatch_request[i] != 5'd0) begin
-                if(write_from_fu && (rs1_s_dispatch_request == rd_s_ROB_FU_write_destination)) begin
+                if(write_from_fu && (rs1_s_dispatch_request[i] == rd_s_ROB_FU_write_destination[i])) begin
                     source_reg_1[i] = rd_v_FU_write_destination[i];
                 end
                 else begin
@@ -70,7 +71,7 @@ import rv32i_types::*;
             end else begin
                 source_reg_1[i] = '0;
             end    
-            if (rs2_s_dispatch_request[i] != 5'd0 && (rs2_s_dispatch_request == rd_s_ROB_FU_write_destination)) begin
+            if (rs2_s_dispatch_request[i] != 5'd0 && (rs2_s_dispatch_request[i] == rd_s_ROB_FU_write_destination[i])) begin
                 if(write_from_fu) begin
                     source_reg_2[i] = rd_v_FU_write_destination[i];
                 end
