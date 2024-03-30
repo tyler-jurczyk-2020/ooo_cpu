@@ -1,7 +1,7 @@
 module dispatcher
     import rv32i_types::*;
     #(
-        parameter SS = 2
+        parameter SS = 2,
         parameter ROB_DEPTH = 8
     )
     (   
@@ -11,7 +11,7 @@ module dispatcher
         // Flag that new data is coming in to be dispatched
         input logic pop_inst_q, 
         // popped instruction(s)
-        input instruction_info_reg_t instruction [SS];
+        input instruction_info_reg_t instruction [SS],
 
         // architectural registers to get renamed passed to RAT
         output   logic   isa_rs1 [SS], isa_rs2 [SS],
@@ -23,10 +23,10 @@ module dispatcher
         input [5:0] free_list_regs [SS], 
 
         // Get source register dependencies from physical register
-        input physical_reg_data_t pir_rs1 [SS], pir_rs2 [SS]
+        input physical_reg_data_t pir_rs1 [SS], pir_rs2 [SS],
         
         output rob_t rob_entry, 
-        output reservation_station_t reserevation_entry
+        output dispatch_reservation_t reserevation_entry
     );
 
     // set up rvfi struct
@@ -54,7 +54,7 @@ module dispatcher
             rvfi.mem_wdata = 'x;
 
             //Instruction setup
-            inst = instruction[i];
+            // inst = instruction[i];
         end
     end
 

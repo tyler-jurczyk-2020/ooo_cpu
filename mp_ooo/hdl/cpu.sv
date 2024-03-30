@@ -190,7 +190,7 @@ rat #(.SS(SS)) rt(.clk(clk), .rst(rst), .regf_we(modify_rat),
      );
 
 // Rename/Dispatch:
-reservation_station_t rs_entries [SS];
+dispatch_reservation_t rs_entries [SS];
 rob_t rob_entry;
 logic rs_enable, rs_full;
 
@@ -209,7 +209,7 @@ rename_dispatch #(.SS(SS)) rd(.clk(clk), .rst(rst),
                    );
 
 // Reservation Station: 
-reservation #(.SS(SS)) rs(.clk(clk), .rst(rst),.info(rs_entries), .enable(rs_enable), .rs_full(rs_full));
+reservation #(.SS(SS)) rs(.clk(clk), .rst(rst),.reservation_entry(rs_entries), .station_full(rs_full));
 
 // ROB:
 rob #(.SS(SS)) rb(.cdb(rs_entries), .rob_entry(rob_entry));

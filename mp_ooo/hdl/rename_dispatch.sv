@@ -38,7 +38,7 @@ import rv32i_types::*;
 
     // Reservation Station
     output logic rs_enable,
-    output reservation_station_t rs_entries [SS]
+    output dispatch_reservation_t rs_entries [SS]
 );
 
 logic avail_inst;

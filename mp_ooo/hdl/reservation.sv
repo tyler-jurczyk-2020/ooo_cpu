@@ -1,21 +1,21 @@
 module reservation
 import rv32i_types::*;
 #(
-    parameter SS = 2;
-    parameter reservation_table_size = 8; 
-    parameter ROB_DEPTH = 8; 
+    parameter SS = 2,
+    parameter reservation_table_size = 8,
+    parameter ROB_DEPTH = 8 
 )
 (
     input logic clk, rst,
     // reservation station struct     
-    input reservation_station_t reservation_entry [SS],
+    input dispatch_reservation_t reservation_entry [SS],
 
     input [ROB_DEPTH-1:0] updated_rob, 
     input logic fu_enable, 
 
-    output reservation_station_t inst_for_fu [SS], 
+    output dispatch_reservation_t inst_for_fu [SS], 
     // inform instruction queue to pause if our reservation table is full. 
-    output station_full
+    output logic station_full
 );
 
 // *could possibly combine reg files. 
@@ -32,6 +32,9 @@ import rv32i_types::*;
 reserevation_entry_t reservation_table[SS][reservation_table_size]; 
 //update size based on reservation table size
 logic [2:0] counter; 
+logic table_full;
+
+assign table_full = 1'b0;
 
 always_ff @ (posedge clk) begin
     if(rst) begin
