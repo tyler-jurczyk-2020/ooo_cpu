@@ -61,7 +61,7 @@ always_comb begin
         // Setup entries going to reservation station
         for(int i = 0; i < SS; i++) begin
             // ROB Setup
-            rs_entries[i].rob.rob_id = rob_id_next[i];
+            rs_entries[i].rob.rob_id = rob_id_next[(SS-1)-i];
             rs_entries[i].rob.commit = 1'b0;
             rs_entries[i].rob.input1_met = pr_rs1[i].dependency;
             rs_entries[i].rob.input2_met = pr_rs2[i].dependency;
@@ -86,7 +86,7 @@ always_comb begin
 
             // RVFI Setup
             rs_entries[i].rvfi.valid = instruction[i].valid;
-            rs_entries[i].rvfi.order = 64'b0; // Need to put actual order here
+            rs_entries[i].rvfi.order = 'x; // Determine order in ROB 
             rs_entries[i].rvfi.inst = instruction[i].inst;
             rs_entries[i].rvfi.rs1_addr = instruction[i].rs1_s;
             rs_entries[i].rvfi.rs2_addr = instruction[i].rs2_s;

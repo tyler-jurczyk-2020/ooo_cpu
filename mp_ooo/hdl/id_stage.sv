@@ -39,7 +39,7 @@ module id_stage
         instruction_info.rs1_s = rs1_s; 
         instruction_info.rs2_s = rs2_s; 
         instruction_info.rd_s = rd_s; 
-        instruction_info.valid = '0; 
+        instruction_info.valid = '1; // Instruction going into instruction queue will always be valid 
         // Replace immediate with one immediate 
         instruction_info.immediate = u_imm; 
 
@@ -80,22 +80,22 @@ module id_stage
                 // using M extension for multiplication:
                 if (funct7 == 7'b0000001)begin
                     case (funct3)
-                        3'b000: begin // mul
-                            instruction_info.is_mul = '1; // this instr is multiplying
+                        3'b000: begin // mul:
+                            instruction_info.is_mul = 1'b1; // this instr is multiplying
                             instruction_info.mul_type = 2'b00; 
                             
                         end
-                        3'b001: begin// mulh (signed * signed)
+                        3'b001: begin// mulh: signed * signed
                             instruction_info.is_mul = '1; // this instr is multiplying
                             instruction_info.mul_type = 2'b01; // signed multiplication
                             
                         end
-                        3'b010: begin// mulhsu (signed * unsigned)
+                        3'b010: begin// mulhsu: signed * unsigned
                             instruction_info.is_mul = '1; // this instr is multiplying
                             instruction_info.mul_type = 2'b10; // mixed un/signed multiplication
                         end
 
-                        3'b011: begin// mulhu (unsigned * unsigned)
+                        3'b011: begin// mulhu: unsigned * unsigned
                             instruction_info.is_mul = '1; // this instr is multiplying
                             instruction_info.mul_type = 2'b11; // unsigned multiplication
                         end
