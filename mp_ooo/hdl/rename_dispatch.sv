@@ -61,7 +61,7 @@ always_comb begin
         // Setup entries going to reservation station
         for(int i = 0; i < SS; i++) begin
             // ROB Setup
-            rs_entries[i].rob.rob_id = rob_id_next[(SS-1)-i];
+            rs_entries[i].rob.rob_id = rob_id_next[i];
             rs_entries[i].rob.commit = 1'b0;
             rs_entries[i].rob.input1_met = pr_rs1[i].dependency;
             rs_entries[i].rob.input2_met = pr_rs2[i].dependency;
