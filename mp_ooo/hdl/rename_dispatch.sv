@@ -90,6 +90,8 @@ always_comb begin
             //Depedency Setup
             rs_entries[i].rs1_met = pr_rs1[i].dependency;
             rs_entries[i].rs2_met = pr_rs2[i].dependency;
+            rs_entries[i].rs1_source = pr_rs1[i].ROB_ID;
+            rs_entries[i].rs2_source = pr_rs2[i].ROB_ID;
         end
     end
     else begin

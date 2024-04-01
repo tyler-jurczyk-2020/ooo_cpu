@@ -161,7 +161,8 @@ rename_dispatch #(.SS(SS)) rd(.clk(clk), .rst(rst),
 // MODULE OUTPUT DECLARATION
 
 // MODULE INSTANTIATION
-circular_queue #(.QUEUE_TYPE(logic [5:0]), .SS(SS)) free_list(.clk(clk), .rst(rst), .push('0), .out(free_list_regs), .pop(pop_inst_q));
+circular_queue #(.QUEUE_TYPE(logic [5:0]), .INIT_TYPE(FREE_LIST), .DEPTH(64), .SS(SS))
+free_list(.clk(clk), .rst(rst), .push('0), .out(free_list_regs), .pop(pop_inst_q));
 
 // CYCLE 1 (UTILIZED IN CYCLE 1)
 ///////////////////// ISSUE: PHYSICAL REGISTER FILE /////////////////////

@@ -129,16 +129,11 @@ package rv32i_types;
     } rvfi_t;
 
     typedef struct packed {
-       logic [7:0] rob_id;
+       rob_t rob;
        rvfi_t rvfi; 
        instruction_info_reg_t inst;
        rat_t rat;
-       logic rs1_met; 
-       logic rs2_met; 
-       // Hardcoded ROB depth so it compiles
-       logic [7:0] rs1_source; 
-       logic [7:0] rs2_source; 
-    } dispatch_reservation_t;
+       } dispatch_reservation_t;
 
     typedef struct packed {
         dispatch_reservation_t reservation_entry; 
@@ -146,18 +141,14 @@ package rv32i_types;
     } reserevation_entry_t; 
     
     typedef struct packed {
-        // ROB id
-        logic [7:0] ROB_ID;
-        // Commit
-        logic commit;
-        // Opcode
-        logic [6:0] opcode;
-        // RAT regs
-        logic [5:0] rat_rs1, rat_rs2, rat_dest;
-        // ISA regs
-        logic [4:0] isa_rs1, isa_rs2;
-        // Free Phys Reg to be
-        logic [7:0] coming_free_reg; 
+       logic [7:0] rob_id;
+       logic commit;
+       logic rs1_met; 
+       logic rs2_met; 
+       // Hardcoded ROB depth so it compiles
+       // ROB entries to refer to for dependency
+       logic [7:0] rs1_source; 
+       logic [7:0] rs2_source; 
     } rob_t;
 
     typedef enum logic {
