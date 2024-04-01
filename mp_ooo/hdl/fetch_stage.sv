@@ -7,6 +7,7 @@ module fetch_stage
         input logic predict_branch, 
         // If for any reason we have to stall feeding the instruction queue
         input logic stall_inst,
+        input logic imem_resp, 
         // Our new PC if we have to branch 
         input logic [31:0] branch_pc, 
         // PC to fetch
@@ -20,7 +21,7 @@ module fetch_stage
             pc_reg <= 32'h60000000;
         end
         // if you are not stalling
-        if(~stall_inst) begin
+        if(~stall_inst && imem_resp) begin
             // if you are not branching
             if(~predict_branch) begin
                 pc_reg <= pc_reg + 32'd4; 

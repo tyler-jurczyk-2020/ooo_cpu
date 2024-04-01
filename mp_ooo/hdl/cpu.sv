@@ -77,9 +77,10 @@ fetch_stage fetch_stage_i (
     .clk(clk),
     .rst(rst),
     .predict_branch('0), // Change this later
-    .stall_inst(inst_queue_full),
-    .branch_pc('0), // Change the variables later
-    .fetch_output(if_id_reg_next)
+    .stall_inst(inst_queue_full), 
+    .imem_resp(imem_resp), 
+    .branch_pc('0), // Change thveribleis later
+    .fetch_output(if_id_reg_next)    
 );
 
 id_stage id_stage_i (

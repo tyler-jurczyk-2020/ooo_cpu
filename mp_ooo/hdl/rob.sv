@@ -8,7 +8,7 @@ module rob
         input clk,
         input rst, 
         // dispatched instructions
-        input logic  ,
+        input logic avail_inst,
         input dispatch_reservation_t dispatch_info [SS],
     
     ////// OUTPUTS:
@@ -37,7 +37,6 @@ module rob
         // Dispatch:
         for(int i = 0; i < SS; i++)begin
             // setting up to read the first SS entries in the rob
-            // inspect_queue[i] = i; // Don't really know what this does
             pop_from_rob &= inspect_queue[i].rob.commit && !rob_empty; //pop from queue if instr at the head is ready to commit
             rob_id_next[i] = head + i[$clog2(ROB_DEPTH)-1:0];
 
