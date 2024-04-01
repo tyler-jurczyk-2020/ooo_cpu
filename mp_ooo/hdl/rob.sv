@@ -19,7 +19,7 @@ import rv32i_types::*;
     output logic [SS-1:0] rob_empty,
 
 ////// OUTPUTS:
-    // when to update regfile
+    // when to update regfile dependency bit
     output logic [SS-1:0] regfile_update_en,
     // rob id are sent out
     output logic [$clog2(ROB_DEPTH)-1:0] rob_id_out[SS],
@@ -62,7 +62,7 @@ always_ff @(posedge clk)begin
                 rob_dest_reg[i] <= dest_reg[i]; // Need to get PR not ISA reg
             end
             else
-                regfile_update_en <= '0;
+                regfile_update_en[i] <= '0;
         end
 
 
