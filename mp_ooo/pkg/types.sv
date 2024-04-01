@@ -71,14 +71,22 @@ package rv32i_types;
             logic   [4:0]   rs1_s;
             logic   [4:0]   rs2_s;
             logic   [4:0]   rd_s;
+            logic   [31:0]  immediate; 
             
             logic [2:0] alu_operation;
             logic [2:0] cmp_operation;
+            // type of multiplication operation
+            logic [2:0] mul_type;
+            
             logic alu_en;
             logic cmp_en;
 
             logic is_branch;
             logic is_jump;
+
+            // to let shift_add_multiplier know we multiplyin
+            logic is_mul;
+
             bit valid;
 
             logic   [31:0]  i_imm;
@@ -91,6 +99,14 @@ package rv32i_types;
 
             logic [31:0] pc_curr;
             logic [31:0] pc_next;
+
+            logic reg_status; 
+
+            logic op1_is_imm; 
+            logic op2_is_imm; 
+            logic rs1_needed; 
+            logic rs2_needed; 
+
     } instruction_info_reg_t;
 
     // Add more things here . . .
@@ -131,8 +147,8 @@ package rv32i_types;
     typedef struct packed {
        logic [7:0] rob_id;
        logic commit;
-       logic rs1_met; 
-       logic rs2_met; 
+       logic input1_met; 
+       logic input2_met; 
        // Hardcoded ROB depth so it compiles
        // ROB entries to refer to for dependency
        logic [7:0] rs1_source; 
@@ -162,5 +178,19 @@ package rv32i_types;
         logic [7:0] ROB_ID; 
         logic dependency; 
     } physical_reg_data_t; 
+
+    typedef struct packed {
+        // get entry from reservation station
+        reserevation_entry_t inst_info; 
+
+        // signal to begin calculation 
+        logic start_calculate; 
+    } fu_input_t; 
+
+    typedef struct packed {
+        reserevation_entry_t inst_info; 
+        logic [31:0] register_value; 
+        logic ready_for_writeback; 
+    } fu_output_t; 
 
 endpackage

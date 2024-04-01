@@ -10,7 +10,7 @@ import rv32i_types::*;
     input logic rst,
     
     // Flag that new data is coming in to be dispatched
-    input logic inst_q_empty,
+    input logic inst_q_popped,
     // popped instruction(s)
     output logic pop_inst_q, 
     input instruction_info_reg_t instruction [SS],
@@ -39,7 +39,7 @@ always_ff @(posedge clk) begin
     if(rst)
         avail_inst <= 1'b0;
     else
-        avail_inst <= pop_inst_q;
+        avail_inst <= inst_q_popped;
 end
 
 // Lookup RAT source regs and modify dest reg:
@@ -53,7 +53,6 @@ always_comb begin
             sel_pr_rs1[i] = rat_rs1[i];
             sel_pr_rs2[i] = rat_rs2[i];
         end
-
         rat_dest = free_list_regs;
         
         // Setup entries going to reservation station
@@ -61,10 +60,26 @@ always_comb begin
             // ROB Setup
             rs_entries[i].rob.rob_id = 'x;
             rs_entries[i].rob.commit = 1'b0;
-            rs_entries[i].rob.rs1_met = pr_rs1[i].dependency;
-            rs_entries[i].rob.rs2_met = pr_rs2[i].dependency;
+            rs_entries[i].rob.input1_met = pr_rs1[i].dependency;
+            rs_entries[i].rob.input2_met = pr_rs2[i].dependency;
             rs_entries[i].rob.rs1_source = pr_rs1[i].ROB_ID;
             rs_entries[i].rob.rs2_source = pr_rs2[i].ROB_ID;
+
+            // if we need rs1, then if there is no dependency then input1 is met
+            // if we need rs1, then if there is a dependency in waiting then input1 is not met
+            // if we don't need rs1, then input1 is met
+            if(instruction[i].rs1_needed) begin
+                rs_entries[i].rob.input1_met = ~pr_rs1[i].dependency; 
+            end
+            else begin
+                rs_entries[i].rob.input1_met = '1;  
+            end
+            if(instruction[i].rs2_needed) begin
+                rs_entries[i].rob.input2_met = ~pr_rs2[i].dependency; 
+            end
+            else begin
+                rs_entries[i].rob.input2_met = '1;  
+            end
 
             // RVFI Setup
             rs_entries[i].rvfi.valid = instruction[i].valid;
@@ -107,8 +122,8 @@ always_comb begin
             // ROB Setup
             rs_entries[i].rob.rob_id = 'x;
             rs_entries[i].rob.commit = 'x;
-            rs_entries[i].rob.rs1_met = 'x;
-            rs_entries[i].rob.rs2_met = 'x;
+            rs_entries[i].rob.input1_met = 'x;
+            rs_entries[i].rob.input2_met = 'x;
             rs_entries[i].rob.rs1_source = 'x;
             rs_entries[i].rob.rs2_source = 'x;
             
@@ -143,6 +158,6 @@ always_comb begin
 end
 
 // Pop from the free list and read from instruction queue:
-assign pop_inst_q = ~inst_q_empty && ~rs_full;
+assign pop_inst_q = ~inst_q_popped && ~rs_full;
 
 endmodule : rename_dispatch

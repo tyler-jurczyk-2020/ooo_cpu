@@ -58,7 +58,7 @@ assign dummy_reg[0] = '0;
 assign dummy_reg[1] = '0;
 // Dummy assign 
 assign dmem_addr = '0;
-assign dmem_wdata = '0;////////////////// INSTRUCTION FETCH (SIMILAR TO MP2) ///////
+assign dmem_wdata = '0;
 
 // Instruction Queue:
 instruction_info_reg_t instruction [SS];
@@ -125,12 +125,11 @@ logic [4:0] isa_rs1[SS], isa_rs2[SS], isa_rd[SS];
 rat #(.SS(SS)) rt(.clk(clk), .rst(rst), .regf_we(), // Need to connect write enable to pop_inst_q?
      .rat_rd(rat_rd),
      .isa_rd(isa_rd), .isa_rs1(isa_rs1), .isa_rs2(isa_rs2),
-     
      .rat_rs1(rat_rs1) , .rat_rs2(rat_rs2)
      );
 
 
-// CYCLE 1
+// CYCLE 0
 ///////////////////// RENAME/DISPATCH /////////////////////
 // MODULE INPUTS DECLARATION 
 logic [5:0] free_list_regs[SS];
@@ -144,17 +143,17 @@ logic rs_full;
 rename_dispatch #(.SS(SS)) rd(.clk(clk), .rst(rst), 
                    .rat_rs1(rat_rs1), .rat_rs2(rat_rs2),
                    .instruction(instruction),
-                   .inst_q_empty(inst_q_empty),
+                   .inst_q_popped(inst_q_popped),
                    .free_list_regs(free_list_regs),
                    .rs_full(rs_full),
 
                    .rat_dest(rat_rd),
                    .isa_rs1(isa_rs1), .isa_rs2(isa_rs2), .isa_rd(isa_rd),
                    .pop_inst_q(pop_inst_q),
-                   .rs_entries(rs_entries)
+                   .rs_entries(rs_entries), 
+                   .pop_free_list(pop_free_list)
                    );
 
-// CYCLE 1 (UTILIZED IN CYCLE 1)
 ///////////////////// FREE LISTS /////////////////////
 // MODULE INPUTS DECLARATION 
 
@@ -164,15 +163,29 @@ rename_dispatch #(.SS(SS)) rd(.clk(clk), .rst(rst),
 circular_queue #(.QUEUE_TYPE(logic [5:0]), .INIT_TYPE(FREE_LIST), .DEPTH(64), .SS(SS))
 free_list(.clk(clk), .rst(rst), .push('0), .out(free_list_regs), .pop(pop_inst_q));
 
-// CYCLE 1 (UTILIZED IN CYCLE 1)
+// CYCLE 1 (UTILIZED IN CYCLE 0)
 ///////////////////// ISSUE: PHYSICAL REGISTER FILE /////////////////////
 // MODULE INPUTS DECLARATION 
 
 // MODULE OUTPUT DECLARATION
+phys_reg_file reg_file (
+    .clk(clk), 
+    .rst(rst), 
+    .regf_we('1), 
+    .rd_s_ROB_FU_write_destination(), 
+    .ROB_ID_ROB_write_destination(), 
+    .rd_v_FU_write_destination(), 
+    .write_from_fu(), 
+    .write_from_rob(), 
+    .rs1_s_dispatch_request(), 
+    .rs2_s_dispatch_request(), 
+    .source_reg_1(), .source_reg_2()); 
+);
+
 
 // MODULE INSTANTIATION
 
-// CYCLE 2 (WRITTEN TO IN CYCLE 1)
+// CYCLE 1 (WRITTEN TO IN CYCLE 0)
 ///////////////////// ISSUE: ROB /////////////////////
 // MODULE INPUTS DECLARATION 
 
@@ -180,7 +193,7 @@ free_list(.clk(clk), .rst(rst), .push('0), .out(free_list_regs), .pop(pop_inst_q
 
 // MODULE INSTANTIATION
 
-// CYCLE 2 (WRITTEN TWO BY OTHER ELEMENT IN CYCLE 2) (CYCLE 2 TAKES MULTIPLE CLK CYCLES)
+// CYCLE 1 (WRITTEN TO BY OTHER ELEMENT IN CYCLE 1) (CYCLE 1 TAKES MULTIPLE CLK CYCLES)
 ///////////////////// ISSUE: RESERVATION STATIONS /////////////////////
 // MODULE INPUTS DECLARATION 
 
@@ -188,7 +201,7 @@ free_list(.clk(clk), .rst(rst), .push('0), .out(free_list_regs), .pop(pop_inst_q
 
 // MODULE INSTANTIATION
 
-// CYCLE 3
+// CYCLE 2
 ///////////////////// EXECUTE: FUNCTIONAL UNITS /////////////////////
 // MODULE INPUTS DECLARATION 
 

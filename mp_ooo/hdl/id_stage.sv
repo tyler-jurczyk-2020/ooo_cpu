@@ -41,12 +41,23 @@ module id_stage
         instruction_info.rd_s = rd_s; 
         instruction_info.valid = '0; 
         // Replace immediate with one immediate 
-        instruction_info.i_imm = i_imm;
-        instruction_info.s_imm = s_imm;
-        instruction_info.b_imm = b_imm;
-        instruction_info.u_imm = u_imm;
-        instruction_info.j_imm = j_imm;
-        // add signal for if rs1 or rs2 is needed. 
+        instruction_info.immediate = u_imm; 
+
+        // add signal for if rs1 and rs2 is needed or not
+        instruction_info.rs1_needed = '1; 
+        instruction_info.rs2_needed = '1; 
+
+        // Add signal on whether operands will be an immediate or not
+        instruction_info.op1_is_imm = '0; 
+        instruction_info.op2_is_imm = '0; 
+
+        // TYPE | OP | (RS1, RS2) NEEDED | (Operand1, Operand2) is immediate or PC
+        // U-Type: neither (umm + 0) (No, No) (Yes, Yes)
+        // R-Type: R1 + R2 (Yes, Yes) (No, No)
+        // I-Type: R1 + imm (Yes, No) (No, Yes)
+        // S-type: R1 + smm => [R2] (Yes, Yes) (No, Yes)
+        // B-Type: CMP R1 & R2, ALU PC + bmm (Yes, Yes) (Yes, Yes)
+        // J-type: neither PC + 4, PC + jmm (No, No) (Yes, Yes)
 
         instruction_info.alu_en = '1; 
         instruction_info.cmp_en = '1;  
@@ -62,38 +73,78 @@ module id_stage
 
         unique case (opcode) 
             op_b_reg : begin 
-                unique case (funct3)  
-                    slt: begin
-                        instruction_info.cmp_operation = blt;
-                        instruction_info.alu_en = 1'b0;
-                    end
-                    sltu: begin
-                        instruction_info.cmp_operation = bltu;
-                        instruction_info.alu_en = 1'b0;
-                    end
-                    sr: begin
-                        if (funct7[5]) begin
-                            instruction_info.alu_operation = alu_sra;
-                        end else begin
-                            instruction_info.alu_operation = alu_srl;
+                instruction_info.rs1_needed = '1; 
+                instruction_info.rs2_needed = '1; 
+                instruction_info.op1_is_imm = '0; 
+                instruction_info.op2_is_imm = '0;
+                // using M extension for multiplication:
+                if (funct7 == 7'b0000001)begin
+                    case (funct3)
+                        3'b000: begin // mul
+                            instruction_info.is_mul = '1; // this instr is multiplying
+                            instruction_info.mul_type = 2'b00; 
+                            
                         end
-                        instruction_info.cmp_operation = funct3; 
-                    end
-                    add: begin
-                        if (funct7[5]) begin
-                            instruction_info.alu_operation = alu_sub;
-                        end else begin
-                            instruction_info.alu_operation = alu_add;
+                        3'b001: begin// mulh (signed * signed)
+                            instruction_info.is_mul = '1; // this instr is multiplying
+                            instruction_info.mul_type = 2'b01; // signed multiplication
+                            
                         end
-                        instruction_info.cmp_operation = funct3; 
-                    end
-                    default : begin
-                        instruction_info.alu_operation = funct3; 
-                        instruction_info.cmp_operation = funct3; 
-                    end
-                endcase
+                        3'b010: begin// mulhsu (signed * unsigned)
+                            instruction_info.is_mul = '1; // this instr is multiplying
+                            instruction_info.mul_type = 2'b10; // mixed un/signed multiplication
+                        end
+
+                        3'b011: begin// mulhu (unsigned * unsigned)
+                            instruction_info.is_mul = '1; // this instr is multiplying
+                            instruction_info.mul_type = 2'b11; // unsigned multiplication
+                        end
+
+                    endcase
+                    instruction_info.alu_en = '0;
+                    instruction_info.cmp_en = '0;
+                    instruction_info.alu_operation = '0;
+                end
+                else begin
+                    unique case (funct3)  
+                        slt: begin
+                            instruction_info.cmp_operation = blt;
+                            instruction_info.alu_en = 1'b0;
+                        end
+                        sltu: begin
+                            instruction_info.cmp_operation = bltu;
+                            instruction_info.alu_en = 1'b0;
+                        end
+                        sr: begin
+                            if (funct7[5]) begin
+                                instruction_info.alu_operation = alu_sra;
+                            end else begin
+                                instruction_info.alu_operation = alu_srl;
+                            end
+                            instruction_info.cmp_operation = funct3; 
+                        end
+                        add: begin
+                            if (funct7[5]) begin
+                                instruction_info.alu_operation = alu_sub;
+                            end else begin
+                                instruction_info.alu_operation = alu_add;
+                            end
+                            instruction_info.cmp_operation = funct3; 
+                        end
+                        default : begin
+                            instruction_info.alu_operation = funct3; 
+                            instruction_info.cmp_operation = funct3; 
+                        end
+                    endcase
+                end
+
             end
             op_b_imm : begin 
+                instruction_info.rs1_needed = '1; 
+                instruction_info.rs2_needed = '0; 
+                instruction_info.op1_is_imm = '0; 
+                instruction_info.op2_is_imm = '1;
+                instruction_info.immediate = i_imm;
                 unique case (funct3)
                     slt: begin
                         instruction_info.cmp_operation = blt;
@@ -118,26 +169,57 @@ module id_stage
                 endcase
             end
             op_b_auipc : begin
+                instruction_info.rs1_needed = '0; 
+                instruction_info.rs2_needed = '0; 
+                instruction_info.op1_is_imm = '1; 
+                instruction_info.op2_is_imm = '1;
+                instruction_info.immediate = u_imm;
                 instruction_info.alu_operation = alu_add; 
                 instruction_info.cmp_operation = '0; 
             end
             op_b_br : begin
+                instruction_info.rs1_needed = '1; 
+                instruction_info.rs2_needed = '1; 
+                instruction_info.op1_is_imm = '1; 
+                instruction_info.op2_is_imm = '1;
+                instruction_info.immediate = b_imm; 
                 instruction_info.is_branch = '1;   
             end
             op_b_jal : begin
+                instruction_info.rs1_needed = '0; 
+                instruction_info.rs2_needed = '0; 
+                instruction_info.op1_is_imm = '1; 
+                instruction_info.op2_is_imm = '1;
+                instruction_info.immediate = j_imm; 
                 instruction_info.is_jump = '1;   
                 instruction_info.cmp_en = '0;  
             end
             op_b_jalr : begin
+                instruction_info.rs1_needed = '0; 
+                instruction_info.rs2_needed = '0; 
+                instruction_info.op1_is_imm = '1; 
+                instruction_info.op2_is_imm = '1;
+                instruction_info.immediate = j_imm; 
                 instruction_info.is_jump = '1;   
                 instruction_info.cmp_en = '0;  
             end 
             op_b_load : begin
+                instruction_info.rs1_needed = '1; 
+                instruction_info.rs2_needed = '0; 
+                instruction_info.op1_is_imm = '0; 
+                instruction_info.op2_is_imm = '1;
+                instruction_info.immediate = i_imm; 
                 instruction_info.cmp_en = '0;  
             end
             op_b_store : begin
+                instruction_info.rs1_needed = '1; 
+                instruction_info.rs2_needed = '1; 
+                instruction_info.op1_is_imm = '0; 
+                instruction_info.op2_is_imm = '1;
+                instruction_info.immediate = s_imm; 
                 instruction_info.cmp_en = '1;  
             end
+
             default : ; 
         endcase            
     end

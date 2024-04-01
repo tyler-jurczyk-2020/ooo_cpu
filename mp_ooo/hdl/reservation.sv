@@ -8,14 +8,14 @@ import rv32i_types::*;
 (
     input logic clk, rst,
     // reservation station struct     
-    input dispatch_reservation_t reservation_entry [SS],
+    input reserevation_entry_t reservation_entry [SS],
 
     input [ROB_DEPTH-1:0] updated_rob, 
-    input logic fu_enable, 
+    input logic alu_status, mult_status,
 
-    output dispatch_reservation_t inst_for_fu, 
+    output fu_input inst_for_fu [SS], 
     // inform instruction queue to pause if our reservation table is full. 
-    output logic station_full
+    output logic table_full
 );
 
 // *could possibly combine reg files. 
@@ -34,13 +34,18 @@ reserevation_entry_t reservation_table[SS][reservation_table_size];
 logic [2:0] counter; 
 logic table_full;
 
-assign table_full = 1'b0;
+logic [1:0] issue_counter; 
+
+fu_input local_inst_fu [SS]; 
 
 always_ff @ (posedge clk) begin
+    issue_counter <= '0; 
     if(rst) begin
         for(int j = 0; j < reservation_table_size; j++) begin
-            reservation_table[j].valid <= '0; 
+            reservation_table[i][j].valid <= '0; 
         end
+        counter <= '0;
+        local_inst_fu <= '0; 
     end
     // Enter to table
     else if(~table_full) begin
@@ -48,9 +53,9 @@ always_ff @ (posedge clk) begin
         // Additional for loop because we will have N-entries at once based on N-way superscalar
         for(int i = 0; i < SS; i++) begin 
             for(int j = 0; j < reservation_table_size; j++) begin
-                if(~reservation_table[j].valid) begin
-                    reservation_table[j].reservation_entry <= reservation_entry[i]; 
-                    reservation_table[j].valid <= '1; 
+                if(~reservation_table[i][j].valid) begin
+                    reservation_table[i][j].reservation_entry <= reservation_entry[i]; 
+                    reservation_table[i][j].valid <= '1; 
                     // MUST break because otherwise the entry will be put in to every available spot in the table
                     counter <= counter + 3'd1; 
                     break; 
@@ -59,31 +64,34 @@ always_ff @ (posedge clk) begin
         end
     end
     // Check all table entries to see whether we need to update them
-    for(int j = 0; j < reservation_table_size; j++) begin
-        if(reservation_table[j].reservation_entry.rs1_source == updated_rob) begin
-            reservation_table[j].reservation_entry.rs1_met <= '1;  
-        end
-        if(reservation_table[j].reservation_entry.rs2_source == updated_rob) begin
-            reservation_table[j].reservation_entry.rs2_met <= '1; 
-        end
-    end
-    // Check all table entries to see if we can release them 
-    for(int j = 0; j < reservation_table_size; j++) begin
-        if(fu_enable) begin
-            if(reservation_table[j].reservation_entry.rs1_met && reservation_table[j].reservation_entry.rs2_met) begin
-                inst_for_fu <= reservation_entry[j]; // Not correct, need to handle both entries in superscalar 
-                reservation_table[j].valid <= '0; 
-                counter <= counter - 3'd1;  
-                break; 
+    for(int i = 0; i < SS; i++) begin 
+        for(int j = 0; j < reservation_table_size; j++) begin
+            if(reservation_table[i][j].reservation_entry.rs1_source == updated_rob) begin
+                reservation_table[i][j].reservation_entry.input1_met <= '1;  
+            end
+            if(reservation_table[i][j].reservation_entry.rs2_source == updated_rob) begin
+                reservation_table[i][j].reservation_entry.input2_met <= '1; 
+            end
+            // See whether to issue any entry
+            if((reservation_table[i][j].reservation_entry.alu_en && alu_status) || 
+               (reservation_table[i][j].reservation_entry.is_mul && mult_status)) begin
+                if(reservation_table[i][j].reservation_entry.input1_met && reservation_table[i][j].reservation_entry.input2_met) begin
+                    local_inst_fu <= reservation_entry[j]; // Not correct, need to handle both entries in superscalar 
+                    reservation_table[i][j].valid <= '0; 
+                    counter <= counter - 3'd1;  
+                    break; 
+                end
             end
         end
     end
 end
 
+assign local_inst_fu = inst_for_fu;
+
 always_comb begin
-    station_full = '0; 
+    table_full = '0; 
     if({{29{1'b0}},counter} >= ROB_DEPTH-SS) begin // Probably need to fix width
-        station_full = '1; 
+        table_full = '1; 
     end
 end
 
