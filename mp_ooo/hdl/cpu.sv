@@ -72,6 +72,16 @@ circular_queue #(.SS(SS)) instruction_queue
                  .out_bitmask('0), .in_bitmask('0), .reg_select_in(dummy), .reg_select_out(dummy), .reg_in(dummy_reg));
 
 ///////////////////// INSTRUCTION FETCH (SIMILAR TO MP2) /////////////////////
+logic reset_hack;
+
+always_ff @(posedge clk) begin
+    if(rst)
+        reset_hack <= 1'b1;
+    else if((imem_resp && ~inst_queue_full) || reset_hack)
+        if_id_reg <= if_id_reg_next;
+    else
+        reset_hack <= 1'b0;
+end
 
 fetch_stage fetch_stage_i (
     .clk(clk),
@@ -79,6 +89,7 @@ fetch_stage fetch_stage_i (
     .predict_branch('0), // Change this later
     .stall_inst(inst_queue_full), 
     .imem_resp(imem_resp), 
+    .reset_hack(reset_hack),
     .branch_pc('0), // Change thveribleis later
     .fetch_output(if_id_reg_next)    
 );
@@ -100,10 +111,6 @@ two_inst_buff buff (
     .valid_out(valid_buffer_flag)
 );
 
-always_ff @(posedge clk) begin
-    if(imem_resp && ~inst_queue_full)
-        if_id_reg <= if_id_reg_next;
-end
 
 always_comb begin
     if(imem_resp && ~inst_queue_full)

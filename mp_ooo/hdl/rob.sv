@@ -17,7 +17,9 @@ module rob
         // rob id are sent out
         output logic [$clog2(ROB_DEPTH)-1:0] rob_id_next [SS],
         // destination regs for the instr
-        output logic [5:0] rob_dest_reg[SS]
+        output logic [5:0] rob_dest_reg[SS] 
+        // setting RVFI order
+        // output logic [63:0] rvfi_order[SS]
     );
     
     // head & tail pointers for ROB entries
@@ -47,6 +49,7 @@ module rob
                 rob_id_out[i] = tail + i[$clog2(ROB_DEPTH)-1:0];
                 rob_dest_reg[i] = dispatch_info[i].rat.rd; // Need to get PR not ISA reg
             end
+            // not updating regfile so we dont care what data is there
             else begin
                 write_from_rob = '0;
                 for(int i = 0; i < SS; i++) begin
@@ -56,4 +59,21 @@ module rob
             end
         end
     end
+    logic [63:0] rvfi_order_counter;
+   // when committing, set RVFI order
+    // always_ff @(posedge clk) begin
+    //     if (rst) 
+    //         rvfi_order_counter <= '0;
+        
+    //     else if (pop_from_rob) begin
+    //         // when commiting increase RVFI order
+    //         rvfi_order_counter <= rvfi_order_counter + 1;
+    //         // set RVFI order for committed instructions
+    //         for (int i = 0; i < SS; i++) begin
+    //             if (inspect_queue[i].rob.commit) 
+    //                 rvfi_order[i] <= rvfi_order_counter;
+    //         end
+    //     end
+    // end
+
     endmodule : rob
