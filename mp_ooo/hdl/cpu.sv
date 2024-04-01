@@ -115,7 +115,6 @@ assign imem_addr = if_id_reg_next.fetch_pc_curr;
 
 ///////////////////// RAT /////////////////////
 // MODULE INPUTS DECLARATION 
-logic modify_rat;
 logic [5:0] rat_rs1[SS], rat_rs2[SS], rat_rd[SS];
 logic [4:0] isa_rs1[SS], isa_rs2[SS], isa_rd[SS];
 
@@ -123,7 +122,7 @@ logic [4:0] isa_rs1[SS], isa_rs2[SS], isa_rd[SS];
 
 // MODULE INSTANTIATION
 
-rat #(.SS(SS)) rt(.clk(clk), .rst(rst), .regf_we(modify_rat),
+rat #(.SS(SS)) rt(.clk(clk), .rst(rst), .regf_we(), // Need to connect write enable to pop_inst_q?
      .rat_rd(rat_rd),
      .isa_rd(isa_rd), .isa_rs1(isa_rs1), .isa_rs2(isa_rs2),
      
@@ -134,7 +133,7 @@ rat #(.SS(SS)) rt(.clk(clk), .rst(rst), .regf_we(modify_rat),
 // CYCLE 1
 ///////////////////// RENAME/DISPATCH /////////////////////
 // MODULE INPUTS DECLARATION 
-free_list_t free_list_regs[SS];
+logic [5:0] free_list_regs[SS];
 dispatch_reservation_t rs_entries [SS];
 logic rs_full;
 
@@ -162,7 +161,7 @@ rename_dispatch #(.SS(SS)) rd(.clk(clk), .rst(rst),
 // MODULE OUTPUT DECLARATION
 
 // MODULE INSTANTIATION
-circular_queue #(.QUEUE_TYPE(free_list_t), .SS(SS)) free_list(.clk(clk), .rst(rst), .push('0), .out(free_list_regs), .pop(pop_inst_q));
+circular_queue #(.QUEUE_TYPE(logic [5:0]), .SS(SS)) free_list(.clk(clk), .rst(rst), .push('0), .out(free_list_regs), .pop(pop_inst_q));
 
 // CYCLE 1 (UTILIZED IN CYCLE 1)
 ///////////////////// ISSUE: PHYSICAL REGISTER FILE /////////////////////
@@ -204,6 +203,7 @@ circular_queue #(.QUEUE_TYPE(free_list_t), .SS(SS)) free_list(.clk(clk), .rst(rs
 reservation #(.SS(SS)) rs(.clk(clk), .rst(rst),.reservation_entry(rs_entries), .station_full(rs_full));
 
 // ROB:
+rob_t rob_entry;
 rob #(.SS(SS)) rb(.rob_entry(rob_entry));
 
 // Temporary:
