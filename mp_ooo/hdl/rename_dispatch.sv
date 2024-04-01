@@ -9,9 +9,8 @@ import rv32i_types::*;
     input logic clk, 
     input logic rst,
     
-    // Flag that new data is coming in to be dispatched
-    input logic inst_q_popped,
     // popped instruction(s)
+    input logic inst_q_empty,
     output logic pop_inst_q, 
     input instruction_info_reg_t instruction [SS],
 
@@ -39,7 +38,7 @@ always_ff @(posedge clk) begin
     if(rst)
         avail_inst <= 1'b0;
     else
-        avail_inst <= inst_q_popped;
+        avail_inst <= pop_inst_q;
 end
 
 // Lookup RAT source regs and modify dest reg:
@@ -158,6 +157,6 @@ always_comb begin
 end
 
 // Pop from the free list and read from instruction queue:
-assign pop_inst_q = ~inst_q_popped && ~rs_full;
+assign pop_inst_q = ~inst_q_empty && ~rs_full;
 
 endmodule : rename_dispatch

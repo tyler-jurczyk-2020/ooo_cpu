@@ -143,15 +143,14 @@ logic rs_full;
 rename_dispatch #(.SS(SS)) rd(.clk(clk), .rst(rst), 
                    .rat_rs1(rat_rs1), .rat_rs2(rat_rs2),
                    .instruction(instruction),
-                   .inst_q_popped(inst_q_popped),
+                   .inst_q_empty(inst_q_empty),
                    .free_list_regs(free_list_regs),
                    .rs_full(rs_full),
 
                    .rat_dest(rat_rd),
                    .isa_rs1(isa_rs1), .isa_rs2(isa_rs2), .isa_rd(isa_rd),
                    .pop_inst_q(pop_inst_q),
-                   .rs_entries(rs_entries), 
-                   .pop_free_list(pop_free_list)
+                   .rs_entries(rs_entries) 
                    );
 
 ///////////////////// FREE LISTS /////////////////////
@@ -172,7 +171,7 @@ phys_reg_file reg_file (
     .clk(clk), 
     .rst(rst), 
     .regf_we('1), 
-    .rd_s_ROB_FU_write_destination(), 
+    .rd_s_ROB_write_destination(), 
     .ROB_ID_ROB_write_destination(), 
     .rd_v_FU_write_destination(), 
     .write_from_fu(), 
@@ -180,7 +179,6 @@ phys_reg_file reg_file (
     .rs1_s_dispatch_request(), 
     .rs2_s_dispatch_request(), 
     .source_reg_1(), .source_reg_2()); 
-);
 
 
 // MODULE INSTANTIATION
@@ -214,11 +212,11 @@ phys_reg_file reg_file (
 
 
 // Reservation Station: 
-reservation #(.SS(SS)) rs(.clk(clk), .rst(rst),.reservation_entry(rs_entries), .station_full(rs_full));
+reservation #(.SS(SS)) rs(.clk(clk), .rst(rst),.reservation_entry(rs_entries), .table_full(rs_full));
 
 // ROB:
 rob_t rob_entry;
-rob #(.SS(SS)) rb(.rob_entry(rob_entry));
+rob #(.SS(SS)) rb();
 
 // Temporary:
 assign dmem_rmask = 4'b0;

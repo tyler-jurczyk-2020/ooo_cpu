@@ -15,7 +15,7 @@ import rv32i_types::*;
 
 ////// OUTPUTS:
     output rat_t retired_rat_data [32] // array of rats in the retired rat state
-)
+);
 
 always_ff @(posedge clk) begin
     if (rst) begin

@@ -6,6 +6,7 @@ module fu_wrapper
         parameter ROB_DEPTH = 8 
     )
     (
+        input logic clk, rst,
         // get entry from reservation station
         input fu_input_t to_be_calculated [SS], 
 
@@ -18,7 +19,7 @@ module fu_wrapper
         output logic [$clog2(TABLE_ENTRIES)-1:0] rs2_s_dispatch_request [SS], 
         input  physical_reg_data_t source_reg_1 [SS], source_reg_2 [SS]
 
-    )
+    );
     // my favorite rapper is the diddler
     // the reservation 
     // hi guys
@@ -39,6 +40,12 @@ module fu_wrapper
     logic [31:0] alu_input_b [SS]; 
     logic [31:0] cmp_input_a [SS]; 
     logic [31:0] cmp_input_b [SS]; 
+
+    // Incorrect, need to get corrected value
+    logic op1_is_imm;
+    logic op2_is_imm;
+    assign op1_is_imm = 1'b0;
+    assign op2_is_imm = 1'b0;
 
     always_comb begin
         for(int i = 0; i < SS; i++) begin
@@ -68,7 +75,7 @@ module fu_wrapper
 
     always_comb begin
         cmp_input_a = alu_input_a; 
-        cmp_input_b = alu_output_b; 
+        cmp_input_b = alu_input_b; 
         for(int i = 0; i < SS; i++) begin
             if(to_be_calculated[i].inst_info.reserevation_entry.inst.is_branch) begin
                 rs1_s_dispatch_request = to_be_calculated[i].inst_info.reserevation_entry.inst.rs1_s; 
@@ -98,11 +105,11 @@ module fu_wrapper
             alu calculator(.aluop(to_be_calculated[i].inst_info.reserevation_entry.inst.alu_operation), 
                            .a(alu_input_a[i]), 
                            .b(alu_input_b[i]), 
-                           .f(alu_output[i]))); 
+                           .f(alu_output[i])); 
             cmp comparator(.cmpop(to_be_calculated[i].inst_info.reserevation_entry.inst.cmp_operation), 
                            .a(cmp_input_a), 
                            .b(cmp_input_b), 
-                           .f(cmp_output[i]))); 
+                           .f(cmp_output[i])); 
             shift_add_multiplier(.clk(clk), 
                                  .rst(rst), 
                                  .start(to_be_calculated[i].start), 
@@ -112,13 +119,13 @@ module fu_wrapper
                                  .p(mult_output[i]), 
                                  .done(mult_status[i]));
         end
-    end endgenerate   
+    endgenerate   
 
     always_ff @ (posedge clk) begin
         fu_output.inst_info = to_be_calculated[i].inst_info.reserevation_entry; 
         for(int i = 0; i < SS; i++) begin
             if(to_be_calculated[i].inst_info.reserevation_entry.inst.alu_en) begin
-                fu_output[i].register_value = alu_output[i]
+                fu_output[i].register_value = alu_output[i];
                 fu_output[i].ready_for_writeback = '1; 
             end
             else if(to_be_calculated[i].inst_info.reserevation_entry.inst.is_mul
