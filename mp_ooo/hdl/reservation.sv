@@ -7,6 +7,8 @@ import rv32i_types::*;
 )
 (
     input logic clk, rst,
+    // Signals whether instruction is available from rename/dispatch
+    input logic avail_inst,
     // reservation station struct     
     input dispatch_reservation_t reservation_entry [SS],
 
@@ -45,7 +47,6 @@ always_ff @ (posedge clk) begin
                 reservation_table[i][j].valid <= '0; 
             end
         end
-        counter <= '0;
         // local_inst_fu <= '0; // Also wrong type
     end
     // Enter to table
@@ -54,11 +55,10 @@ always_ff @ (posedge clk) begin
         // Additional for loop because we will have N-entries at once based on N-way superscalar
         for(int i = 0; i < SS; i++) begin 
             for(int j = 0; j < reservation_table_size; j++) begin
-                if(~reservation_table[i][j].valid) begin
+                if(avail_inst && ~reservation_table[i][j].valid) begin
                     reservation_table[i][j].reservation_entry <= reservation_entry[i]; 
                     reservation_table[i][j].valid <= '1; 
                     // MUST break because otherwise the entry will be put in to every available spot in the table
-                    counter <= counter + 3'd1; 
                     break; 
                 end
             end
@@ -79,7 +79,6 @@ always_ff @ (posedge clk) begin
                 if(reservation_table[i][j].reservation_entry.rob.input1_met && reservation_table[i][j].reservation_entry.rob.input2_met) begin
                     // local_inst_fu <= reservation_entry[j]; // Not correct, wrong type
                     reservation_table[i][j].valid <= '0; 
-                    counter <= counter - 3'd1;  
                     break; 
                 end
             end
@@ -90,6 +89,17 @@ end
 assign local_inst_fu = inst_for_fu;
 
 always_comb begin
+    // Number of occupied entries in the table
+    counter = '0;
+    for(int i = 0; i < SS; i++) begin
+        for(int j = 0; j < reservation_table_size; j++) begin
+            if(reservation_table[i][j].valid) begin
+                counter = counter + 1'b1;
+            end
+        end
+    end
+
+    // Table full
     table_full = '0; 
     if({{29{1'b0}},counter} >= ROB_DEPTH-SS) begin // Probably need to fix width
         table_full = '1; 

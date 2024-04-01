@@ -1,7 +1,8 @@
 module cpu
 import rv32i_types::*;
 #(
-    parameter SS = 2
+    parameter SS = 2,
+    parameter ROB_DEPTH = 8
 )
 (
     // Explicit dual port connections when caches are not integrated into design yet (Before CP3)
@@ -41,7 +42,7 @@ fetch_output_reg_t if_id_reg, if_id_reg_next;
 instruction_info_reg_t valid_inst[SS];
 // singular decoded inst output from decode stage
 instruction_info_reg_t decoded_inst;
-// says that a instruction is ready for the buffer
+// says that a instruction is reoutputady for the buffer
 logic valid_inst_flag;
 
 
@@ -135,6 +136,8 @@ rat #(.SS(SS)) rt(.clk(clk), .rst(rst), .regf_we(), // Need to connect write ena
 logic [5:0] free_list_regs[SS];
 dispatch_reservation_t rs_entries [SS];
 logic rs_full;
+logic avail_inst;
+logic [$clog2(ROB_DEPTH)-1:0] rob_id_next [SS];
 
 // MODULE OUTPUT DECLARATION
 
@@ -146,6 +149,8 @@ rename_dispatch #(.SS(SS)) rd(.clk(clk), .rst(rst),
                    .inst_q_empty(inst_q_empty),
                    .free_list_regs(free_list_regs),
                    .rs_full(rs_full),
+                   .avail_inst(avail_inst),
+                   .rob_id_next(rob_id_next),
 
                    .rat_dest(rat_rd),
                    .isa_rs1(isa_rs1), .isa_rs2(isa_rs2), .isa_rd(isa_rd),
@@ -212,11 +217,11 @@ phys_reg_file reg_file (
 
 
 // Reservation Station: 
-reservation #(.SS(SS)) rs(.clk(clk), .rst(rst),.reservation_entry(rs_entries), .table_full(rs_full));
+reservation #(.SS(SS)) rs(.clk(clk), .rst(rst),.reservation_entry(rs_entries), .table_full(rs_full), .avail_inst(avail_inst));
 
 // ROB:
 rob_t rob_entry;
-rob #(.SS(SS)) rb();
+rob #(.SS(SS)) rb(.clk(clk), .rst(rst), .rob_id_next(rob_id_next), .avail_inst(avail_inst));
 
 // Temporary:
 assign dmem_rmask = 4'b0;

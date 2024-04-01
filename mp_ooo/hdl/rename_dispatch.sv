@@ -3,7 +3,8 @@ module rename_dispatch
 import rv32i_types::*;
 #(
     parameter SS = 2,
-    parameter PR_ENTRIES = 64
+    parameter PR_ENTRIES = 64,
+    parameter ROB_DEPTH = 8
 )
 (
     input logic clk, 
@@ -11,7 +12,7 @@ import rv32i_types::*;
     
     // popped instruction(s)
     input logic inst_q_empty,
-    output logic pop_inst_q, 
+    output logic pop_inst_q, avail_inst,
     input instruction_info_reg_t instruction [SS],
 
     // architectural registers to get renamed passed to RAT
@@ -26,6 +27,9 @@ import rv32i_types::*;
     // Get source register dependencies from physical register
     output logic [$clog2(PR_ENTRIES)-1:0] sel_pr_rs1 [SS], sel_pr_rs2 [SS],
     input physical_reg_data_t pr_rs1 [SS], pr_rs2 [SS],
+
+    // Get ROB info
+    input logic [$clog2(ROB_DEPTH)-1:0] rob_id_next [SS],
     
     // Reservation station
     input logic rs_full,
@@ -57,7 +61,7 @@ always_comb begin
         // Setup entries going to reservation station
         for(int i = 0; i < SS; i++) begin
             // ROB Setup
-            rs_entries[i].rob.rob_id = 'x;
+            rs_entries[i].rob.rob_id = rob_id_next[i];
             rs_entries[i].rob.commit = 1'b0;
             rs_entries[i].rob.input1_met = pr_rs1[i].dependency;
             rs_entries[i].rob.input2_met = pr_rs2[i].dependency;

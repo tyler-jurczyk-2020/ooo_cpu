@@ -37,8 +37,9 @@ end
 always_comb begin
     // Flip order of instructions to ensure correct order in instruction queue
     if(valid_out) begin
-       valid_inst[0] = buffer[1];
-       valid_inst[1] = buffer[0];
+        for(int i = 0; i < SS; i++) begin
+            valid_inst[i] = buffer[(SS-1)-i];
+        end
    end
    else begin
        for(int i = 0; i < SS; i++) begin

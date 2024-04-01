@@ -14,7 +14,8 @@ import rv32i_types::*;
     input logic [4:0] retired_isa_rd [SS], // ISA reg # bein retired
 
 ////// OUTPUTS:
-    output rat_t retired_rat_data [32] // array of rats in the retired rat state
+    output rat_t retired_rat_data [32], // array of rats in the retired rat state
+    output rat_t free_list_entry
 );
 
 always_ff @(posedge clk) begin
@@ -31,6 +32,7 @@ always_ff @(posedge clk) begin
         for(int i = 0; i < SS; i++) begin
             if(retired_isa_rd[i] != 5'd0)
                 retired_rat_data[retired_isa_rd[i]] <= retired_rat_rd[i];
+
         end
     end
 end
