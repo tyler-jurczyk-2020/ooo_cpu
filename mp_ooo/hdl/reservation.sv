@@ -61,10 +61,10 @@ end
 // Check all table entries to see whether we need to update them
 always_ff @ (posedge clk) begin
     for(int j = 0; j < reservation_table_size; j++) begin
-        if(reservation_table[j].reservation_entry.rs1_source == updated_rob) begin
+        if(reservation_table[j].reservation_entry.rob.rs1_source == updated_rob) begin
             // reservation_table[j].reservation_entry.rs1_met <= '1; // Illegal Driver 
         end
-        if(reservation_table[j].reservation_entry.rs2_source == updated_rob) begin
+        if(reservation_table[j].reservation_entry.rob.rs2_source == updated_rob) begin
             // reservation_table[j].reservation_entry.rs2_met <= '1; // Illegal Driver
         end
     end
@@ -74,7 +74,7 @@ end
 always_ff @ (posedge clk) begin
     for(int j = 0; j < reservation_table_size; j++) begin
         if(fu_enable) begin
-            if(reservation_table[j].reservation_entry.rs1_met && reservation_table[j].reservation_entry.rs2_met) begin
+            if(reservation_table[j].reservation_entry.rob.rs1_met && reservation_table[j].reservation_entry.rob.rs2_met) begin
                 inst_for_fu <= reservation_entry[0]; // Not correct, need to handle both entries in superscalar 
                 // reservation_table[j].valid <= '0; // Illegal Driver
                 // counter <= counter - 3'd1;  // Illegal Driver

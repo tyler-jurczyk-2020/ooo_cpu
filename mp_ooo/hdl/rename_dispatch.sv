@@ -30,7 +30,7 @@ import rv32i_types::*;
     
     // Reservation station
     input logic rs_full,
-    output rob_t rob_entry, 
+    output dispatch_reservation_t rob_entries [SS], 
     output dispatch_reservation_t rs_entries [SS]
 );
 
@@ -58,7 +58,13 @@ always_comb begin
         
         // Setup entries going to reservation station
         for(int i = 0; i < SS; i++) begin
-            // ROB ID Setup
+            // ROB Setup
+            rs_entries[i].rob.rob_id = 'x;
+            rs_entries[i].rob.commit = 1'b0;
+            rs_entries[i].rob.rs1_met = pr_rs1[i].dependency;
+            rs_entries[i].rob.rs2_met = pr_rs2[i].dependency;
+            rs_entries[i].rob.rs1_source = pr_rs1[i].ROB_ID;
+            rs_entries[i].rob.rs2_source = pr_rs2[i].ROB_ID;
 
             // RVFI Setup
             rs_entries[i].rvfi.valid = instruction[i].valid;
@@ -86,12 +92,6 @@ always_comb begin
             rs_entries[i].rat.rs1 = rat_rs1[i];
             rs_entries[i].rat.rs2 = rat_rs2[i];
             rs_entries[i].rat.rd = free_list_regs[i];
-
-            //Depedency Setup
-            rs_entries[i].rs1_met = pr_rs1[i].dependency;
-            rs_entries[i].rs2_met = pr_rs2[i].dependency;
-            rs_entries[i].rs1_source = pr_rs1[i].ROB_ID;
-            rs_entries[i].rs2_source = pr_rs2[i].ROB_ID;
         end
     end
     else begin
@@ -104,38 +104,40 @@ always_comb begin
 
         // Setup entries going to reservation station
         for(int i = 0; i < SS; i++) begin 
-                // ROB ID Setup
-                
-                // RVFI setup
-                rs_entries[i].rvfi.valid = 'x; // SOUMIL IS SLOW
-                rs_entries[i].rvfi.order = 'x; // SOUMIL IS SLOW // Need to put actual order here
-                rs_entries[i].rvfi.inst = 'x;
-                rs_entries[i].rvfi.rs1_addr = 'x;
-                rs_entries[i].rvfi.rs2_addr = 'x;
-                rs_entries[i].rvfi.rs1_rdata = 'x;
-                rs_entries[i].rvfi.rs2_rdata = 'x;
-                rs_entries[i].rvfi.rd_addr = 'x;
-                rs_entries[i].rvfi.rd_wdata = 'x;
-                rs_entries[i].rvfi.pc_rdata = 'x;
-                rs_entries[i].rvfi.pc_wdata = 'x;
-                rs_entries[i].rvfi.mem_addr = 'x;
-                // Need to compute rmask/wmask based on type of mem op
-                rs_entries[i].rvfi.mem_rmask = 'x;
-                rs_entries[i].rvfi.mem_wmask = 'x;
-                rs_entries[i].rvfi.mem_rdata = 'x;
-                rs_entries[i].rvfi.mem_wdata = 'x;
+            // ROB Setup
+            rs_entries[i].rob.rob_id = 'x;
+            rs_entries[i].rob.commit = 'x;
+            rs_entries[i].rob.rs1_met = 'x;
+            rs_entries[i].rob.rs2_met = 'x;
+            rs_entries[i].rob.rs1_source = 'x;
+            rs_entries[i].rob.rs2_source = 'x;
+            
+            // RVFI setup
+            rs_entries[i].rvfi.valid = 'x; // SOUMIL IS SLOW
+            rs_entries[i].rvfi.order = 'x; // SOUMIL IS SLOW // Need to put actual order here
+            rs_entries[i].rvfi.inst = 'x;
+            rs_entries[i].rvfi.rs1_addr = 'x;
+            rs_entries[i].rvfi.rs2_addr = 'x;
+            rs_entries[i].rvfi.rs1_rdata = 'x;
+            rs_entries[i].rvfi.rs2_rdata = 'x;
+            rs_entries[i].rvfi.rd_addr = 'x;
+            rs_entries[i].rvfi.rd_wdata = 'x;
+            rs_entries[i].rvfi.pc_rdata = 'x;
+            rs_entries[i].rvfi.pc_wdata = 'x;
+            rs_entries[i].rvfi.mem_addr = 'x;
+            // Need to compute rmask/wmask based on type of mem op
+            rs_entries[i].rvfi.mem_rmask = 'x;
+            rs_entries[i].rvfi.mem_wmask = 'x;
+            rs_entries[i].rvfi.mem_rdata = 'x;
+            rs_entries[i].rvfi.mem_wdata = 'x;
 
-                //Instruction setup
-                rs_entries[i].inst = 'x;
+            //Instruction setup
+            rs_entries[i].inst = 'x;
 
-                //Rat Registers
-                rs_entries[i].rat.rs1 = 'x;
-                rs_entries[i].rat.rs2 = 'x;
-                rs_entries[i].rat.rd = 'x;
-
-                //Depedency Setup
-                rs_entries[i].rs1_met = pr_rs1[i].dependency;
-                rs_entries[i].rs2_met = pr_rs2[i].dependency;
+            //Rat Registers
+            rs_entries[i].rat.rs1 = 'x;
+            rs_entries[i].rat.rs2 = 'x;
+            rs_entries[i].rat.rd = 'x;
         end
     end
 end

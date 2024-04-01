@@ -127,19 +127,7 @@ package rv32i_types;
         logic [31:0] mem_rdata;
         logic [31:0] mem_wdata;
     } rvfi_t;
-
-    typedef struct packed {
-       rob_t rob;
-       rvfi_t rvfi; 
-       instruction_info_reg_t inst;
-       rat_t rat;
-       } dispatch_reservation_t;
-
-    typedef struct packed {
-        dispatch_reservation_t reservation_entry; 
-        logic valid; 
-    } reserevation_entry_t; 
-    
+        
     typedef struct packed {
        logic [7:0] rob_id;
        logic commit;
@@ -151,21 +139,28 @@ package rv32i_types;
        logic [7:0] rs2_source; 
     } rob_t;
 
+    typedef struct packed {
+       rob_t rob;
+       rvfi_t rvfi; 
+       instruction_info_reg_t inst;
+       rat_t rat;
+    } dispatch_reservation_t;
+
     typedef enum logic {
         ZERO,
         FREE_LIST 
     } initialization_t;
-        
-    typedef logic [7:0] free_list_t;
 
+    typedef struct packed {
+        dispatch_reservation_t reservation_entry; 
+        logic valid; 
+    } reserevation_entry_t; 
+        
     typedef struct packed {
         logic [31:0] register_value; 
        // Hardcoded ROB depth so it compiles
         logic [7:0] ROB_ID; 
         logic dependency; 
     } physical_reg_data_t; 
-
-    
-
 
 endpackage
