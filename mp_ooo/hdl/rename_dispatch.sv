@@ -10,25 +10,28 @@ import rv32i_types::*;
     input logic rst,
     
     // Flag that new data is coming in to be dispatched
-    input logic pop_inst_q, 
+    input logic inst_q_empty,
     // popped instruction(s)
+    output logic pop_inst_q, 
     input instruction_info_reg_t instruction [SS],
 
     // architectural registers to get renamed passed to RAT
-    output   logic   isa_rs1 [SS], isa_rs2 [SS],
+    output   logic   [4:0] isa_rs1 [SS], isa_rs2 [SS], isa_rd [SS],
+    output logic [5:0] rat_dest [SS],
     // physical registers from RAT
-    input  logic   [5:0]  rat_rs1 [SS], rat_rs2 [SS], 
+    input  logic  [5:0]  rat_rs1 [SS], rat_rs2 [SS],
 
     // Get a value from the Free List for Destination Register
-    output pop_free_list, 
     input [5:0] free_list_regs [SS], 
 
     // Get source register dependencies from physical register
-    output [$clog2(PR_ENTRIES)-1:0] sel_pr_rs1 [SS], sel_pr_rs2 [SS]
+    output logic [$clog2(PR_ENTRIES)-1:0] sel_pr_rs1 [SS], sel_pr_rs2 [SS],
     input physical_reg_data_t pr_rs1 [SS], pr_rs2 [SS],
     
+    // Reservation station
+    input logic rs_full,
     output rob_t rob_entry, 
-    output dispatch_reservation_t rs_entries [SS],
+    output dispatch_reservation_t rs_entries [SS]
 );
 
 logic avail_inst;
@@ -36,7 +39,7 @@ always_ff @(posedge clk) begin
     if(rst)
         avail_inst <= 1'b0;
     else
-        avail_inst <= pop_free_list;
+        avail_inst <= pop_inst_q;
 end
 
 // Lookup RAT source regs and modify dest reg:
@@ -47,12 +50,11 @@ always_comb begin
             isa_rs1[i] = instruction[i].rs1_s;
             isa_rs2[i] = instruction[i].rs2_s;
             isa_rd[i] = instruction[i].rd_s;
-            sel_pr_rs1 = rat_rs1[i];
-            sel_pr_rs2 = rat_rs2[i];
+            sel_pr_rs1[i] = rat_rs1[i];
+            sel_pr_rs2[i] = rat_rs2[i];
         end
 
         rat_dest = free_list_regs;
-        modify_rat = 1'b1;
         
         // Setup entries going to reservation station
         for(int i = 0; i < SS; i++) begin
@@ -86,8 +88,8 @@ always_comb begin
             rs_entries[i].rat.rd = free_list_regs[i];
 
             //Depedency Setup
-            rs_entries[i].rs1_met = pr_rs1.dependency;
-            rs_entries[i].rs2_met = pr_rs2.dependency;
+            rs_entries[i].rs1_met = pr_rs1[i].dependency;
+            rs_entries[i].rs2_met = pr_rs2[i].dependency;
         end
     end
     else begin
@@ -97,7 +99,6 @@ always_comb begin
             isa_rd[i] = 'x;
             rat_dest[i] = 'x;
         end
-        modify_rat = 1'b0;
 
         // Setup entries going to reservation station
         for(int i = 0; i < SS; i++) begin 
@@ -131,15 +132,13 @@ always_comb begin
                 rs_entries[i].rat.rd = 'x;
 
                 //Depedency Setup
-                rs_entries[i].rs1_met = pr_rs1.dependency;
-                rs_entries[i].rs2_met = pr_rs2.dependency;
+                rs_entries[i].rs1_met = pr_rs1[i].dependency;
+                rs_entries[i].rs2_met = pr_rs2[i].dependency;
         end
     end
 end
 
 // Pop from the free list and read from instruction queue:
-assign pop_free_list = ~inst_q_empty && ~rs_full;
-assign pop_inst_q = pop_free_list;
-assign rs_enable = avail_inst;
+assign pop_inst_q = ~inst_q_empty && ~rs_full;
 
 endmodule : rename_dispatch

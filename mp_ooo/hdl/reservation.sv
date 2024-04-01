@@ -48,7 +48,7 @@ always_ff @ (posedge clk) begin
         for(int i = 0; i < SS; i++) begin 
             for(int j = 0; j < reservation_table_size; j++) begin
                 if(~reservation_table[j].valid) begin
-                    reservation_table[j].reservation_entry <= reservation_entry[SS]; 
+                    reservation_table[j].reservation_entry <= reservation_entry[i]; 
                     reservation_table[j].valid <= '1; 
                     counter <= counter + 3'd1; 
                     break; 
@@ -62,25 +62,23 @@ end
 always_ff @ (posedge clk) begin
     for(int j = 0; j < reservation_table_size; j++) begin
         if(reservation_table[j].reservation_entry.rs1_source == updated_rob) begin
-            reservation_table[j].reservation_entry.rs1_met <= '1; 
+            // reservation_table[j].reservation_entry.rs1_met <= '1; // Illegal Driver 
         end
         if(reservation_table[j].reservation_entry.rs2_source == updated_rob) begin
-            reservation_table[j].reservation_entry.rs2_met <= '1; 
+            // reservation_table[j].reservation_entry.rs2_met <= '1; // Illegal Driver
         end
     end
 end
 
 // Check all table entries to see if we can release them 
 always_ff @ (posedge clk) begin
-    for(int i = 0; i < SS; i++) begin 
-        for(int j = 0; j < reservation_table_size; j++) begin
-            if(fu_enable) begin
-                if(reservation_table[i][j].reservation_entry.rs1_met && reservation_table[i][j].reservation_entry.rs2_met) begin
-                    inst_for_fu <= reservation_entry; 
-                    reservation_table[i][j].valid <= '0; 
-                    counter <= counter - 3'd1; 
-                    break; 
-                end
+    for(int j = 0; j < reservation_table_size; j++) begin
+        if(fu_enable) begin
+            if(reservation_table[j].reservation_entry.rs1_met && reservation_table[j].reservation_entry.rs2_met) begin
+                inst_for_fu <= reservation_entry[0]; // Not correct, need to handle both entries in superscalar 
+                // reservation_table[j].valid <= '0; // Illegal Driver
+                // counter <= counter - 3'd1;  // Illegal Driver
+                break; 
             end
         end
     end
@@ -89,7 +87,7 @@ end
 
 always_comb begin
     station_full = '0; 
-    if(counter >= ROB_DEPTH-2) begin
+    if({{29{1'b0}},counter} >= ROB_DEPTH-2) begin // Probably need to fix width
         station_full = '1; 
     end
 end

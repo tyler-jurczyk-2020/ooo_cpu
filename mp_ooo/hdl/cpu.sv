@@ -113,34 +113,47 @@ end
 assign imem_rmask = '1;
 assign imem_addr = if_id_reg_next.fetch_pc_curr;
 
-///////////////////// CCCDDDBBB /////////////////////
+///////////////////// RAT /////////////////////
 // MODULE INPUTS DECLARATION 
+logic modify_rat;
+logic [5:0] rat_rs1[SS], rat_rs2[SS], rat_rd[SS];
+logic [4:0] isa_rs1[SS], isa_rs2[SS], isa_rd[SS];
 
 // MODULE OUTPUT DECLARATION
 
 // MODULE INSTANTIATION
+
+rat #(.SS(SS)) rt(.clk(clk), .rst(rst), .regf_we(modify_rat),
+     .rat_rd(rat_rd),
+     .isa_rd(isa_rd), .isa_rs1(isa_rs1), .isa_rs2(isa_rs2),
+     
+     .rat_rs1(rat_rs1) , .rat_rs2(rat_rs2)
+     );
 
 
 // CYCLE 1
 ///////////////////// RENAME/DISPATCH /////////////////////
 // MODULE INPUTS DECLARATION 
+free_list_t free_list_regs[SS];
+dispatch_reservation_t rs_entries [SS];
+logic rs_full;
 
 // MODULE OUTPUT DECLARATION
 
 // MODULE INSTANTIATION
-rename_dispatch #(.SS(SS), .PR_ENTRIES(PR_ENTRIES)) dispatcher(.clk(clk), .rst(rst), 
-                            .pop_inst_q(pop_inst_q), 
-                            .instruction(instruction), 
-                            .isa_rs1(instruction.rs1_s), 
-                            .isa_rs2(instruction.rs1_s), 
-                            .rat_rs1(rat_rs1), 
-                            .rat_rs2(rat_rs2), 
-                            .pop_free_list(), 
-                            .free_list_regs(), 
-                            .sel_pr_rs1(), 
-                            .sel_pr_rs2(), 
-                            .rob_entry(), 
-                            .rs_entries())
+
+rename_dispatch #(.SS(SS)) rd(.clk(clk), .rst(rst), 
+                   .rat_rs1(rat_rs1), .rat_rs2(rat_rs2),
+                   .instruction(instruction),
+                   .inst_q_empty(inst_q_empty),
+                   .free_list_regs(free_list_regs),
+                   .rs_full(rs_full),
+
+                   .rat_dest(rat_rd),
+                   .isa_rs1(isa_rs1), .isa_rs2(isa_rs2), .isa_rd(isa_rd),
+                   .pop_inst_q(pop_inst_q),
+                   .rs_entries(rs_entries)
+                   );
 
 // CYCLE 1 (UTILIZED IN CYCLE 1)
 ///////////////////// FREE LISTS /////////////////////
@@ -149,9 +162,7 @@ rename_dispatch #(.SS(SS), .PR_ENTRIES(PR_ENTRIES)) dispatcher(.clk(clk), .rst(r
 // MODULE OUTPUT DECLARATION
 
 // MODULE INSTANTIATION
-free_list_t free_list_regs[SS];
-logic pop_free_list;
-circular_queue #(.QUEUE_TYPE(free_list_t), .SS(SS)) free_list(.clk(clk), .rst(rst), .push('0), .out(free_list_regs), .pop(pop_free_list));
+circular_queue #(.QUEUE_TYPE(free_list_t), .SS(SS)) free_list(.clk(clk), .rst(rst), .push('0), .out(free_list_regs), .pop(pop_inst_q));
 
 // CYCLE 1 (UTILIZED IN CYCLE 1)
 ///////////////////// ISSUE: PHYSICAL REGISTER FILE /////////////////////
@@ -188,47 +199,12 @@ circular_queue #(.QUEUE_TYPE(free_list_t), .SS(SS)) free_list(.clk(clk), .rst(rs
 
 
 
-// Free List:
-free_list_t free_list_regs[SS];
-logic pop_free_list;
-circular_queue #(.QUEUE_TYPE(free_list_t), .SS(SS)) free_list(.clk(clk), .rst(rst), .push('0), .out(free_list_regs), .pop(pop_free_list));
-
-// RAT Instantiation:
-logic modify_rat;
-logic [5:0] rat_rs1[SS], rat_rs2[SS], rat_rd[SS];
-logic [4:0] isa_rs1[SS], isa_rs2[SS], isa_rd[SS];
-
-rat #(.SS(SS)) rt(.clk(clk), .rst(rst), .regf_we(modify_rat),
-     .rat_rd(rat_rd),
-     .isa_rd(isa_rd), .isa_rs1(isa_rs1), .isa_rs2(isa_rs2),
-     
-     .rat_rs1(rat_rs1) , .rat_rs2(rat_rs2)
-     );
-
-// Rename/Dispatch:
-dispatch_reservation_t rs_entries [SS];
-rob_t rob_entry;
-logic rs_enable, rs_full;
-
-rename_dispatch #(.SS(SS)) rd(.clk(clk), .rst(rst), 
-                   .rat_rs1(rat_rs1), .rat_rs2(rat_rs2),
-                   .instruction(instruction),
-                   .inst_q_empty(inst_q_empty),
-                   .free_list_regs(free_list_regs),
-                   .rs_full(rs_full),
-
-                   .modify_rat(modify_rat), .rat_dest(rat_rd),
-                   .isa_rs1(isa_rs1), .isa_rs2(isa_rs2), .isa_rd(isa_rd),
-                   .pop_inst_q(pop_inst_q), .pop_free_list(pop_free_list),
-                   .updated_rob(rob_entry),
-                   .rs_enable(rs_enable), .rs_entries(rs_entries)
-                   );
 
 // Reservation Station: 
 reservation #(.SS(SS)) rs(.clk(clk), .rst(rst),.reservation_entry(rs_entries), .station_full(rs_full));
 
 // ROB:
-rob #(.SS(SS)) rb(.cdb(rs_entries), .rob_entry(rob_entry));
+rob #(.SS(SS)) rb(.rob_entry(rob_entry));
 
 // Temporary:
 assign dmem_rmask = 4'b0;
