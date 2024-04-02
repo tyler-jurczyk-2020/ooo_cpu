@@ -39,12 +39,9 @@ reservation_entry_t reservation_table[SS][reservation_table_size];
 //update size based on reservation table size
 logic [2:0] counter; 
 
-logic [1:0] issue_counter; 
-
 fu_input_t local_inst_fu [SS]; 
 
 always_ff @ (posedge clk) begin
-    issue_counter <= '0; 
     if(rst) begin
         for(int i = 0; i < SS; i++) begin
             for(int j = 0; j < reservation_table_size; j++) begin
@@ -81,7 +78,8 @@ always_ff @ (posedge clk) begin
             if((reservation_table[i][j].reservation_entry.inst.alu_en && alu_status[i]) || 
                (reservation_table[i][j].reservation_entry.inst.is_mul && mult_status[i])) begin
                 if(reservation_table[i][j].reservation_entry.rob.input1_met && reservation_table[i][j].reservation_entry.rob.input2_met) begin
-                    // local_inst_fu <= reservation_entry[j]; // Not correct, wrong type
+                    local_inst_fu[i].inst_info <= reservation_table[i][j]; // Not correct, wrong type
+                    local_inst_fu[i].start_calculate <= '1; 
                     reservation_table[i][j].valid <= '0; 
                     break; 
                 end
@@ -90,7 +88,7 @@ always_ff @ (posedge clk) begin
     end
 end
 
-assign local_inst_fu = inst_for_fu;
+assign inst_for_fu = local_inst_fu;
 
 always_comb begin
     // Number of occupied entries in the table
