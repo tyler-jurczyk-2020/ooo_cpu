@@ -13,8 +13,11 @@ import rv32i_types::*;
     input dispatch_reservation_t reservation_entry [SS],
 
     input logic write_from_fu [SS],
-    input logic [reservation_table_size-1:0] fu_dest_reg [SS], 
+    input fu_output_t cdb [SS], 
     input logic alu_status [SS], mult_status [SS],
+
+    // Input from Physical Register File
+    input logic [7:0] reservation_rob_id,
 
     output fu_input_t inst_for_fu [SS], 
     // inform instruction queue to pause if our reservation table is full. 
@@ -32,7 +35,7 @@ import rv32i_types::*;
 // through the functional unit first, then it won't be updating the same source register
 // that an older entry is depending on 
 
-reserevation_entry_t reservation_table[SS][reservation_table_size]; 
+reservation_entry_t reservation_table[SS][reservation_table_size]; 
 //update size based on reservation table size
 logic [2:0] counter; 
 
@@ -68,10 +71,10 @@ always_ff @ (posedge clk) begin
     // Check all table entries to see whether we need to update them
     for(int i = 0; i < SS; i++) begin 
         for(int j = 0; j < reservation_table_size; j++) begin
-            if(reservation_table[i][j].reservation_entry.rob.rs1_source == fu_dest_reg[i] && write_from_fu[i]) begin
+            if(reservation_table[i][j].reservation_entry.rob.rs1_source == reservation_rob_id && write_from_fu[i]) begin
                 reservation_table[i][j].reservation_entry.rob.input1_met <= '1;  
             end
-            if(reservation_table[i][j].reservation_entry.rob.rs2_source == fu_dest_reg[i] && write_from_fu[i]) begin
+            if(reservation_table[i][j].reservation_entry.rob.rs2_source == reservation_rob_id && write_from_fu[i]) begin
                 reservation_table[i][j].reservation_entry.rob.input2_met <= '1; 
             end
             // See whether to issue any entry

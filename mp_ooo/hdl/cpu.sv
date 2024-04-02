@@ -196,12 +196,13 @@ always_comb begin
     end
 end
 
-
+logic [7:0] reservation_rob_id;
 // MODULE OUTPUT DECLARATION
 phys_reg_file #(.SS(SS)) reg_file (
     .clk(clk), 
     .rst(rst), 
     .regf_we('1), 
+    .reservation_rob_id(reservation_rob_id),
     .rd_s_ROB_write_destination(rob_dest_reg), 
     .ROB_ID_ROB_write_destination(rob_id_next), 
     .rd_v_FU_write_destination(data_from_fu), 
@@ -222,7 +223,10 @@ phys_reg_file #(.SS(SS)) reg_file (
 dispatch_reservation_t rob_entries_to_commit [SS];
 // MODULE INSTANTIATION
 logic pop_from_rob;
+
+
 rob #(.SS(SS)) rb(.clk(clk), .rst(rst), .dispatch_info(rs_entries), .rob_id_next(rob_id_next), .avail_inst(avail_inst), 
+                  .cdb(CDB),
                   .pop_from_rob(pop_from_rob), .rob_entries_to_commit(rob_entries_to_commit), .rob_dest_reg(rob_dest_reg), .write_from_rob(write_from_rob));
 
 // CYCLE 1 (WRITTEN TO BY OTHER ELEMENT IN CYCLE 1) (CYCLE 1 TAKES MULTIPLE CLK CYCLES)
@@ -237,7 +241,8 @@ reservation #(.SS(SS)) reservation_table(.clk(clk), .rst(rst),
                         .reservation_entry(rs_entries), 
                         .avail_inst(avail_inst), 
                         .write_from_fu(write_fu_enable), 
-                        // .fu_dest_reg(fu_output),
+                        .cdb(CDB),
+                        .reservation_rob_id(reservation_rob_id),
                         .alu_status(alu_status), 
                         .mult_status(mult_status), 
                         .inst_for_fu(fu_input), 
@@ -247,7 +252,6 @@ reservation #(.SS(SS)) reservation_table(.clk(clk), .rst(rst),
 // CYCLE 2
 ///////////////////// EXECUTE: FUNCTIONAL UNITS /////////////////////
 // MODULE INPUTS DECLARATION 
-fu_output_t fu_output [SS];
 // MODULE OUTPUT DECLARATION
 
 // MODULE INSTANTIATION
@@ -257,7 +261,8 @@ fu_wrapper #(.SS(SS), .reservation_table_size(), .ROB_DEPTH()) calculator(
                        .to_be_calculated(fu_input), 
                        .alu_status(alu_status), 
                        .mult_status(mult_status), 
-                       .fu_output(fu_output));
+                       .fu_output(CDB));
+
 
 // Temporary:
 assign dmem_rmask = 4'b0;

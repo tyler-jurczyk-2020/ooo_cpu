@@ -22,6 +22,10 @@ import rv32i_types::*;
     // This info is passed into the CDB which will set the input signals
     // Only info needed is the raw data for the physical register 
     input [31:0] rd_v_FU_write_destination [SS], 
+
+    // CDB/Reservation exchange
+    input fu_output_t cdb [SS],
+    output logic [7:0] reservation_rob_id,
     
     // flag to indicate which values we are receiving, as we won't always be overwriting the rd_v specifically
     input logic write_from_fu [SS], 
@@ -47,21 +51,33 @@ import rv32i_types::*;
         end else if (regf_we) begin
             for (int i = 0; i < SS; i++) begin
                 // for the given source register, is it NOT R0?
-                if(rd_s_ROB_write_destination[i] != 6'b0) begin
-                    if(write_from_fu[i]) begin
-                        // When we write via CDB for funct, then we remove ROB_ID because dependency is gone
-                        // Due to register-renaming, ROB entries and physical registers are one-to-one. So when dependency is gone, we flush the ROB. 
-                        data[i].register_value <= rd_v_FU_write_destination[i]; 
-                        data[i].dependency <= '0; 
-                    end
-                    else if(write_from_rob[i]) begin
-                        data[i].ROB_ID <= ROB_ID_ROB_write_destination[i]; 
-                        data[i].dependency <= '1; 
+                for(int j = 0; j < TABLE_ENTRIES; j++) begin
+                    if(rd_s_ROB_write_destination[i] != 6'b0) begin
+                        if(write_from_fu[i]) begin
+                            // When we write via CDB for funct, then we remove ROB_ID because dependency is gone
+                            // Due to register-renaming, ROB entries and physical registers are one-to-one. So when dependency is gone, we flush the ROB. 
+                            data[j].register_value <= rd_v_FU_write_destination[i]; 
+                            data[j].dependency <= '0; 
+                        end
+                        else if(write_from_rob[i]) begin
+                            data[j].ROB_ID <= ROB_ID_ROB_write_destination[i]; 
+                            data[j].dependency <= '1; 
+                        end
                     end
                 end
             end
         end
     end     
+
+    always_comb begin
+        for(int i = 0; i < SS; i++) begin
+            for(int j = 0; j < TABLE_ENTRIES; j++) begin
+                if (write_from_fu[i] && cdb[i].inst_info.reservation_entry.rat.rd == j[5:0]) begin
+                    reservation_rob_id = data[j].ROB_ID;
+                end   
+            end
+        end
+    end
     // Modifying for the transparent regfile so if we are in the dispatcher
     // and the dispatcher needs to fetch data which is being written by the functional unit(s) then
     // it can get it immediately 

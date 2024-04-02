@@ -172,7 +172,7 @@ package rv32i_types;
     typedef struct packed {
         dispatch_reservation_t reservation_entry; 
         logic valid; 
-    } reserevation_entry_t; 
+    } reservation_entry_t; 
         
     typedef struct packed {
         logic [31:0] register_value; 
@@ -183,14 +183,14 @@ package rv32i_types;
 
     typedef struct packed {
         // get entry from reservation station
-        reserevation_entry_t inst_info; 
+        reservation_entry_t inst_info; 
 
         // signal to begin calculation 
         logic start_calculate; 
     } fu_input_t; 
 
     typedef struct packed {
-        reserevation_entry_t inst_info; 
+        reservation_entry_t inst_info; 
         logic [31:0] register_value; 
         logic ready_for_writeback; 
     } fu_output_t; 

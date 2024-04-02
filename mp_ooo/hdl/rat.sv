@@ -20,8 +20,9 @@ logic   [6:0] data [32];
 
 always_ff @(posedge clk) begin
     if (rst) begin
-        for (int i = 0; i < 32; i++)
-            data[i] <= '0;
+        for (int i = 0; i < 32; i++) begin
+            data[i] <= i[6:0];
+        end
     end
 
     else if (regf_we) begin

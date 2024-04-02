@@ -11,7 +11,7 @@ import rv32i_types::*;
     input QUEUE_TYPE in [SS], // Values pushed in
     input QUEUE_TYPE reg_in [SS], // Values used to modify entries
     input logic [$clog2(DEPTH)-1:0] reg_select_in [SS], reg_select_out [SS],
-    input logic [1:0] in_bitmask, out_bitmask,
+    input logic [SS-1:0] in_bitmask, out_bitmask,
  
     // Need to consider potentially how partial pushes/pops may work in superscalar context
     output logic empty,

@@ -2,7 +2,7 @@ module rob
     import rv32i_types::*;
     #(
         parameter SS = 2,
-        parameter ROB_DEPTH = 7
+        parameter ROB_DEPTH = 8
     )(
     ////// INPUTS:
         input clk,
@@ -10,7 +10,8 @@ module rob
         // dispatched instructions
         input logic avail_inst,
         input dispatch_reservation_t dispatch_info [SS],
-    
+        // commit signal sent in by the functional unit
+        input fu_output_t cdb [SS],
     ////// OUTPUTS:
         // when to update regfile
         output logic write_from_rob[SS],
@@ -32,16 +33,31 @@ module rob
 
     logic [$clog2(ROB_DEPTH)-1:0] rob_id_out[SS];
     
-    // ROB receives data from CDB and updates commit flag in circular queue
-    circular_queue #(.SS(SS), .QUEUE_TYPE(dispatch_reservation_t), .DEPTH(ROB_DEPTH)) rob_dut(.clk(clk), .rst(rst), .push(avail_inst), .pop(pop_from_rob), 
-    .reg_select_out(rob_id_out), .reg_out(inspect_queue), .head_out(head), .tail_out(tail),
-    .full(rob_full), .empty(rob_empty));
-    
+    logic [$clog2(ROB_DEPTH)-1:0] rob_id_reg_select[SS];
+    dispatch_reservation_t rob_entry_in[SS];
+    logic [SS-1:0] bitmask;
+    // ROB receives data from cdb and updates commit flag in circular queue
+    circular_queue #(.SS(SS), .QUEUE_TYPE(dispatch_reservation_t), .DEPTH(ROB_DEPTH)) rob_dut(.clk(clk), .rst(rst), .in(dispatch_info), .push(avail_inst), .pop(pop_from_rob), 
+    .reg_select_out(rob_id_out), 
+    .reg_out(inspect_queue), .reg_select_in(rob_id_reg_select), .reg_in(rob_entry_in), .in_bitmask(bitmask), // One hot bitmask
+    .head_out(head), .tail_out(tail), .full(rob_full), .empty(rob_empty));
+
+
+    always_comb begin
+        for(int i = 0; i < SS; i++)begin
+            if(cdb[i].ready_for_writeback) begin
+                rob_id_reg_select[i] = cdb[i].inst_info.reservation_entry.rob.rob_id[2:0];
+                rob_entry_in[i] = cdb[i].inst_info.reservation_entry;
+                bitmask[i] = 1'b1; 
+            end
+        end
+    end
+
     always_comb begin
         // Dispatch:
         for(int i = 0; i < SS; i++)begin
             // setting up to read the first SS entries in the rob
-            // inspect_queue[i] = i; // Don't really know what this does
+            //inspect_queue[i].rob.commit = cdb[i].inst_info.reservation_entry.rob.commit;
             pop_from_rob &= inspect_queue[i].rob.commit && !rob_empty; //pop from queue if instr at the head is ready to commit
             rob_id_next[i] = head + i[$clog2(ROB_DEPTH)-1:0];
 
@@ -61,7 +77,7 @@ module rob
             end
         end
     end
-
+  
     // counting order when we commit 
     logic [63:0] order_counter;
     always_comb begin
