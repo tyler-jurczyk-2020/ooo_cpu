@@ -221,9 +221,9 @@ phys_reg_file #(.SS(SS)) reg_file (
 // MODULE OUTPUT DECLARATION
 dispatch_reservation_t rob_entries_to_commit [SS];
 // MODULE INSTANTIATION
-
+logic pop_from_rob;
 rob #(.SS(SS)) rb(.clk(clk), .rst(rst), .dispatch_info(rs_entries), .rob_id_next(rob_id_next), .avail_inst(avail_inst), 
-                  .rob_entries_to_commit(rob_entries_to_commit), .rob_dest_reg(rob_dest_reg), .write_from_rob(write_from_rob));
+                  .pop_from_rob(pop_from_rob), .rob_entries_to_commit(rob_entries_to_commit), .rob_dest_reg(rob_dest_reg), .write_from_rob(write_from_rob));
 
 // CYCLE 1 (WRITTEN TO BY OTHER ELEMENT IN CYCLE 1) (CYCLE 1 TAKES MULTIPLE CLK CYCLES)
 ///////////////////// ISSUE: RESERVATION STATIONS /////////////////////
@@ -274,6 +274,7 @@ logic   [31:0]  rs1_rdata;
 logic   [31:0]  rs2_rdata;
 logic   [4:0]   rd_addr;
 logic   [31:0]  rd_wdata;
+//////////////////////////
 logic   [31:0]  pc_rdata;
 logic   [31:0]  pc_wdata;
 logic   [31:0]  mem_addr;
@@ -281,12 +282,54 @@ logic   [3:0]   mem_rmask;
 logic   [3:0]   mem_wmask;
 logic   [31:0]  mem_rdata;
 logic   [31:0]  mem_wdata;
-assign pc_rdata = '0;
-assign pc_wdata = '0;
-assign mem_addr = '0;
-assign mem_rmask = '0;
-assign mem_wmask = '0;
-assign mem_rdata = '0;
-assign mem_wdata = '0;
+
+// Setup signals for non-superscalar for now
+always_comb begin
+    // when we commit an instr 
+    if(pop_from_rob) begin
+        valid = rob_entries_to_commit[0].rvfi.valid;
+        order = rob_entries_to_commit[0].rvfi.order;
+        inst = rob_entries_to_commit[0].rvfi.inst;
+        
+        rs1_addr = rob_entries_to_commit[0].rvfi.rs1_addr;
+        rs2_addr = rob_entries_to_commit[0].rvfi.rs2_addr;
+        rs1_rdata = rob_entries_to_commit[0].rvfi.rs1_rdata;
+        rs2_rdata = rob_entries_to_commit[0].rvfi.rs2_rdata;
+        
+        rd_addr = rob_entries_to_commit[0].rvfi.rd_addr;
+        rd_wdata = rob_entries_to_commit[0].rvfi.rd_wdata;
+        
+        pc_rdata = rob_entries_to_commit[0].rvfi.pc_rdata;
+        pc_wdata = rob_entries_to_commit[0].rvfi.pc_wdata;
+        
+        mem_addr = rob_entries_to_commit[0].rvfi.mem_addr;
+        mem_rmask = rob_entries_to_commit[0].rvfi.mem_rmask;
+        mem_wmask = rob_entries_to_commit[0].rvfi.mem_wmask;
+        mem_rdata = rob_entries_to_commit[0].rvfi.mem_rdata;
+        mem_wdata = rob_entries_to_commit[0].rvfi.mem_wdata;
+    end
+    else begin
+        valid = 1'b0;
+        order = 'x;
+        inst = 'x;
+        
+        rs1_addr = 'x;
+        rs2_addr = 'x;
+        rs1_rdata = 'x;
+        rs2_rdata = 'x;
+
+        rd_addr = 'x;
+        rd_wdata = 'x;
+        
+        pc_rdata = 'x;
+        pc_wdata = 'x;
+        
+        mem_addr = 'x;
+        mem_rmask = 'x;
+        mem_wmask = 'x;
+        mem_rdata = 'x;
+        mem_wdata = 'x;
+    end
+end
 
 endmodule : cpu

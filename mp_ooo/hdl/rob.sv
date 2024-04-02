@@ -19,12 +19,14 @@ module rob
         // destination regs for the instr
         output logic [5:0] rob_dest_reg[SS],
         // updated RVFI order
-        output dispatch_reservation_t rob_entries_to_commit [SS]
+        output dispatch_reservation_t rob_entries_to_commit [SS],
+        // pop from rob queue
+        output logic pop_from_rob
     );
     
     // head & tail pointers for ROB entries
     logic [$clog2(ROB_DEPTH)-1:0] head, tail;
-    logic push_to_rob, pop_from_rob;
+    logic push_to_rob;
     dispatch_reservation_t inspect_queue [SS];
     logic rob_full, rob_empty;
 
@@ -44,7 +46,7 @@ module rob
             rob_id_next[i] = head + i[$clog2(ROB_DEPTH)-1:0];
 
             // Check each ss slot if an instruction has been dispatched
-            if (dispatch_info[i].inst.valid && !rob_full && avail_inst)begin     
+            if (avail_inst)begin     
                 // Regfile should be updated w/ new phys reg mapping
                 write_from_rob[i] = '1;
                 rob_id_out[i] = tail + i[$clog2(ROB_DEPTH)-1:0];
