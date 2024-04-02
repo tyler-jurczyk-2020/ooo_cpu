@@ -32,7 +32,6 @@ always_ff @(posedge clk) begin
         for(int i = 0; i < SS; i++) begin
             if(retired_isa_rd[i] != 5'd0)
                 retired_rat_data[retired_isa_rd[i]] <= retired_rat_rd[i];
-
         end
     end
 end

@@ -76,7 +76,7 @@ package rv32i_types;
             logic [2:0] alu_operation;
             logic [2:0] cmp_operation;
             // type of multiplication operation
-            logic [2:0] mul_type;
+            logic [1:0] mul_type;
             
             logic alu_en;
             logic cmp_en;
@@ -99,6 +99,7 @@ package rv32i_types;
 
             logic [31:0] pc_curr;
             logic [31:0] pc_next;
+            logic [63:0] order;
 
             logic reg_status; 
 
@@ -114,6 +115,7 @@ package rv32i_types;
         logic [31:0] fetch_pc_curr;  //rvfi pc_rdata
         // For rvfi purposes (fetch_pc_curr + 4)
         logic [31:0] fetch_pc_next; 
+        logic [63:0] fetch_order;
     } fetch_output_reg_t;
 
     

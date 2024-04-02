@@ -33,7 +33,6 @@ import rv32i_types::*;
     
     // Reservation station
     input logic rs_full,
-    output dispatch_reservation_t rob_entries [SS], 
     output dispatch_reservation_t rs_entries [SS]
 );
 
@@ -63,8 +62,6 @@ always_comb begin
             // ROB Setup
             rs_entries[i].rob.rob_id = rob_id_next[i];
             rs_entries[i].rob.commit = 1'b0;
-            rs_entries[i].rob.input1_met = pr_rs1[i].dependency;
-            rs_entries[i].rob.input2_met = pr_rs2[i].dependency;
             rs_entries[i].rob.rs1_source = pr_rs1[i].ROB_ID;
             rs_entries[i].rob.rs2_source = pr_rs2[i].ROB_ID;
 

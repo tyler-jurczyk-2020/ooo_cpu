@@ -2,7 +2,8 @@ module cpu
 import rv32i_types::*;
 #(
     parameter SS = 2,
-    parameter ROB_DEPTH = 8
+    parameter PR_ENTRIES = 64,
+    parameter ROB_DEPTH = 7
 )
 (
     // Explicit dual port connections when caches are not integrated into design yet (Before CP3)
@@ -146,6 +147,8 @@ dispatch_reservation_t rs_entries [SS];
 logic rs_full;
 logic avail_inst;
 logic [$clog2(ROB_DEPTH)-1:0] rob_id_next [SS];
+logic [$clog2(PR_ENTRIES)-1:0] sel_pr_rs1 [SS], sel_pr_rs2 [SS];
+physical_reg_data_t pr_rs1 [SS], pr_rs2 [SS];
 
 // MODULE OUTPUT DECLARATION
 
@@ -162,6 +165,7 @@ rename_dispatch #(.SS(SS)) rd(.clk(clk), .rst(rst),
 
                    .rat_dest(rat_rd),
                    .isa_rs1(isa_rs1), .isa_rs2(isa_rs2), .isa_rd(isa_rd),
+                   .sel_pr_rs1(sel_pr_rs1), .sel_pr_rs2(sel_pr_rs2), .pr_rs1(pr_rs1), .pr_rs2(pr_rs2),
                    .pop_inst_q(pop_inst_q),
                    .rs_entries(rs_entries) 
                    );
@@ -178,20 +182,33 @@ free_list(.clk(clk), .rst(rst), .push('0), .out(free_list_regs), .pop(pop_inst_q
 // CYCLE 1 (UTILIZED IN CYCLE 0)
 ///////////////////// ISSUE: PHYSICAL REGISTER FILE /////////////////////
 // MODULE INPUTS DECLARATION 
+fu_output_t CDB [SS]; 
+logic [31:0] data_from_fu [SS]; 
+logic write_fu_enable [SS]; 
+logic write_from_rob [SS];
+logic [5:0] rob_dest_reg[SS]; 
+
+always_comb begin
+    for(int i = 0; i < SS; i++) begin
+        data_from_fu[i] <= CDB[i].register_value; 
+        write_fu_enable[i] <= CDB[i].ready_for_writeback; 
+    end
+end
+
 
 // MODULE OUTPUT DECLARATION
 phys_reg_file reg_file (
     .clk(clk), 
     .rst(rst), 
     .regf_we('1), 
-    .rd_s_ROB_write_destination(), 
-    .ROB_ID_ROB_write_destination(), 
-    .rd_v_FU_write_destination(), 
-    .write_from_fu(), 
-    .write_from_rob(), 
-    .rs1_s_dispatch_request(), 
-    .rs2_s_dispatch_request(), 
-    .source_reg_1(), .source_reg_2()); 
+    .rd_s_ROB_write_destination(rob_dest_reg), 
+    .ROB_ID_ROB_write_destination(rob_id_next), 
+    .rd_v_FU_write_destination(data_from_fu), 
+    .write_from_fu(write_fu_enable), 
+    .write_from_rob(write_from_rob), 
+    .rs1_s_dispatch_request(sel_pr_rs1), 
+    .rs2_s_dispatch_request(sel_pr_rs2), 
+    .source_reg_1(pr_rs1), .source_reg_2(pr_rs2)); 
 
 
 // MODULE INSTANTIATION
@@ -201,35 +218,45 @@ phys_reg_file reg_file (
 // MODULE INPUTS DECLARATION 
 
 // MODULE OUTPUT DECLARATION
-
+dispatch_reservation_t rob_entries_to_commit [SS];
 // MODULE INSTANTIATION
+
+rob #(.SS(SS)) rb(.clk(clk), .rst(rst), .dispatch_info(rs_entries), .rob_id_next(rob_id_next), .avail_inst(avail_inst), 
+                  .rob_entries_to_commit(rob_entries_to_commit), .rob_dest_reg(rob_dest_reg), .write_from_rob(write_from_rob));
 
 // CYCLE 1 (WRITTEN TO BY OTHER ELEMENT IN CYCLE 1) (CYCLE 1 TAKES MULTIPLE CLK CYCLES)
 ///////////////////// ISSUE: RESERVATION STATIONS /////////////////////
 // MODULE INPUTS DECLARATION 
-
+logic alu_status [SS], mult_status [SS];
+fu_input_t fu_input [SS];
 // MODULE OUTPUT DECLARATION
 
 // MODULE INSTANTIATION
+reservation #(.SS(SS)) reservation_table(.clk(clk), .rst(rst),
+                        .reservation_entry(rs_entries), 
+                        .avail_inst(avail_inst), 
+                        .write_from_fu(write_fu_enable), 
+                        // .fu_dest_reg(fu_output),
+                        .alu_status(alu_status), 
+                        .mult_status(mult_status), 
+                        .inst_for_fu(fu_input), 
+                        .table_full(rs_full));
+
 
 // CYCLE 2
 ///////////////////// EXECUTE: FUNCTIONAL UNITS /////////////////////
 // MODULE INPUTS DECLARATION 
-
+fu_output_t fu_output [SS];
 // MODULE OUTPUT DECLARATION
 
 // MODULE INSTANTIATION
 
-
-
-
-
-// Reservation Station: 
-reservation #(.SS(SS)) rs(.clk(clk), .rst(rst),.reservation_entry(rs_entries), .table_full(rs_full), .avail_inst(avail_inst));
-
-// ROB:
-rob_t rob_entry;
-rob #(.SS(SS)) rb(.clk(clk), .rst(rst), .rob_id_next(rob_id_next), .avail_inst(avail_inst));
+fu_wrapper #(.SS(SS), .reservation_table_size(), .ROB_DEPTH()) calculator(
+                       .clk(clk), .rst(rst),
+                       .to_be_calculated(fu_input), 
+                       .alu_status(alu_status), 
+                       .mult_status(mult_status), 
+                       .fu_output(fu_output));
 
 // Temporary:
 assign dmem_rmask = 4'b0;
@@ -253,16 +280,6 @@ logic   [3:0]   mem_rmask;
 logic   [3:0]   mem_wmask;
 logic   [31:0]  mem_rdata;
 logic   [31:0]  mem_wdata;
-
-assign valid = '0;
-assign order = '0;
-assign inst = '0;
-assign rs1_addr = '0;
-assign rs2_addr = '0;
-assign rs1_rdata = '0;
-assign rs2_rdata = '0;
-assign rd_addr = '0;
-assign rd_wdata = '0;
 assign pc_rdata = '0;
 assign pc_wdata = '0;
 assign mem_addr = '0;

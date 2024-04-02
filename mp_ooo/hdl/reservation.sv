@@ -3,7 +3,7 @@ import rv32i_types::*;
 #(
     parameter SS = 2,
     parameter reservation_table_size = 8,
-    parameter ROB_DEPTH = 8 
+    parameter ROB_DEPTH = 7 
 )
 (
     input logic clk, rst,
@@ -12,8 +12,9 @@ import rv32i_types::*;
     // reservation station struct     
     input dispatch_reservation_t reservation_entry [SS],
 
-    input [ROB_DEPTH-1:0] updated_rob, 
-    input logic alu_status, mult_status,
+    input logic write_from_fu [SS],
+    input logic [reservation_table_size-1:0] fu_dest_reg [SS], 
+    input logic alu_status [SS], mult_status [SS],
 
     output fu_input_t inst_for_fu [SS], 
     // inform instruction queue to pause if our reservation table is full. 
@@ -67,15 +68,15 @@ always_ff @ (posedge clk) begin
     // Check all table entries to see whether we need to update them
     for(int i = 0; i < SS; i++) begin 
         for(int j = 0; j < reservation_table_size; j++) begin
-            if(reservation_table[i][j].reservation_entry.rob.rs1_source == updated_rob) begin
+            if(reservation_table[i][j].reservation_entry.rob.rs1_source == fu_dest_reg[i] && write_from_fu[i]) begin
                 reservation_table[i][j].reservation_entry.rob.input1_met <= '1;  
             end
-            if(reservation_table[i][j].reservation_entry.rob.rs2_source == updated_rob) begin
+            if(reservation_table[i][j].reservation_entry.rob.rs2_source == fu_dest_reg[i] && write_from_fu[i]) begin
                 reservation_table[i][j].reservation_entry.rob.input2_met <= '1; 
             end
             // See whether to issue any entry
-            if((reservation_table[i][j].reservation_entry.inst.alu_en && alu_status) || 
-               (reservation_table[i][j].reservation_entry.inst.is_mul && mult_status)) begin
+            if((reservation_table[i][j].reservation_entry.inst.alu_en && alu_status[i]) || 
+               (reservation_table[i][j].reservation_entry.inst.is_mul && mult_status[i])) begin
                 if(reservation_table[i][j].reservation_entry.rob.input1_met && reservation_table[i][j].reservation_entry.rob.input2_met) begin
                     // local_inst_fu <= reservation_entry[j]; // Not correct, wrong type
                     reservation_table[i][j].valid <= '0; 

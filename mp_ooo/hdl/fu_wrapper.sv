@@ -3,24 +3,20 @@ module fu_wrapper
     #(
         parameter SS = 2,
         parameter reservation_table_size = 8,
-        parameter ROB_DEPTH = 8 
+        parameter ROB_DEPTH = 7
     )
     (
         input logic clk, rst,
         // get entry from reservation station
         input fu_input_t to_be_calculated [SS], 
 
-        output logic alu_status, 
-        output logic mult_status,
+        output logic alu_status[SS], 
+        output logic mult_status[SS],
 
         output fu_output_t fu_output [SS], 
-
-        output logic [$clog2(TABLE_ENTRIES)-1:0] rs1_s_dispatch_request [SS], 
-        output logic [$clog2(TABLE_ENTRIES)-1:0] rs2_s_dispatch_request [SS], 
         input  physical_reg_data_t source_reg_1 [SS], source_reg_2 [SS]
 
     );
-    // my favorite rapper is the diddler
     // the reservation 
     // hi guys
     // ben bitdiddle is who I aspire to be
@@ -41,34 +37,26 @@ module fu_wrapper
     logic [31:0] cmp_input_a [SS]; 
     logic [31:0] cmp_input_b [SS]; 
 
-    // Incorrect, need to get corrected value
-    logic op1_is_imm;
-    logic op2_is_imm;
-    assign op1_is_imm = 1'b0;
-    assign op2_is_imm = 1'b0;
-
     always_comb begin
         for(int i = 0; i < SS; i++) begin
-            if(op1_is_imm && ~to_be_calculated[i].inst_info.reserevation_entry.inst.is_branch && ~to_be_calculated[i].inst_info.reserevation_entry.inst.is_jump) begin
-                alu_input_a[i] = to_be_calculated[i].inst_info.reserevation_entry.inst.immediate; 
+            if(to_be_calculated[i].inst_info.reservation_entry.inst.op1_is_imm && ~to_be_calculated[i].inst_info.reservation_entry.inst.is_branch && ~to_be_calculated[i].inst_info.reservation_entry.inst.is_jump) begin
+                alu_input_a[i] = to_be_calculated[i].inst_info.reservation_entry.inst.immediate; 
             end
-            else if(op1_is_imm && (to_be_calculated[i].inst_info.reserevation_entry.inst.is_branch || to_be_calculated[i].inst_info.reserevation_entry.inst.is_jump)) begin
-                alu_input_a[i] = to_be_calculated[i].inst_info.reserevation_entry.inst.pc_curr; 
+            else if(to_be_calculated[i].inst_info.reservation_entry.inst.op1_is_imm && (to_be_calculated[i].inst_info.reservation_entry.inst.is_branch || to_be_calculated[i].inst_info.reservation_entry.inst.is_jump)) begin
+                alu_input_a[i] = to_be_calculated[i].inst_info.reservation_entry.inst.pc_curr; 
             end
             else begin
-                rs1_s_dispatch_request = to_be_calculated[i].inst_info.reserevation_entry.inst.rs1_s; 
-                alu_input_a[i] = source_reg_1.register_value; 
+                alu_input_a[i] = source_reg_1[i].register_value; 
             end
 
-            if(op2_is_imm && ~to_be_calculated[i].inst_info.reserevation_entry.inst.is_branch && ~to_be_calculated[i].inst_info.reserevation_entry.inst.is_jump) begin
-                alu_input_b[i] = to_be_calculated[i].inst_info.reserevation_entry.inst.immediate; 
+            if(to_be_calculated[i].inst_info.reservation_entry.inst.op2_is_imm && ~to_be_calculated[i].inst_info.reservation_entry.inst.is_branch && ~to_be_calculated[i].inst_info.reservation_entry.inst.is_jump) begin
+                alu_input_b[i] = to_be_calculated[i].inst_info.reservation_entry.inst.immediate; 
             end
-            else if(op2_is_imm && (to_be_calculated[i].inst_info.reserevation_entry.inst.is_branch || to_be_calculated[i].inst_info.reserevation_entry.inst.is_jump)) begin
-                alu_input_b[i] = to_be_calculated[i].inst_info.reserevation_entry.inst.pc_curr; 
+            else if(to_be_calculated[i].inst_info.reservation_entry.inst.op2_is_imm && (to_be_calculated[i].inst_info.reservation_entry.inst.is_branch || to_be_calculated[i].inst_info.reservation_entry.inst.is_jump)) begin
+                alu_input_b[i] = to_be_calculated[i].inst_info.reservation_entry.inst.pc_curr; 
             end
             else begin
-                rs2_s_dispatch_request = to_be_calculated[i].inst_info.reserevation_entry.inst.rs2_s; 
-                alu_input_b[i] = source_reg_2.register_value; 
+                alu_input_b[i] = source_reg_2[i].register_value; 
             end
         end
     end  
@@ -77,43 +65,38 @@ module fu_wrapper
         cmp_input_a = alu_input_a; 
         cmp_input_b = alu_input_b; 
         for(int i = 0; i < SS; i++) begin
-            if(to_be_calculated[i].inst_info.reserevation_entry.inst.is_branch) begin
-                rs1_s_dispatch_request = to_be_calculated[i].inst_info.reserevation_entry.inst.rs1_s; 
-                cmp_input_a[i] = source_reg_1.register_value; 
-                rs2_s_dispatch_request = to_be_calculated[i].inst_info.reserevation_entry.inst.rs2_s; 
-                cmp_input_b[i] = source_reg_2.register_value; 
+            if(to_be_calculated[i].inst_info.reservation_entry.inst.is_branch) begin
+                cmp_input_a[i] = source_reg_1[i].register_value; 
+                cmp_input_b[i] = source_reg_2[i].register_value; 
             end
         end
     end
+ 
 
-    // idk what to do for this
-    assign alu_status[SS] = '1; 
-
-    logic mult_done [SS]; 
     always_comb begin
         for(int i = 0; i < SS; i++) begin
-            mult_status[i] = mult_done[i]; 
+            alu_status[i] = '1;
         end
     end
 
     logic [31:0] alu_output [SS]; 
-    logic [31:0] cmp_output [SS]; 
-    logic [31:0] mult_output [SS]; 
+    logic cmp_output [SS]; 
+    logic [63:0] mult_output [SS];
 
     generate 
         for(genvar i = 0; i < SS; i++) begin: FUs
-            alu calculator(.aluop(to_be_calculated[i].inst_info.reserevation_entry.inst.alu_operation), 
+            alu calculator(.aluop(to_be_calculated[i].inst_info.reservation_entry.inst.alu_operation), 
                            .a(alu_input_a[i]), 
                            .b(alu_input_b[i]), 
                            .f(alu_output[i])); 
-            cmp comparator(.cmpop(to_be_calculated[i].inst_info.reserevation_entry.inst.cmp_operation), 
-                           .a(cmp_input_a), 
-                           .b(cmp_input_b), 
-                           .f(cmp_output[i])); 
-            shift_add_multiplier(.clk(clk), 
+            cmp comparator(.cmpop(to_be_calculated[i].inst_info.reservation_entry.inst.cmp_operation), 
+                           .a(cmp_input_a[i]), 
+                           .b(cmp_input_b[i]), 
+                           .br_en(cmp_output[i])); 
+            shift_add_multiplier shi(.clk(clk), 
                                  .rst(rst), 
-                                 .start(to_be_calculated[i].start), 
-                                 .mul_type(to_be_calculated[i].inst_info.reserevation_entry.inst.mul_type), 
+                                 .start(to_be_calculated[i].start_calculate), 
+                                 .mul_type(to_be_calculated[i].inst_info.reservation_entry.inst.mul_type), 
                                  .a(alu_input_a[i]), 
                                  .b(alu_input_b[i]), 
                                  .p(mult_output[i]), 
@@ -122,19 +105,19 @@ module fu_wrapper
     endgenerate   
 
     always_ff @ (posedge clk) begin
-        fu_output.inst_info = to_be_calculated[i].inst_info.reserevation_entry; 
         for(int i = 0; i < SS; i++) begin
-            if(to_be_calculated[i].inst_info.reserevation_entry.inst.alu_en) begin
+            fu_output[i].inst_info = to_be_calculated[i].inst_info.reservation_entry; 
+            if(to_be_calculated[i].inst_info.reservation_entry.inst.alu_en) begin
                 fu_output[i].register_value = alu_output[i];
                 fu_output[i].ready_for_writeback = '1; 
             end
-            else if(to_be_calculated[i].inst_info.reserevation_entry.inst.is_mul
+            else if(to_be_calculated[i].inst_info.reservation_entry.inst.is_mul
                     && mult_status[i]) begin
                 fu_output[i].register_value = mult_output[i];
                 fu_output[i].ready_for_writeback = '1; 
             end
-            else if(to_be_calculated[i].inst_info.reserevation_entry.inst.cmp_en) begin
-                fu_output[i].register_value = {31'd0, cmp_output};
+            else if(to_be_calculated[i].inst_info.reservation_entry.inst.cmp_en) begin
+                fu_output[i].register_value = {31'd0, cmp_output[i]};
                 fu_output[i].ready_for_writeback = '1; 
             end
         end
