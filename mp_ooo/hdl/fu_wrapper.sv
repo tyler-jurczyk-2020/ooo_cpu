@@ -107,21 +107,25 @@ module fu_wrapper
     always_ff @ (posedge clk) begin
         for(int i = 0; i < SS; i++) begin
             // setting commit flag that will be passed into rob
-            // fu_output[i].inst_info.reservation_entry.rob.commit = 1'b1;
+            // fu_output[i].inst_info.reservation_entry.rob.commit <= 1'b1;
+
             
-            fu_output[i].inst_info = to_be_calculated[i].inst_info; 
+            fu_output[i].inst_info <= to_be_calculated[i].inst_info; 
             if(to_be_calculated[i].inst_info.reservation_entry.inst.alu_en) begin
-                fu_output[i].register_value = alu_output[i];
-                fu_output[i].ready_for_writeback = '1; 
+                fu_output[i].register_value <= alu_output[i];
+                fu_output[i].ready_for_writeback <= '1; 
+                fu_output[i].inst_info.reservation_entry.rvfi.rd_wdata <= alu_output[i];
             end
             else if(to_be_calculated[i].inst_info.reservation_entry.inst.is_mul
                     && mult_status[i]) begin
-                fu_output[i].register_value = mult_output[i];
-                fu_output[i].ready_for_writeback = '1; 
+                fu_output[i].register_value <= mult_output[i];
+                fu_output[i].ready_for_writeback <= '1; 
+                fu_output[i].inst_info.reservation_entry.rvfi.rd_wdata <= mult_output[i];
             end
+            // Probably need to fix. Shouldn't write out to rd during branches
             else if(to_be_calculated[i].inst_info.reservation_entry.inst.cmp_en) begin
-                fu_output[i].register_value = {31'd0, cmp_output[i]};
-                fu_output[i].ready_for_writeback = '1; 
+                fu_output[i].register_value <= {31'd0, cmp_output[i]};
+                fu_output[i].ready_for_writeback <= '1; 
             end
         end
     end  
