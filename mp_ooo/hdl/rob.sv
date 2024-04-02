@@ -35,19 +35,21 @@ module rob
     
     logic [$clog2(ROB_DEPTH)-1:0] rob_id_reg_select[SS];
     dispatch_reservation_t rob_entry_in[SS];
-    logic [SS-1:0] bitmask;
+    logic [SS-1:0] bitmask, out_bitmask;
     // ROB receives data from cdb and updates commit flag in circular queue
     circular_queue #(.SS(SS), .QUEUE_TYPE(dispatch_reservation_t), .DEPTH(ROB_DEPTH)) rob_dut(.clk(clk), .rst(rst), .in(dispatch_info), .push(avail_inst), .pop(pop_from_rob), 
     .reg_select_out(rob_id_out), 
-    .reg_out(inspect_queue), .reg_select_in(rob_id_reg_select), .reg_in(rob_entry_in), .in_bitmask(bitmask), // One hot bitmask
+    .reg_out(inspect_queue), .reg_select_in(rob_id_reg_select), .reg_in(rob_entry_in), .in_bitmask(bitmask), .out_bitmask(out_bitmask),// One hot bitmask
     .head_out(head), .tail_out(tail), .full(rob_full), .empty(rob_empty));
 
 
     always_comb begin
         for(int i = 0; i < SS; i++)begin
+            out_bitmask[i] = 1'b1;
             if(cdb[i].ready_for_writeback) begin
                 rob_id_reg_select[i] = cdb[i].inst_info.reservation_entry.rob.rob_id[2:0];
                 rob_entry_in[i] = cdb[i].inst_info.reservation_entry;
+                rob_entry_in[i].rob.commit = 1'b1;
                 bitmask[i] = 1'b1; 
             end
         end

@@ -107,7 +107,7 @@ module fu_wrapper
     always_ff @ (posedge clk) begin
         for(int i = 0; i < SS; i++) begin
             // setting commit flag that will be passed into rob
-            fu_output[i].inst_info.reservation_entry.rob.commit = 1'b1;
+            // fu_output[i].inst_info.reservation_entry.rob.commit = 1'b1;
             
             fu_output[i].inst_info = to_be_calculated[i].inst_info.reservation_entry; 
             if(to_be_calculated[i].inst_info.reservation_entry.inst.alu_en) begin
