@@ -94,8 +94,9 @@ always_comb begin
             rs_entries[i].rvfi.pc_wdata = instruction[i].pc_next;
             rs_entries[i].rvfi.mem_addr = 'x;
             // Need to compute rmask/wmask based on type of mem op
-            rs_entries[i].rvfi.mem_rmask = 'x;
-            rs_entries[i].rvfi.mem_wmask = 'x;
+            // By default we don't make a memory request
+            rs_entries[i].rvfi.mem_rmask = 4'b0;
+            rs_entries[i].rvfi.mem_wmask = 4'b0;
             rs_entries[i].rvfi.mem_rdata = 'x;
             rs_entries[i].rvfi.mem_wdata = 'x;
 

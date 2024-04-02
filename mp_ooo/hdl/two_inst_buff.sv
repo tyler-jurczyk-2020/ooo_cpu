@@ -12,7 +12,7 @@ import rv32i_types::*;
     output instruction_info_reg_t valid_inst[SS],
     output logic valid_out
 );
-
+// Following module only guarenteed to work for one and two way SS
 instruction_info_reg_t buffer[2]; 
 logic counter; 
 logic update_output;
@@ -25,11 +25,14 @@ always_ff @ (posedge clk) begin
     end
     else if (valid) begin
         buffer[counter] <= decoded_inst; 
-        counter <= counter + 1'b1; 
+        if(SS == 2)
+            counter <= counter + 1'b1; 
     end
 
-    if(counter == 1'b1 && valid)
+    if(counter == 1'b1 && valid && SS == 2)
         valid_out <= 1'b1; 
+    else if(counter == 1'b0 && valid && SS == 1)
+        valid_out <= 1'b1;
     else 
         valid_out <= 1'b0;
 end
