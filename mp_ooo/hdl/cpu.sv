@@ -184,19 +184,17 @@ circular_queue #(.SS(SS), .QUEUE_TYPE(logic [5:0]), .INIT_TYPE(FREE_LIST), .DEPT
 ///////////////////// ISSUE: PHYSICAL REGISTER FILE /////////////////////
 // MODULE INPUTS DECLARATION 
 fu_output_t CDB [SS]; 
-logic [31:0] data_from_fu [SS]; 
 logic write_fu_enable [SS]; 
 logic write_from_rob [SS];
 logic [5:0] rob_dest_reg[SS]; 
 
 always_comb begin
     for(int i = 0; i < SS; i++) begin
-        data_from_fu[i] <= CDB[i].register_value; 
         write_fu_enable[i] <= CDB[i].ready_for_writeback; 
     end
 end
 
-logic [7:0] reservation_rob_id;
+logic [7:0] reservation_rob_id [SS];
 // MODULE OUTPUT DECLARATION
 phys_reg_file #(.SS(SS)) reg_file (
     .clk(clk), 
@@ -204,11 +202,11 @@ phys_reg_file #(.SS(SS)) reg_file (
     .regf_we('1), 
     .reservation_rob_id(reservation_rob_id),
     .rd_s_ROB_write_destination(rob_dest_reg), 
-    .ROB_ID_ROB_write_destination(rob_id_next), 
-    .rd_v_FU_write_destination(data_from_fu), 
+    .ROB_ID_for_new_inst(rob_id_next), 
     .write_from_fu(write_fu_enable), 
     .write_from_rob(write_from_rob), 
     .rs1_s_dispatch_request(sel_pr_rs1), 
+    .cdb(CDB), 
     .rs2_s_dispatch_request(sel_pr_rs2), 
     .source_reg_1(pr_rs1), .source_reg_2(pr_rs2)); 
 

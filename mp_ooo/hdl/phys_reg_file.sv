@@ -16,16 +16,17 @@ import rv32i_types::*;
     // when we dispatch a new instruction into the issue stage 
     // ROB ID from the ROB directly
     input logic [$clog2(TABLE_ENTRIES)-1:0] rd_s_ROB_write_destination [SS], 
-    input logic [$clog2(ROB_DEPTH)-1:0] ROB_ID_ROB_write_destination [SS], 
+    input logic [$clog2(ROB_DEPTH)-1:0] ROB_ID_for_new_inst [SS], 
     
     // We write to the phys reg file also when we have info from the funct. unit
-    // This info is passed into the CDB which will set the input signals
+    // This info is passed into the cdb which will set the input signals
     // Only info needed is the raw data for the physical register 
-    input [31:0] rd_v_FU_write_destination [SS], 
+    // input [31:0] rd_v_FU_write_destination [SS], 
 
-    // CDB/Reservation exchange
-    input fu_output_t cdb [SS],
-    output logic [7:0] reservation_rob_id,
+    // cdb/Reservation exchange
+    output logic [7:0] reservation_rob_id [SS],
+
+    input fu_output_t cdb [SS], 
     
     // flag to indicate which values we are receiving, as we won't always be overwriting the rd_v specifically
     input logic write_from_fu [SS], 
@@ -45,37 +46,39 @@ import rv32i_types::*;
 
     always_ff @(posedge clk) begin
         if (rst) begin
-            for (int i = 0; i < 32; i++) begin
+            for (int i = 0; i < TABLE_ENTRIES; i++) begin
                 data[i] <= '0;
             end
         end else if (regf_we) begin
             for (int i = 0; i < SS; i++) begin
                 // for the given source register, is it NOT R0?
-                for(int j = 0; j < TABLE_ENTRIES; j++) begin
-                    if(rd_s_ROB_write_destination[i] != 6'b0) begin
+                // for(int j = 0; j < TABLE_ENTRIES; j++) begin
+                    // if(cdb[i].inst_info.reservation_entry.rat.rd != 6'b0) begin
                         if(write_from_fu[i]) begin
-                            // When we write via CDB for funct, then we remove ROB_ID because dependency is gone
+                            // When we write via cdb for funct, then we remove ROB_ID because dependency is gone
                             // Due to register-renaming, ROB entries and physical registers are one-to-one. So when dependency is gone, we flush the ROB. 
-                            data[j].register_value <= rd_v_FU_write_destination[i]; 
-                            data[j].dependency <= '0; 
+                            data[cdb[i].inst_info.reservation_entry.rat.rd].register_value <= cdb[i].register_value; 
+                            data[cdb[i].inst_info.reservation_entry.rat.rd].dependency <= '0; 
+                            // break; 
                         end
                         else if(write_from_rob[i]) begin
-                            data[j].ROB_ID <= ROB_ID_ROB_write_destination[i]; 
-                            data[j].dependency <= '1; 
+                            data[cdb[i].inst_info.reservation_entry.rat.rd].ROB_ID <= ROB_ID_for_new_inst[i]; 
+                            data[cdb[i].inst_info.reservation_entry.rat.rd].dependency <= '1; 
+                            // break; 
                         end
-                    end
-                end
+                    // end
+                // end
             end
         end
     end     
 
     always_comb begin
         for(int i = 0; i < SS; i++) begin
-            for(int j = 0; j < TABLE_ENTRIES; j++) begin
-                if (write_from_fu[i] && cdb[i].inst_info.reservation_entry.rat.rd == j[5:0]) begin
-                    reservation_rob_id = data[j].ROB_ID;
-                end   
-            end
+            // for(int j = 0; j < TABLE_ENTRIES; j++) begin
+                // if (write_from_fu[i] && cdb[i].inst_info.reservation_entry.rat.rd == j[5:0]) begin
+                    reservation_rob_id[i] = data[cdb[i].inst_info.reservation_entry.rat.rd].ROB_ID;
+                // end   
+            // end
         end
     end
     // Modifying for the transparent regfile so if we are in the dispatcher
@@ -83,52 +86,44 @@ import rv32i_types::*;
     // it can get it immediately 
     always_comb begin
         for (int i = 0; i < SS; i++) begin
-            if (rs1_s_dispatch_request[i] != 6'd0) begin
-                if(write_from_fu[i] && (rs1_s_dispatch_request[i] == rd_s_ROB_write_destination[i])) begin
-                    source_reg_1[i].register_value = rd_v_FU_write_destination[i];
-                    // Also update reservation station dependencies
-                    
-                end
-                else begin
-                    source_reg_1[i] = data[rs1_s_dispatch_request[i]];
-                end
-            end else begin
-                source_reg_1[i] = 'x;
-            end    
-            if (rs2_s_dispatch_request[i] != 6'd0 && (rs2_s_dispatch_request[i] == rd_s_ROB_write_destination[i])) begin
-                if(write_from_fu[i]) begin
-                    source_reg_2[i].register_value = rd_v_FU_write_destination[i];
-                end
-                else begin
-                    source_reg_2[i] = data[rs2_s_dispatch_request[i]];
-                end
-            end else begin
-                source_reg_2[i] = 'x;
+            if(write_from_fu[i] && (rs1_s_dispatch_request[i] == cdb[i].inst_info.reservation_entry.rat.rd)) begin
+                source_reg_1[i].register_value = cdb[i].register_value;
             end
+            else begin
+                source_reg_1[i] = data[rs1_s_dispatch_request[i]];
+            end
+            if(write_from_fu[i] && (rs2_s_dispatch_request[i] == cdb[i].inst_info.reservation_entry.rat.rd)) begin
+                source_reg_2[i].register_value = cdb[i].register_value;
+            end
+            else begin
+                source_reg_2[i] = data[rs2_s_dispatch_request[i]];
+            end
+            // if ((rs2_s_dispatch_request[i] == cdb[i].inst_info.reservation_entry.rat.rd)) begin
+            //     if(write_from_fu[i]) begin
+            //         source_reg_2[i].register_value = cdb[i].register_value;
+            //     end
+            //     else begin
+            //         source_reg_2[i] = data[rs2_s_dispatch_request[i]];
+            //     end
+            // end else begin
+            //     source_reg_2[i] = 'x;
+            // end
         end
     end
 // bs copy for reading to fu hi
     always_comb begin
         for (int i = 0; i < SS; i++) begin
-            if (rs1_s_fu_request[i] != 6'd0) begin
-                if(write_from_fu[i] && (rs1_s_fu_request[i] == rd_s_ROB_write_destination[i])) begin
-                    source_reg_1_fu[i].register_value = rd_v_FU_write_destination[i];
-                end
-                else begin
-                    source_reg_1_fu[i] = data[rs1_s_fu_request[i]];
-                end
-            end else begin
-                source_reg_1_fu[i] = '0;
-            end    
-            if (rs2_s_fu_request[i] != 6'd0 && (rs2_s_fu_request[i] == rd_s_ROB_write_destination[i])) begin
-                if(write_from_fu[i]) begin
-                    source_reg_2_fu[i].register_value = rd_v_FU_write_destination[i];
-                end
-                else begin
-                    source_reg_2_fu[i] = data[rs2_s_fu_request[i]];
-                end
-            end else begin
-                source_reg_2_fu[i] = '0;
+            if(write_from_fu[i] && (rs1_s_fu_request[i] == cdb[i].inst_info.reservation_entry.rat.rd)) begin
+                source_reg_1_fu[i].register_value = cdb[i].register_value;
+            end
+            else begin
+                source_reg_1_fu[i] = data[rs1_s_fu_request[i]];
+            end
+            if ((write_from_fu[i]) && (rs2_s_fu_request[i] == cdb[i].inst_info.reservation_entry.rat.rd)) begin
+                source_reg_2_fu[i].register_value = cdb[i].register_value;
+            end
+            else begin
+                source_reg_2_fu[i] = data[rs2_s_fu_request[i]];
             end
         end
     end

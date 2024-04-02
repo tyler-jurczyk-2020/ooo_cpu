@@ -99,7 +99,6 @@ package rv32i_types;
 
             logic [31:0] pc_curr;
             logic [31:0] pc_next;
-            logic [63:0] order;
 
             logic reg_status; 
 

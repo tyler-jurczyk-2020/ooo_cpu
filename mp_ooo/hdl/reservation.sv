@@ -17,7 +17,7 @@ import rv32i_types::*;
     input logic alu_status [SS], mult_status [SS],
 
     // Input from Physical Register File
-    input logic [7:0] reservation_rob_id,
+    input logic [7:0] reservation_rob_id [SS],
 
     output fu_input_t inst_for_fu [SS], 
     // inform instruction queue to pause if our reservation table is full. 
@@ -69,10 +69,10 @@ always_ff @ (posedge clk) begin
     for(int i = 0; i < SS; i++) begin 
         local_inst_fu[i].start_calculate <= '0; 
         for(int j = 0; j < reservation_table_size; j++) begin
-            if(reservation_table[i][j].reservation_entry.rob.rs1_source == reservation_rob_id && write_from_fu[i]) begin
+            if(reservation_table[i][j].reservation_entry.rob.rs1_source == reservation_rob_id[i] && write_from_fu[i]) begin
                 reservation_table[i][j].reservation_entry.rob.input1_met <= '1;  
             end
-            if(reservation_table[i][j].reservation_entry.rob.rs2_source == reservation_rob_id && write_from_fu[i]) begin
+            if(reservation_table[i][j].reservation_entry.rob.rs2_source == reservation_rob_id[i] && write_from_fu[i]) begin
                 reservation_table[i][j].reservation_entry.rob.input2_met <= '1; 
             end
             // See whether to issue any entry
