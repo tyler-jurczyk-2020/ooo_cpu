@@ -56,24 +56,24 @@ module rob
     end
 
     always_comb begin
+        pop_from_rob = '1;
         // Dispatch:
         for(int i = 0; i < SS; i++)begin
             // setting up to read the first SS entries in the rob
             //inspect_queue[i].rob.commit = cdb[i].inst_info.reservation_entry.rob.commit;
             pop_from_rob &= inspect_queue[i].rob.commit && !rob_empty; //pop from queue if instr at the head is ready to commit
             rob_id_next[i] = head + i[$clog2(ROB_DEPTH)-1:0];
+            rob_id_out[i] = tail + i[$clog2(ROB_DEPTH)-1:0];
 
             // Check each ss slot if an instruction has been dispatched
             if (avail_inst)begin     
                 // Regfile should be updated w/ new phys reg mapping
                 write_from_rob[i] = '1;
-                rob_id_out[i] = tail + i[$clog2(ROB_DEPTH)-1:0];
                 rob_dest_reg[i] = dispatch_info[i].rat.rd; // Need to get PR not ISA reg
             end
             else begin
                 write_from_rob[i] = '0;
                 for(int i = 0; i < SS; i++) begin
-                    rob_id_out[i] = 'x;
                     rob_dest_reg[i] = 'x; 
                 end
             end
