@@ -9,7 +9,7 @@ import rv32i_types::*;
     input logic valid, 
     // fk me
     input instruction_info_reg_t decoded_inst,
-    output instruction_info_reg_t valid_inst[2],
+    output instruction_info_reg_t valid_inst[SS],
     output logic valid_out
 );
 

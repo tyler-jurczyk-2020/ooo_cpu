@@ -48,16 +48,17 @@ logic valid_inst_flag;
 
 
 // Dummy signals, to be removed
-logic dummy_dmem_resp;
-logic [31:0] dummy_dmem_data;
-logic [1:0] dummy [SS];
-instruction_info_reg_t dummy_reg [SS];
-assign dummy_dmem_resp = dmem_resp;
-assign dummy_dmem_data = dmem_rdata;
-assign dummy[0] = '0;
-assign dummy[1] = '0;
-assign dummy_reg[0] = '0;
-assign dummy_reg[1] = '0;
+// logic dummy_dmem_resp;
+// logic [31:0] dummy_dmem_data;
+// logic [1:0] dummy [SS];
+// instruction_info_reg_t dummy_reg [SS];
+// assign dummy_dmem_resp = dmem_resp;
+// assign dummy_dmem_data = dmem_rdata;
+// assign dummy[0] = '0;
+// assign dummy[1] = '0;
+// assign dummy_reg[0] = '0;
+// assign dummy_reg[1] = '0;
+
 // Dummy assign 
 assign dmem_addr = '0;
 assign dmem_wdata = '0;
@@ -70,7 +71,7 @@ circular_queue #(.SS(SS)) instruction_queue
                  .full(inst_queue_full), .in(valid_inst),
                  .out(instruction),
                  .push(valid_buffer_flag), .pop(pop_inst_q), .empty(inst_q_empty),
-                 .out_bitmask('0), .in_bitmask('0), .reg_select_in(dummy), .reg_select_out(dummy), .reg_in(dummy_reg));
+                 .out_bitmask('0), .in_bitmask('0), .reg_select_in(), .reg_select_out(), .reg_in());
 
 ///////////////////// INSTRUCTION FETCH (SIMILAR TO MP2) /////////////////////
 logic reset_hack;
@@ -103,7 +104,7 @@ id_stage id_stage_i (
     .instruction_info(decoded_inst)
 );
 
-two_inst_buff buff (
+two_inst_buff #(.SS(SS)) buff (
     .clk(clk), 
     .rst(rst), 
     .valid(valid_inst_flag), 
@@ -176,8 +177,8 @@ rename_dispatch #(.SS(SS)) rd(.clk(clk), .rst(rst),
 // MODULE OUTPUT DECLARATION
 
 // MODULE INSTANTIATION
-circular_queue #(.QUEUE_TYPE(logic [5:0]), .INIT_TYPE(FREE_LIST), .DEPTH(64), .SS(SS))
-free_list(.clk(clk), .rst(rst), .push('0), .out(free_list_regs), .pop(pop_inst_q));
+circular_queue #(.SS(SS), .QUEUE_TYPE(logic [5:0]), .INIT_TYPE(FREE_LIST), .DEPTH(64))
+      free_list(.clk(clk), .rst(rst), .push('0), .out(free_list_regs), .pop(pop_inst_q));
 
 // CYCLE 1 (UTILIZED IN CYCLE 0)
 ///////////////////// ISSUE: PHYSICAL REGISTER FILE /////////////////////
@@ -197,7 +198,7 @@ end
 
 
 // MODULE OUTPUT DECLARATION
-phys_reg_file reg_file (
+phys_reg_file #(.SS(SS)) reg_file (
     .clk(clk), 
     .rst(rst), 
     .regf_we('1), 

@@ -26,7 +26,7 @@ module top_tb;
     mon_itf mon_itf(.*);    
     monitor monitor(.itf(mon_itf));
 
-    cpu dut(
+    cpu #(.SS(1)) dut(
         .clk            (clk),
         .rst            (rst),
 

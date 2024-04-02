@@ -31,7 +31,7 @@ module rob
     logic [$clog2(ROB_DEPTH)-1:0] rob_id_out[SS];
     
     // ROB receives data from CDB and updates commit flag in circular queue
-    circular_queue #(.QUEUE_TYPE(dispatch_reservation_t), .DEPTH(ROB_DEPTH)) rob_dut(.clk(clk), .rst(rst), .push(avail_inst), .pop(pop_from_rob), 
+    circular_queue #(.SS(SS), .QUEUE_TYPE(dispatch_reservation_t), .DEPTH(ROB_DEPTH)) rob_dut(.clk(clk), .rst(rst), .push(avail_inst), .pop(pop_from_rob), 
     .reg_select_out(rob_id_out), .reg_out(inspect_queue), .head_out(head), .tail_out(tail),
     .full(rob_full), .empty(rob_empty));
     

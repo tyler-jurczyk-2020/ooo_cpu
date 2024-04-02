@@ -36,7 +36,6 @@ import rv32i_types::*;
     output dispatch_reservation_t rs_entries [SS]
 );
 
-logic avail_inst;
 always_ff @(posedge clk) begin
     if(rst)
         avail_inst <= 1'b0;
