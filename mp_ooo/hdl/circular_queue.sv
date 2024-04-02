@@ -45,16 +45,12 @@ always_ff @(posedge clk) begin
             tail <= '0;
             for(int i = 0; i < DEPTH; i++) 
                 entries[i] <= '0;
-            for(int i = 0; i < SS; i++)
-                reg_out[i] <= '0;
         end
         if(INIT_TYPE == FREE_LIST) begin
             head <= '0;
             tail <= '0;
             for(int i = 0; i < DEPTH; i++)
                 entries[i] <= {{$bits(QUEUE_TYPE)-$clog2(DEPTH){1'b0}}, i[$clog2(DEPTH)-1:0]};
-            for(int i = 0; i < SS; i++) 
-                reg_out[i] <= '0;
         end
     end
     else begin
@@ -81,11 +77,16 @@ always_ff @(posedge clk) begin
         for(int i = 0; i < SS; i++) begin
             if(in_bitmask[i])
                 entries[reg_select_in[i]] <= reg_in[i];
-            if(out_bitmask[i])
-                reg_out[i] <= entries[reg_select_out[i]];
-            else
-                reg_out[i] <= 'x;
         end
+    end
+end
+
+always_comb begin
+    for(int i = 0; i < SS; i++) begin
+        if(out_bitmask[i])
+            reg_out[i] = entries[reg_select_out[i]];
+        else
+            reg_out[i] = 'x;
     end
 end
 
