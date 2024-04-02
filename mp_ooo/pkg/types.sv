@@ -55,7 +55,7 @@ package rv32i_types;
 
     typedef enum bit [2:0] {
         alu_add = 3'b000,
-        alu_sll = 3'b001,
+        alu_sll = 3'b001, 
         alu_sra = 3'b010,
         alu_sub = 3'b011,
         alu_xor = 3'b100,
@@ -64,24 +64,30 @@ package rv32i_types;
         alu_and = 3'b111
     } alu_ops;
 
-    typedef union packed {
-        logic [266:0] megaword;
-        struct packed {
+    typedef struct packed {
             logic   [2:0]   funct3;
             logic   [6:0]   funct7;
             logic   [6:0]   opcode;
             logic   [4:0]   rs1_s;
             logic   [4:0]   rs2_s;
-            logic   [4:0]   rd_s;   
+            logic   [4:0]   rd_s;
+            logic   [31:0]  immediate; 
+            
+            logic [2:0] alu_operation;
+            logic [2:0] cmp_operation;
+            // type of multiplication operation
+            logic [1:0] mul_type;
+            
+            logic alu_en;
+            logic cmp_en;
 
-            logic [2:0] alu_operation; 
-            logic [2:0] cmp_operation; 
-            logic alu_en; 
-            logic cmp_en; 
+            logic is_branch;
+            logic is_jump;
 
-            logic is_branch; 
-            logic is_jump; 
-            bit valid; 
+            // to let shift_add_multiplier know we multiplyin
+            logic is_mul;
+
+            bit valid;
 
             logic   [31:0]  i_imm;
             logic   [31:0]  s_imm;
@@ -89,9 +95,19 @@ package rv32i_types;
             logic   [31:0]  u_imm;
             logic   [31:0]  j_imm;
 
-            logic [31:0] pc_curr; 
+            logic [31:0] inst;
+
+            logic [31:0] pc_curr;
             logic [31:0] pc_next;
-        } internal;
+            logic [63:0] order;
+
+            logic reg_status; 
+
+            logic op1_is_imm; 
+            logic op2_is_imm; 
+            logic rs1_needed; 
+            logic rs2_needed; 
+
     } instruction_info_reg_t;
 
     // Add more things here . . .
@@ -99,7 +115,84 @@ package rv32i_types;
         logic [31:0] fetch_pc_curr;  //rvfi pc_rdata
         // For rvfi purposes (fetch_pc_curr + 4)
         logic [31:0] fetch_pc_next; 
+        logic [63:0] fetch_order;
     } fetch_output_reg_t;
 
+    
+    typedef struct packed {
+        logic [5:0] rs1, rs2, rd;
+    } rat_t;
+
+    typedef struct packed {
+        logic valid;
+        logic [63:0] order; 
+        logic [31:0] inst;      
+        
+        logic [4:0] rs1_addr; 
+        logic [4:0] rs2_addr; 
+        logic [31:0] rs1_rdata; 
+        logic [31:0] rs2_rdata; 
+        
+        logic [4:0] rd_addr;
+        logic [31:0] rd_wdata;
+        
+        logic [31:0] pc_rdata; 
+        logic [31:0] pc_wdata; 
+        
+        logic [31:0] mem_addr; 
+        logic [3:0] mem_rmask; 
+        logic [3:0] mem_wmask;
+        logic [31:0] mem_rdata;
+        logic [31:0] mem_wdata;
+    } rvfi_t;
+        
+    typedef struct packed {
+       logic [7:0] rob_id;
+       logic commit;
+       logic input1_met; 
+       logic input2_met; 
+       // Hardcoded ROB depth so it compiles
+       // ROB entries to refer to for dependency
+       logic [7:0] rs1_source; 
+       logic [7:0] rs2_source; 
+    } rob_t;
+
+    typedef struct packed {
+       rob_t rob;
+       rvfi_t rvfi; 
+       instruction_info_reg_t inst;
+       rat_t rat;
+    } dispatch_reservation_t;
+
+    typedef enum logic {
+        ZERO,
+        FREE_LIST 
+    } initialization_t;
+
+    typedef struct packed {
+        dispatch_reservation_t reservation_entry; 
+        logic valid; 
+    } reservation_entry_t; 
+        
+    typedef struct packed {
+        logic [31:0] register_value; 
+       // Hardcoded ROB depth so it compiles
+        logic [7:0] ROB_ID; 
+        logic dependency; 
+    } physical_reg_data_t; 
+
+    typedef struct packed {
+        // get entry from reservation station
+        reservation_entry_t inst_info; 
+
+        // signal to begin calculation 
+        logic start_calculate; 
+    } fu_input_t; 
+
+    typedef struct packed {
+        reservation_entry_t inst_info; 
+        logic [31:0] register_value; 
+        logic ready_for_writeback; 
+    } fu_output_t; 
 
 endpackage
