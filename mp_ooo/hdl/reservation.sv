@@ -67,6 +67,7 @@ always_ff @ (posedge clk) begin
     end
     // Check all table entries to see whether we need to update them
     for(int i = 0; i < SS; i++) begin 
+        local_inst_fu[i].start_calculate <= '0; 
         for(int j = 0; j < reservation_table_size; j++) begin
             if(reservation_table[i][j].reservation_entry.rob.rs1_source == reservation_rob_id && write_from_fu[i]) begin
                 reservation_table[i][j].reservation_entry.rob.input1_met <= '1;  

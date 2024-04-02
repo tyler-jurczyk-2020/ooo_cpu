@@ -39,10 +39,10 @@ module fu_wrapper
 
     always_comb begin
         for(int i = 0; i < SS; i++) begin
-            if(to_be_calculated[i].inst_info.reservation_entry.inst.op1_is_imm && ~to_be_calculated[i].inst_info.reservation_entry.inst.is_branch && ~to_be_calculated[i].inst_info.reservation_entry.inst.is_jump) begin
-                alu_input_a[i] = to_be_calculated[i].inst_info.reservation_entry.inst.immediate; 
-            end
-            else if(to_be_calculated[i].inst_info.reservation_entry.inst.op1_is_imm && (to_be_calculated[i].inst_info.reservation_entry.inst.is_branch || to_be_calculated[i].inst_info.reservation_entry.inst.is_jump)) begin
+            // if(to_be_calculated[i].inst_info.reservation_entry.inst.op1_is_imm && ~to_be_calculated[i].inst_info.reservation_entry.inst.is_branch && ~to_be_calculated[i].inst_info.reservation_entry.inst.is_jump) begin
+            //     alu_input_a[i] = to_be_calculated[i].inst_info.reservation_entry.inst.immediate; 
+            // end
+            if(to_be_calculated[i].inst_info.reservation_entry.inst.op1_is_imm && (to_be_calculated[i].inst_info.reservation_entry.inst.is_branch || to_be_calculated[i].inst_info.reservation_entry.inst.is_jump || (to_be_calculated[i].inst_info.reservation_entry.inst.opcode == op_b_auipc))) begin
                 alu_input_a[i] = to_be_calculated[i].inst_info.reservation_entry.inst.pc_curr; 
             end
             else begin
@@ -52,9 +52,9 @@ module fu_wrapper
             if(to_be_calculated[i].inst_info.reservation_entry.inst.op2_is_imm && ~to_be_calculated[i].inst_info.reservation_entry.inst.is_branch && ~to_be_calculated[i].inst_info.reservation_entry.inst.is_jump) begin
                 alu_input_b[i] = to_be_calculated[i].inst_info.reservation_entry.inst.immediate; 
             end
-            else if(to_be_calculated[i].inst_info.reservation_entry.inst.op2_is_imm && (to_be_calculated[i].inst_info.reservation_entry.inst.is_branch || to_be_calculated[i].inst_info.reservation_entry.inst.is_jump)) begin
-                alu_input_b[i] = to_be_calculated[i].inst_info.reservation_entry.inst.pc_curr; 
-            end
+            // else if(to_be_calculated[i].inst_info.reservation_entry.inst.op2_is_imm && (to_be_calculated[i].inst_info.reservation_entry.inst.is_branch || to_be_calculated[i].inst_info.reservation_entry.inst.is_jump)) begin
+            //     alu_input_b[i] = to_be_calculated[i].inst_info.reservation_entry.inst.pc_curr; 
+            // end
             else begin
                 alu_input_b[i] = source_reg_2[i].register_value; 
             end
