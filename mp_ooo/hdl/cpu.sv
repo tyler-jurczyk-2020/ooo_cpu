@@ -19,12 +19,15 @@ import rv32i_types::*;
 
     // Single memory port connection when caches are integrated into design (CP3 and after)
     /*
-    output  logic   [31:0]  bmem_addr,
-    output  logic           bmem_read,
-    output  logic           bmem_write,
-    input   logic   [255:0] bmem_rdata,
-    output  logic   [255:0] bmem_wdata,
-    input   logic           bmem_resp
+    output logic   [31:0]      bmem_addr,
+    output logic               bmem_read,
+    output logic               bmem_write,
+    output logic   [63:0]      bmem_wdata,
+    input logic               bmem_ready,
+
+    input logic   [31:0]      bmem_raddr,
+    input logic   [63:0]      bmem_rdata,
+    input logic               bmem_rvalid
     */
 );
 
