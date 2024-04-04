@@ -233,7 +233,7 @@ rob #(.SS(SS)) rb(.clk(clk), .rst(rst), .dispatch_info(rs_entries), .rob_id_next
 // CYCLE 1 (WRITTEN TO BY OTHER ELEMENT IN CYCLE 1) (CYCLE 1 TAKES MULTIPLE CLK CYCLES)
 ///////////////////// ISSUE: RESERVATION STATIONS /////////////////////
 // MODULE INPUTS DECLARATION 
-logic alu_status [SS], mult_status [SS];
+logic mult_status [SS];
 fu_input_t fu_input [SS];
 // MODULE OUTPUT DECLARATION
 
@@ -244,7 +244,6 @@ reservation #(.SS(SS)) reservation_table(.clk(clk), .rst(rst),
                         .write_from_fu(write_fu_enable), 
                         .cdb(CDB),
                         .reservation_rob_id(reservation_rob_id),
-                        .alu_status(alu_status), 
                         .mult_status(mult_status), 
                         .inst_for_fu(fu_input), 
                         .table_full(rs_full));
@@ -260,7 +259,6 @@ reservation #(.SS(SS)) reservation_table(.clk(clk), .rst(rst),
 fu_wrapper #(.SS(SS), .reservation_table_size(), .ROB_DEPTH()) calculator(
                        .clk(clk), .rst(rst),
                        .to_be_calculated(fu_input), 
-                       .alu_status(alu_status), 
                        .mult_status(mult_status), 
                        .fu_output(CDB));
 

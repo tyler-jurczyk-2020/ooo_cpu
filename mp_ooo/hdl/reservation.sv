@@ -76,10 +76,11 @@ always_ff @ (posedge clk) begin
                 reservation_table[i][j].reservation_entry.rob.input2_met <= '1; 
             end
             // See whether to issue any entry
-            if((reservation_table[i][j].reservation_entry.inst.alu_en && alu_status[i]) || 
-               (reservation_table[i][j].reservation_entry.inst.is_mul && mult_status[i])) begin
+            if((reservation_table[i][j].reservation_entry.inst.alu_en || reservation_table[i][j].reservation_entry.inst.cmp_en ||
+              (reservation_table[i][j].reservation_entry.inst.is_mul && mult_status[i])) 
+              && reservation_table[i][j].valid) begin
                 if(reservation_table[i][j].reservation_entry.rob.input1_met && reservation_table[i][j].reservation_entry.rob.input2_met) begin
-                    local_inst_fu[i].inst_info <= reservation_table[i][j]; // Not correct, wrong type
+                    local_inst_fu[i].inst_info <= reservation_table[i][j];
                     local_inst_fu[i].start_calculate <= '1; 
                     reservation_table[i][j].valid <= '0; 
                     break; 

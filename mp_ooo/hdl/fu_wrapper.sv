@@ -10,7 +10,6 @@ module fu_wrapper
         // get entry from reservation station
         input fu_input_t to_be_calculated [SS], 
 
-        output logic alu_status[SS], 
         output logic mult_status[SS],
 
         output fu_output_t fu_output [SS], 
@@ -69,13 +68,6 @@ module fu_wrapper
                 cmp_input_a[i] = source_reg_1[i].register_value; 
                 cmp_input_b[i] = source_reg_2[i].register_value; 
             end
-        end
-    end
- 
-
-    always_comb begin
-        for(int i = 0; i < SS; i++) begin
-            alu_status[i] = '1;
         end
     end
 
