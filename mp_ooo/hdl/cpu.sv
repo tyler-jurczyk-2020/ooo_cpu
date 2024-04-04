@@ -264,7 +264,7 @@ reservation #(.SS(SS)) reservation_table(.clk(clk), .rst(rst),
 fu_wrapper #(.SS(SS), .reservation_table_size(), .ROB_DEPTH()) calculator(
                        .clk(clk), .rst(rst),
                        .to_be_calculated(fu_input), 
-                       .mult_status(mult_status), 
+                       .mul_available(mult_status), 
                        .fu_reg_data(fu_reg_data),
                        .fu_output(CDB));
 

@@ -83,28 +83,19 @@ module id_stage
 
                 // using M extension for multiplication:
                 if (funct7 == 7'b0000001)begin
-                    case (funct3)
-                        // 3'b000: begin // mul:
-                        //     instruction_info.is_mul = 1'b1; // this instr is multiplying
-                        //     instruction_info.mul_type = 2'b00; 
-                            
-                        // end
-                        3'b011: begin// mulhu: unsigned * unsigned
-                            instruction_info.is_mul = 1'b1; // this instr is multiplying
-                            instruction_info.mul_type = 2'b00; // unsigned multiplication
-                        end
-                        
-                        3'b001: begin// mulh: signed * signed
-                            instruction_info.is_mul = 1'b1; // this instr is multiplying
+                    unique case (funct3)
+                        3'b000, 3'b001: begin// mulh: signed * signed
                             instruction_info.mul_type = 2'b01; // signed multiplication
                             
                         end
                         3'b010: begin// mulhsu: signed * unsigned
-                            instruction_info.is_mul = 1'b1; // this instr is multiplying
                             instruction_info.mul_type = 2'b10; // mixed un/signed multiplication
                         end
-
+                        3'b011: begin// mulhu: unsigned * unsigned
+                            instruction_info.mul_type = 2'b00; // unsigned multiplication
+                        end
                     endcase
+                    instruction_info.is_mul = 1'b1; // this instr is multiplying
                     instruction_info.alu_en = '0;
                     instruction_info.cmp_en = '0;
                     instruction_info.alu_operation = '0;

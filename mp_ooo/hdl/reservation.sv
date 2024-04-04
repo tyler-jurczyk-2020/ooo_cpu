@@ -83,7 +83,7 @@ always_ff @ (posedge clk) begin
               && reservation_table[i][j].valid) begin
                 if(reservation_table[i][j].reservation_entry.rob.input1_met && reservation_table[i][j].reservation_entry.rob.input2_met) begin
                     local_inst_fu[i].inst_info <= reservation_table[i][j];
-                    local_inst_fu[i].start_calculate <= '1; 
+                    local_inst_fu[i].start_calculate <= reservation_table[i][j].reservation_entry.inst.is_mul; 
                     reservation_table[i][j].valid <= '0; 
                     // Issue request to register file rs_entries[i].rvfi.valid = instruction[i].valid;
                     if(reservation_table[i][j].reservation_entry.inst.rs1_s != 5'b0) begin
