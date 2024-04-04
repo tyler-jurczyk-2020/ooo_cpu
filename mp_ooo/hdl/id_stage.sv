@@ -149,6 +149,8 @@ module id_stage
                 instruction_info.op1_is_imm = '0; 
                 instruction_info.op2_is_imm = '1;
                 instruction_info.immediate = i_imm;
+                // Hardwire rs2 to 0 since its not needed
+                instruction_info.rs2_s = '0;
                 unique case (funct3)
                     slt: begin
                         instruction_info.cmp_operation = blt;
