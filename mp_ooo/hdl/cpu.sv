@@ -135,6 +135,19 @@ assign imem_addr = if_id_reg_next.fetch_pc_curr;
 
 
 
+// CYCLE 2
+///////////////////// EXECUTE: FUNCTIONAL UNITS /////////////////////
+// MODULE INPUTS DECLARATION 
+// MODULE OUTPUT DECLARATION
+
+// MODULE INSTANTIATION
+
+fu_wrapper #(.SS(SS), .reservation_table_size(), .ROB_DEPTH()) calculator(
+                       .clk(clk), .rst(rst),
+                       .to_be_calculated(fu_input), 
+                       .mul_available(mult_status), 
+                       .fu_reg_data(fu_reg_data),
+                       .fu_output(CDB));
 
 
 // ///////////////////// RAT /////////////////////

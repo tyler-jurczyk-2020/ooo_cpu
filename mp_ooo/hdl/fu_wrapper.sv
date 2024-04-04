@@ -10,7 +10,7 @@ module fu_wrapper
         // get entry from reservation station
         input fu_input_t to_be_calculated [SS], 
 
-        output logic mult_status[SS],
+        output logic mul_available [SS],
 
         output fu_output_t fu_output [SS], 
         input physical_reg_response_t fu_reg_data [SS]
@@ -80,6 +80,7 @@ module fu_wrapper
     logic [31:0] alu_output [SS]; 
     logic cmp_output [SS]; 
     logic [63:0] mult_output [SS];
+    logic mult_status [SS];
 
     generate 
         for(genvar i = 0; i < SS; i++) begin: FUs
@@ -93,7 +94,7 @@ module fu_wrapper
                            .br_en(cmp_output[i])); 
             shift_add_multiplier shi(.clk(clk), 
                                  .rst(rst), 
-                                 .start(to_be_calculated[i].start_calculate), 
+                                 .start(to_be_calculated[i].start_calculate && mul_available[i]), 
                                  .mul_type(to_be_calculated[i].inst_info.reservation_entry.inst.mul_type), 
                                  .a(alu_input_a[i]), 
                                  .b(alu_input_b[i]), 
@@ -104,26 +105,34 @@ module fu_wrapper
 
     always_ff @ (posedge clk) begin
         for(int i = 0; i < SS; i++) begin
-            // setting commit flag that will be passed into rob
-            // fu_output[i].inst_info.reservation_entry.rob.commit <= 1'b1;
-
-            
-            fu_output[i].inst_info <= to_be_calculated[i].inst_info; 
-            if(to_be_calculated[i].inst_info.reservation_entry.inst.alu_en) begin
-                fu_output[i].register_value <= alu_output[i];
-                fu_output[i].ready_for_writeback <= '1; 
-                fu_output[i].inst_info.reservation_entry.rvfi.rd_wdata <= alu_output[i];
+            if(rst) begin
+               mul_available[i] <= 1'b1; 
             end
-            else if(to_be_calculated[i].inst_info.reservation_entry.inst.is_mul
-                    && mult_status[i]) begin
-                fu_output[i].register_value <= mult_output[i];
-                fu_output[i].ready_for_writeback <= '1; 
-                fu_output[i].inst_info.reservation_entry.rvfi.rd_wdata <= mult_output[i];
-            end
-            // Probably need to fix. Shouldn't write out to rd during branches
-            else if(to_be_calculated[i].inst_info.reservation_entry.inst.cmp_en) begin
-                fu_output[i].register_value <= {31'd0, cmp_output[i]};
-                fu_output[i].ready_for_writeback <= '1; 
+            else begin
+                // Drive mul_available
+                if(to_be_calculated[i].start_calculate)
+                    mul_available[i] <= 1'b0;
+                else if(mult_status[i])
+                    mul_available[i] <= 1'b1;
+                
+                // Drive output
+                fu_output[i].inst_info <= to_be_calculated[i].inst_info; 
+                if(to_be_calculated[i].inst_info.reservation_entry.inst.alu_en) begin
+                    fu_output[i].register_value <= alu_output[i];
+                    fu_output[i].ready_for_writeback <= '1; 
+                    fu_output[i].inst_info.reservation_entry.rvfi.rd_wdata <= alu_output[i];
+                end
+                else if(to_be_calculated[i].inst_info.reservation_entry.inst.is_mul
+                        && mult_status[i]) begin
+                    fu_output[i].register_value <= mult_output[i];
+                    fu_output[i].ready_for_writeback <= '1; 
+                    fu_output[i].inst_info.reservation_entry.rvfi.rd_wdata <= mult_output[i];
+                end
+                // Probably need to fix. Shouldn't write out to rd during branches
+                else if(to_be_calculated[i].inst_info.reservation_entry.inst.cmp_en) begin
+                    fu_output[i].register_value <= {31'd0, cmp_output[i]};
+                    fu_output[i].ready_for_writeback <= '1; 
+                end
             end
         end
     end  
