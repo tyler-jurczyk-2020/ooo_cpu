@@ -176,7 +176,9 @@ dispatcher #(.SS(SS), .PR_ENTRIES(PR_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) dispatcher
              .pr_rs1(pr_rs1), .pr_rs2(pr_rs2), 
 
              // ROB ID for CUR INST
-             .rob_id_next(rob_id_next)); 
+             .rob_id_next(rob_id_next), 
+             
+             .rs_rob_entry(rs_rob_entry)); 
 
 
 // Cycle 0: 
@@ -237,6 +239,15 @@ phys_reg_file #(.SS(SS), .TABLE_ENTRIES(TABLE_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) r
 rob #(.SS(SS), .ROB_DEPTH(ROB_DEPTH)) rb(.clk(clk), .rst(rst), .dispatch_info(rs_rob_entry), .rob_id_next(rob_id_next), .avail_inst(pop_inst_q), 
                   .cdb(),
                   .pop_from_rob(), .rob_entries_to_commit(), .rob_dest_reg(rob_dest_reg), .write_from_rob(write_from_rob));
+
+
+// Cycle 1: 
+///////////////////// Issue: Reservation Station /////////////////////
+// MODULE INPUTS DECLARATION 
+// MODULE OUTPUT DECLARATION
+
+
+
 
 
 

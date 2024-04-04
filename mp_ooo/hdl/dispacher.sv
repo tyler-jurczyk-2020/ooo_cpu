@@ -89,14 +89,14 @@ module dispatcher
                     rs_rob_entry[i].input1_met = ~pr_rs1[i].dependency; 
                 end
                 else begin
-                    rs_rob_entry[i].input1_met = ~pr_rs1[i].dependency; 
+                    rs_rob_entry[i].input1_met = '1;  
                 end
 
                 if(~inst[i].execute_operand2[0]) begin
                     rs_rob_entry[i].input2_met = ~pr_rs2[i].dependency; 
                 end
                 else begin
-                    rs_rob_entry[i].input2_met = ~pr_rs2[i].dependency; 
+                    rs_rob_entry[i].input2_met = '1; 
                 end
 
                 // RVFI Setup

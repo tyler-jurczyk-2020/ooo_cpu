@@ -8,10 +8,11 @@ import rv32i_types::*;
 (
     input logic clk, rst,
     // Signals whether instruction is available from rename/dispatch
-    input logic avail_inst,
+    input logic pop_inst_q,
     // reservation station struct     
     input super_dispatch_t reservation_entry [SS],
 
+    // Signals that FU has some updated dependency
     input logic write_from_fu [SS],
     input fu_output_t cdb [SS], 
     input logic alu_status [SS], mult_status [SS],
@@ -68,6 +69,7 @@ always_ff @ (posedge clk) begin
         end
     end
     // Check all table entries to see whether we need to update them
+    // NOT IERATING WAYS, BUT ITERATING 
     for(int i = 0; i < SS; i++) begin 
         local_inst_fu[i].start_calculate <= '0; 
         for(int j = 0; j < reservation_table_size; j++) begin

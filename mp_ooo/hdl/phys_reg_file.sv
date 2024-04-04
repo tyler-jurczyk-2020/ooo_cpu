@@ -29,7 +29,7 @@ import rv32i_types::*;
     // The CDB provides a updated PR Value and this wire here gets updated with 
     // the ROB_ID which is now satisfied due to this which is sent to the reservation
     // station to inform that this dependency is resolved 
-    output logic [7:0] reservation_rob_id [SS],
+    // output logic [7:0] reservation_rob_id [SS],
     input fu_output_t cdb [SS], 
     
     // flag to indicate which values we are receiving, as we won't always be overwriting the rd_v specifically
@@ -54,6 +54,7 @@ import rv32i_types::*;
                 data[i] <= '0;
             end
         end else if (regf_we) begin
+            // NOT ITERATING WAYS, BUT ITERATING THROUGH THE MULTI-BUS CDB
             for (int i = 0; i < SS; i++) begin
                 // for the given source register, is it NOT R0?
                 // for(int j = 0; j < TABLE_ENTRIES; j++) begin
@@ -76,15 +77,15 @@ import rv32i_types::*;
         end
     end     
 
-    always_comb begin
-        for(int i = 0; i < SS; i++) begin
-            // for(int j = 0; j < TABLE_ENTRIES; j++) begin
-                // if (write_from_fu[i] && cdb[i].inst_info.reservation_entry.rat.rd == j[5:0]) begin
-                    reservation_rob_id[i] = data[cdb[i].inst_info.reservation_entry.rat.rd].ROB_ID;
-                // end   
-            // end
-        end
-    end
+    // always_comb begin
+    //     for(int i = 0; i < SS; i++) begin
+    //         // for(int j = 0; j < TABLE_ENTRIES; j++) begin
+    //             // if (write_from_fu[i] && cdb[i].inst_info.reservation_entry.rat.rd == j[5:0]) begin
+    //                 reservation_rob_id[i] = data[cdb[i].inst_info.reservation_entry.rat.rd].ROB_ID;
+    //             // end   
+    //         // end
+    //     end
+    // end
     // Modifying for the transparent regfile so if we are in the dispatcher
     // and the dispatcher needs to fetch data which is being written by the functional unit(s) then
     // it can get it immediately 
