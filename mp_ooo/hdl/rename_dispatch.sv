@@ -33,7 +33,7 @@ import rv32i_types::*;
     
     // Reservation station
     input logic rs_full,
-    output dispatch_reservation_t rs_entries [SS]
+    output super_dispatch_t rs_entries [SS]
 );
 
 always_ff @(posedge clk) begin

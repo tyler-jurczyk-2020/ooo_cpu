@@ -14,7 +14,9 @@ import rv32i_types::*;
 
     // We write to the physical register file with the associated ROB
     // when we dispatch a new instruction into the issue stage 
-    // ROB ID from the ROB directly
+    // the write destination is provided by the dispatcher
+    // The ROB_ID is provided preemptively by the ROB_ID so writing ROB_ID
+    // happens at the same time dispatcher runs
     input logic [$clog2(TABLE_ENTRIES)-1:0] rd_s_ROB_write_destination [SS], 
     input logic [$clog2(ROB_DEPTH)-1:0] ROB_ID_for_new_inst [SS], 
     
@@ -24,11 +26,14 @@ import rv32i_types::*;
     // input [31:0] rd_v_FU_write_destination [SS], 
 
     // cdb/Reservation exchange
+    // The CDB provides a updated PR Value and this wire here gets updated with 
+    // the ROB_ID which is now satisfied due to this which is sent to the reservation
+    // station to inform that this dependency is resolved 
     output logic [7:0] reservation_rob_id [SS],
-
     input fu_output_t cdb [SS], 
     
     // flag to indicate which values we are receiving, as we won't always be overwriting the rd_v specifically
+    // Both could be high at the same time
     input logic write_from_fu [SS], 
     input logic write_from_rob [SS], 
 
@@ -60,10 +65,9 @@ import rv32i_types::*;
                             data[cdb[i].inst_info.reservation_entry.rat.rd].dependency <= '0; 
                             // break; 
                         end
-                        // ROB should not be using CDB !!!
-                        else if(write_from_rob[i]) begin
-                            data[cdb[i].inst_info.reservation_entry.rat.rd].ROB_ID <= ROB_ID_for_new_inst[i]; 
-                            data[cdb[i].inst_info.reservation_entry.rat.rd].dependency <= '1; 
+                        if(write_from_rob[i]) begin
+                            data[rd_s_ROB_write_destination[i]].ROB_ID <= ROB_ID_for_new_inst[i]; 
+                            data[rd_s_ROB_write_destination[i]].dependency <= '1; 
                             // break; 
                         end
                     // end
@@ -86,28 +90,19 @@ import rv32i_types::*;
     // it can get it immediately 
     always_comb begin
         for (int i = 0; i < SS; i++) begin
-            if(write_from_fu[i] && (rs1_s_dispatch_request[i] == cdb[i].inst_info.reservation_entry.rat.rd)) begin
-                source_reg_1[i].register_value = cdb[i].register_value;
-            end
-            else begin
-                source_reg_1[i] = data[rs1_s_dispatch_request[i]];
-            end
-            if(write_from_fu[i] && (rs2_s_dispatch_request[i] == cdb[i].inst_info.reservation_entry.rat.rd)) begin
-                source_reg_2[i].register_value = cdb[i].register_value;
-            end
-            else begin
-                source_reg_2[i] = data[rs2_s_dispatch_request[i]];
-            end
-            // if ((rs2_s_dispatch_request[i] == cdb[i].inst_info.reservation_entry.rat.rd)) begin
-            //     if(write_from_fu[i]) begin
-            //         source_reg_2[i].register_value = cdb[i].register_value;
-            //     end
-            //     else begin
-            //         source_reg_2[i] = data[rs2_s_dispatch_request[i]];
-            //     end
-            // end else begin
-            //     source_reg_2[i] = 'x;
+            // if(write_from_fu[i] && (rs1_s_dispatch_request[i] == cdb[i].inst_info.reservation_entry.rat.rd)) begin
+            //     source_reg_1[i].register_value = cdb[i].register_value;
             // end
+            // else begin
+                source_reg_1[i] = data[rs1_s_dispatch_request[i]];
+            // end
+            // if(write_from_fu[i] && (rs2_s_dispatch_request[i] == cdb[i].inst_info.reservation_entry.rat.rd)) begin
+            //     source_reg_2[i].register_value = cdb[i].register_value;
+            // end
+            // else begin
+                source_reg_2[i] = data[rs2_s_dispatch_request[i]];
+            // end
+            
         end
     end
 

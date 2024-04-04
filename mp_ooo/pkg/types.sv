@@ -96,10 +96,15 @@ package rv32i_types;
             logic [31:0] pc_curr;
             logic [31:0] pc_next;
             
-            logic op1_is_imm; 
-            logic op2_is_imm; 
-            logic rs1_needed; 
-            logic rs2_needed; 
+            // signals to determine required registers and alu operands
+            logic [31:0] execute_operand1; 
+            logic [31:0] execute_operand2; 
+
+
+            // logic op1_is_imm; 
+            // logic op2_is_imm; 
+            // logic rs1_needed; 
+            // logic rs2_needed; 
 
     } instruction_info_reg_t;
 
@@ -108,7 +113,6 @@ package rv32i_types;
         logic [31:0] fetch_pc_curr;  //rvfi pc_rdata
         // For rvfi purposes (fetch_pc_curr + 4)
         logic [31:0] fetch_pc_next; 
-        logic [63:0] fetch_order;
     } fetch_output_reg_t;
 
     
@@ -142,12 +146,8 @@ package rv32i_types;
     typedef struct packed {
        logic [7:0] rob_id;
        logic commit;
-       logic input1_met; 
-       logic input2_met; 
        // Hardcoded ROB depth so it compiles
        // ROB entries to refer to for dependency
-       logic [7:0] rs1_source; 
-       logic [7:0] rs2_source; 
     } rob_t;
 
     typedef struct packed {
@@ -155,7 +155,14 @@ package rv32i_types;
        rvfi_t rvfi; 
        instruction_info_reg_t inst;
        rat_t rat;
-    } dispatch_reservation_t;
+       // Relevant for Reservation Table
+       logic input1_met; 
+       logic input2_met; 
+       logic [7:0] rs1_source; 
+       logic [7:0] rs2_source; 
+    } super_dispatch_t;
+
+
 
     typedef enum logic {
         ZERO,
@@ -163,7 +170,7 @@ package rv32i_types;
     } initialization_t;
 
     typedef struct packed {
-        dispatch_reservation_t reservation_entry; 
+        super_dispatch_t reservation_entry; 
         logic valid; 
     } reservation_entry_t; 
         

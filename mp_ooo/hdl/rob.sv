@@ -9,7 +9,7 @@ module rob
         input rst, 
         // dispatched instructions
         input logic avail_inst,
-        input dispatch_reservation_t dispatch_info [SS],
+        input super_dispatch_t dispatch_info [SS],
         // commit signal sent in by the functional unit
         input fu_output_t cdb [SS],
     ////// OUTPUTS:
@@ -20,7 +20,7 @@ module rob
         // destination regs for the instr
         output logic [5:0] rob_dest_reg[SS],
         // updated RVFI order
-        output dispatch_reservation_t rob_entries_to_commit [SS],
+        output super_dispatch_t rob_entries_to_commit [SS],
         // pop from rob queue
         output logic pop_from_rob
     );
@@ -28,16 +28,16 @@ module rob
     // head & tail pointers for ROB entries
     logic [$clog2(ROB_DEPTH)-1:0] head, tail;
     logic push_to_rob;
-    dispatch_reservation_t inspect_queue [SS];
+    super_dispatch_t inspect_queue [SS];
     logic rob_full, rob_empty;
 
     logic [$clog2(ROB_DEPTH)-1:0] rob_id_out[SS];
     
     logic [$clog2(ROB_DEPTH)-1:0] rob_id_reg_select[SS];
-    dispatch_reservation_t rob_entry_in[SS];
+    super_dispatch_t rob_entry_in[SS];
     logic [SS-1:0] bitmask, out_bitmask;
     // ROB receives data from cdb and updates commit flag in circular queue
-    circular_queue #(.SS(SS), .QUEUE_TYPE(dispatch_reservation_t), .DEPTH(ROB_DEPTH)) rob_dut(.clk(clk), .rst(rst), .in(dispatch_info), .push(avail_inst), .pop(pop_from_rob), 
+    circular_queue #(.SS(SS), .QUEUE_TYPE(super_dispatch_t), .DEPTH(ROB_DEPTH)) rob_dut(.clk(clk), .rst(rst), .in(dispatch_info), .push(avail_inst), .pop(pop_from_rob), 
     .reg_select_out(rob_id_out), 
     .reg_out(inspect_queue), .reg_select_in(rob_id_reg_select), .reg_in(rob_entry_in), .in_bitmask(bitmask), .out_bitmask(out_bitmask),// One hot bitmask
     .head_out(head), .tail_out(tail), .full(rob_full), .empty(rob_empty));

@@ -127,10 +127,116 @@ end
 assign imem_rmask = '1;
 assign imem_addr = if_id_reg_next.fetch_pc_curr;
 
+// Cycle 0: 
+///////////////////// Rename/Dispatch: Dispatcher /////////////////////
+
+// MODULE INPUTS DECLARATION 
+logic rs_full; 
+
+// Input Arch. Reg. for RAT
+logic [4:0] isa_rs1[SS], isa_rs2[SS]; // OUTPUTS
+// Output of RAT
+logic [5:0] rat_rs1[SS], rat_rs2[SS]; // INPUTS
+// Phys Reg to Update Mapping for
+logic [4:0] isa_rd[SS]; // OUTPUT
+// New Phys RD for ISA RD
+logic [5:0] rat_rd[SS]; // INPUT
+
+// Free list output from a pop
+logic [5:0] free_rat_rds [SS]; // INPUT
+
+// Wish to check dependency for source registers
+logic [$clog2(PR_ENTRIES)-1:0] dispatch_pr_rs1_s [SS], dispatch_pr_rs2_s [SS]; // OUTPUTS
+physical_reg_data_t pr_rs1 [SS], pr_rs2 [SS]; // INPUTS
+
+// ROB ID Associated with current instruction
+logic [$clog2(ROB_DEPTH)-1:0] rob_id_next [SS]; // INPUTS
+
+// MODULE OUTPUT DECLARATION
+super_dispatch_t rs_rob_entry [SS]; 
+
+// MODULE INSTANTIATION
+dispatcher #(.SS(SS), .PR_ENTRIES(PR_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) dispatcher_i(
+             .clk(clk), .rst(rst), 
+             .pop_inst_q(pop_inst_q), // Needs to connect to free list as well
+             .rs_full('0), // Resevation station informs that must stall pipeline (stop requesting pops)
+             .inst_q_empty(inst_q_empty), // to prevent pop requests to free list
+             .inst(instruction), 
+
+             // RAT
+             .isa_rs1(isa_rs1), .isa_rs2(isa_rs2), 
+             .rat_rs1(rat_rs1), .rat_rs2(rat_rs2), 
+             .isa_rd(isa_rd), .rat_rd(rat_rd), 
+            
+             // Free List Popped Inst
+             .free_rat_rds(free_rat_rds), 
+
+             // Identify Dependencies for Curr Inst
+             .dispatch_pr_rs1_s(dispatch_pr_rs1_s), .dispatch_pr_rs2_s(dispatch_pr_rs2_s), 
+             .pr_rs1(pr_rs1), .pr_rs2(pr_rs2), 
+
+             // ROB ID for CUR INST
+             .rob_id_next(rob_id_next)); 
 
 
+// Cycle 0: 
+///////////////////// Rename/Dispatch: RAT /////////////////////
+// MODULE INPUTS DECLARATION 
+// MODULE OUTPUT DECLARATION
+
+// MODULE INSTANTIATION
+rat #(.SS(SS)) rt(.clk(clk), .rst(rst), .regf_we(pop_inst_q), // Need to connect write enable to pop_inst_q?
+     .rat_rd(rat_rd),
+     .isa_rd(isa_rd), .isa_rs1(isa_rs1), .isa_rs2(isa_rs2),
+     .rat_rs1(rat_rs1) , .rat_rs2(rat_rs2)
+     );
+
+// Cycle 0: 
+///////////////////// Rename/Dispatch: Free Lists /////////////////////
+// MODULE INPUTS DECLARATION 
+// MODULE OUTPUT DECLARATION
+
+// MODULE INSTANTIATION
+
+circular_queue #(.SS(SS), .QUEUE_TYPE(logic [5:0]), .INIT_TYPE(FREE_LIST), .DEPTH(64))
+      free_list(.clk(clk), .rst(rst), .push('0), .out(free_rat_rds), .pop(pop_inst_q));
 
 
+// Cycle 0: 
+///////////////////// Rename/Dispatch: Physical Register File /////////////////////
+// MODULE INPUTS DECLARATION 
+// Signal stating that ROB has new dependency to store in phys reg file
+logic write_from_rob [SS]; 
+logic [5:0] rob_dest_reg[SS]; 
+// MODULE OUTPUT DECLARATION
+
+// MODULE INSTANTIATION
+phys_reg_file #(.SS(SS), .TABLE_ENTRIES(TABLE_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) reg_file (
+    .clk(clk), 
+    .rst(rst), 
+    .regf_we('1), 
+    .reservation_rob_id(), // Inform Resevation Station that this ROB ID has been updated
+    .rd_s_ROB_write_destination(rob_dest_reg), 
+    .ROB_ID_for_new_inst(rob_id_next), 
+    .write_from_fu(), 
+    .write_from_rob(write_from_rob), 
+    .rs1_s_dispatch_request(dispatch_pr_rs1_s), 
+    .cdb(), 
+    .rs2_s_dispatch_request(dispatch_pr_rs2_s), 
+    .source_reg_1(pr_rs1), .source_reg_2(pr_rs2),
+    .fu_request(), .fu_reg_data()
+    ); 
+
+
+// Cycle 0: 
+///////////////////// Rename/Dispatch: ROB /////////////////////
+// MODULE INPUTS DECLARATION 
+// MODULE OUTPUT DECLARATION
+
+// MODULE INSTANTIATION
+rob #(.SS(SS), .ROB_DEPTH(ROB_DEPTH)) rb(.clk(clk), .rst(rst), .dispatch_info(rs_rob_entry), .rob_id_next(rob_id_next), .avail_inst(pop_inst_q), 
+                  .cdb(),
+                  .pop_from_rob(), .rob_entries_to_commit(), .rob_dest_reg(rob_dest_reg), .write_from_rob(write_from_rob));
 
 
 
@@ -142,12 +248,12 @@ assign imem_addr = if_id_reg_next.fetch_pc_curr;
 
 // MODULE INSTANTIATION
 
-fu_wrapper #(.SS(SS), .reservation_table_size(), .ROB_DEPTH()) calculator(
-                       .clk(clk), .rst(rst),
-                       .to_be_calculated(fu_input), 
-                       .mul_available(mult_status), 
-                       .fu_reg_data(fu_reg_data),
-                       .fu_output(CDB));
+// fu_wrapper #(.SS(SS), .reservation_table_size(), .ROB_DEPTH()) calculator(
+//                        .clk(clk), .rst(rst),
+//                        .to_be_calculated(fu_input), 
+//                        .mul_available(mult_status), 
+//                        .fu_reg_data(fu_reg_data),
+//                        .fu_output(CDB));
 
 
 // ///////////////////// RAT /////////////////////
@@ -170,7 +276,7 @@ fu_wrapper #(.SS(SS), .reservation_table_size(), .ROB_DEPTH()) calculator(
 // ///////////////////// RENAME/DISPATCH /////////////////////
 // // MODULE INPUTS DECLARATION 
 // logic [5:0] free_list_regs[SS];
-// dispatch_reservation_t rs_entries [SS];
+// super_dispatch_t rs_entries [SS];
 // logic rs_full;
 // logic avail_inst;
 // logic [$clog2(ROB_DEPTH)-1:0] rob_id_next [SS];
@@ -248,7 +354,7 @@ fu_wrapper #(.SS(SS), .reservation_table_size(), .ROB_DEPTH()) calculator(
 // // MODULE INPUTS DECLARATION 
 
 // // MODULE OUTPUT DECLARATION
-// dispatch_reservation_t rob_entries_to_commit [SS];
+// super_dispatch_t rob_entries_to_commit [SS];
 // // MODULE INSTANTIATION
 // logic pop_from_rob;
 
@@ -293,8 +399,8 @@ fu_wrapper #(.SS(SS), .reservation_table_size(), .ROB_DEPTH()) calculator(
 
 
 // // Temporary:
-// assign dmem_rmask = 4'b0;
-// assign dmem_wmask = 4'b0;
+assign dmem_rmask = 4'b0;
+assign dmem_wmask = 4'b0;
 
 // //RVFI Signals
 // // Must be hardwired to 2 to be consistent with rvfi_reference.json
@@ -316,6 +422,20 @@ logic   [3:0]   mem_rmask [2];
 logic   [3:0]   mem_wmask [2];
 logic   [31:0]  mem_rdata [2];
 logic   [31:0]  mem_wdata [2];
+
+always_ff @ (posedge clk) begin
+    if(rst) begin
+        valid[0] <= '0; 
+        valid[1] <= '0; 
+    end
+    else begin
+        valid[0] <= '0; 
+        valid[1] <= '0; 
+    end
+end
+
+// assign valid[0] = '0; 
+// assign valid[1] = '0; 
 
 // // Signals designed for max 2-way superscalar
 // always_comb begin

@@ -70,12 +70,14 @@ module id_stage
         instruction_info.pc_curr = fetch_output.fetch_pc_curr; 
         instruction_info.pc_next = fetch_output.fetch_pc_next; 
 
+        instruction_info.is_mul = 1'b0;
+        instruction_info.mul_type = 'x;
+
 
         unique case (opcode) 
             op_b_reg : begin 
                 // default for mult type & enable signal
-                instruction_info.is_mul = 1'b0;
-                instruction_info.mul_type = 'x;
+                
 
                 // using M extension for multiplication:
                 if (funct7 == 7'b0000001)begin

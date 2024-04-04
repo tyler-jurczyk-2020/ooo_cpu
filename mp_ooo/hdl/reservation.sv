@@ -10,7 +10,7 @@ import rv32i_types::*;
     // Signals whether instruction is available from rename/dispatch
     input logic avail_inst,
     // reservation station struct     
-    input dispatch_reservation_t reservation_entry [SS],
+    input super_dispatch_t reservation_entry [SS],
 
     input logic write_from_fu [SS],
     input fu_output_t cdb [SS], 
