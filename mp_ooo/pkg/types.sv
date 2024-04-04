@@ -91,19 +91,11 @@ package rv32i_types;
 
             bit valid;
 
-            logic   [31:0]  i_imm;
-            logic   [31:0]  s_imm;
-            logic   [31:0]  b_imm;
-            logic   [31:0]  u_imm;
-            logic   [31:0]  j_imm;
-
             logic [31:0] inst;
 
             logic [31:0] pc_curr;
             logic [31:0] pc_next;
-
-            logic reg_status; 
-
+            
             logic op1_is_imm; 
             logic op2_is_imm; 
             logic rs1_needed; 

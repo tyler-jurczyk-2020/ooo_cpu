@@ -44,12 +44,12 @@ module id_stage
         instruction_info.immediate = u_imm; 
 
         // add signal for if rs1 and rs2 is needed or not
-        instruction_info.rs1_needed = '1; 
-        instruction_info.rs2_needed = '1; 
+        instruction_info.execute_operand1 = 2'b00; 
+        instruction_info.execute_operand2 = 2'b00; 
 
         // Add signal on whether operands will be an immediate or not
-        instruction_info.op1_is_imm = '0; 
-        instruction_info.op2_is_imm = '0; 
+        // instruction_info.op1_is_imm = '0; 
+        // instruction_info.op2_is_imm = '0; 
 
         // TYPE | OP | (RS1, RS2) NEEDED | (Operand1, Operand2) is immediate or PC
         // U-Type: neither (umm + 0) (No, No) (Yes, Yes)
@@ -73,10 +73,6 @@ module id_stage
 
         unique case (opcode) 
             op_b_reg : begin 
-                instruction_info.rs1_needed = '1; 
-                instruction_info.rs2_needed = '1; 
-                instruction_info.op1_is_imm = '0; 
-                instruction_info.op2_is_imm = '0;
                 // default for mult type & enable signal
                 instruction_info.is_mul = 1'b0;
                 instruction_info.mul_type = 'x;
@@ -144,10 +140,8 @@ module id_stage
 
             end
             op_b_imm : begin 
-                instruction_info.rs1_needed = '1; 
-                instruction_info.rs2_needed = '0; 
-                instruction_info.op1_is_imm = '0; 
-                instruction_info.op2_is_imm = '1;
+                instruction_info.execute_operand1 = 2'b00; 
+                instruction_info.execute_operand2 = 2'b11; 
                 instruction_info.immediate = i_imm;
                 // Hardwire rs2 to 0 since its not needed
                 instruction_info.rs2_s = '0;
@@ -175,53 +169,41 @@ module id_stage
                 endcase
             end
             op_b_auipc : begin
-                instruction_info.rs1_needed = '0; 
-                instruction_info.rs2_needed = '0; 
-                instruction_info.op1_is_imm = '1; 
-                instruction_info.op2_is_imm = '1;
+                instruction_info.execute_operand1 = 2'b01; 
+                instruction_info.execute_operand2 = 2'b01; 
                 instruction_info.immediate = u_imm;
                 instruction_info.alu_operation = alu_add; 
                 instruction_info.cmp_operation = '0; 
             end
             op_b_br : begin
-                instruction_info.rs1_needed = '1; 
-                instruction_info.rs2_needed = '1; 
-                instruction_info.op1_is_imm = '1; 
-                instruction_info.op2_is_imm = '1;
+                instruction_info.execute_operand1 = 2'b00; 
+                instruction_info.execute_operand2 = 2'b00; 
                 instruction_info.immediate = b_imm; 
                 instruction_info.is_branch = '1;   
             end
             op_b_jal : begin
-                instruction_info.rs1_needed = '0; 
-                instruction_info.rs2_needed = '0; 
-                instruction_info.op1_is_imm = '1; 
-                instruction_info.op2_is_imm = '1;
+                instruction_info.execute_operand1 = 2'b11; 
+                instruction_info.execute_operand2 = 2'b11; 
                 instruction_info.immediate = j_imm; 
                 instruction_info.is_jump = '1;   
                 instruction_info.cmp_en = '0;  
             end
             op_b_jalr : begin
-                instruction_info.rs1_needed = '0; 
-                instruction_info.rs2_needed = '0; 
-                instruction_info.op1_is_imm = '1; 
-                instruction_info.op2_is_imm = '1;
+                instruction_info.execute_operand1 = 2'b11; 
+                instruction_info.execute_operand2 = 2'b11; 
                 instruction_info.immediate = j_imm; 
                 instruction_info.is_jump = '1;   
                 instruction_info.cmp_en = '0;  
             end 
             op_b_load : begin
-                instruction_info.rs1_needed = '1; 
-                instruction_info.rs2_needed = '0; 
-                instruction_info.op1_is_imm = '0; 
-                instruction_info.op2_is_imm = '1;
+                instruction_info.execute_operand1 = 2'b00; 
+                instruction_info.execute_operand2 = 2'b11; 
                 instruction_info.immediate = i_imm; 
                 instruction_info.cmp_en = '0;  
             end
             op_b_store : begin
-                instruction_info.rs1_needed = '1; 
-                instruction_info.rs2_needed = '1; 
-                instruction_info.op1_is_imm = '0; 
-                instruction_info.op2_is_imm = '1;
+                instruction_info.execute_operand1 = 2'b00; 
+                instruction_info.execute_operand2 = 2'b11; 
                 instruction_info.immediate = s_imm; 
                 instruction_info.cmp_en = '1;  
             end
