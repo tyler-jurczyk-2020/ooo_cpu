@@ -13,7 +13,7 @@ module fu_wrapper
         output logic mult_status[SS],
 
         output fu_output_t fu_output [SS], 
-        input  physical_reg_data_t source_reg_1 [SS], source_reg_2 [SS]
+        input physical_reg_response_t fu_reg_data [SS]
 
     );
     // the reservation 
@@ -44,8 +44,11 @@ module fu_wrapper
             if(to_be_calculated[i].inst_info.reservation_entry.inst.op1_is_imm && (to_be_calculated[i].inst_info.reservation_entry.inst.is_branch || to_be_calculated[i].inst_info.reservation_entry.inst.is_jump || (to_be_calculated[i].inst_info.reservation_entry.inst.opcode == op_b_auipc))) begin
                 alu_input_a[i] = to_be_calculated[i].inst_info.reservation_entry.inst.pc_curr; 
             end
+            else if(to_be_calculated[i].inst_info.reservation_entry.inst.rs1_s == 5'b0) begin
+                alu_input_a[i] = '0;
+            end
             else begin
-                alu_input_a[i] = source_reg_1[i].register_value; 
+                alu_input_a[i] = fu_reg_data[i].rs1_v.register_value; 
             end
 
             if(to_be_calculated[i].inst_info.reservation_entry.inst.op2_is_imm && ~to_be_calculated[i].inst_info.reservation_entry.inst.is_branch && ~to_be_calculated[i].inst_info.reservation_entry.inst.is_jump) begin
@@ -54,8 +57,11 @@ module fu_wrapper
             // else if(to_be_calculated[i].inst_info.reservation_entry.inst.op2_is_imm && (to_be_calculated[i].inst_info.reservation_entry.inst.is_branch || to_be_calculated[i].inst_info.reservation_entry.inst.is_jump)) begin
             //     alu_input_b[i] = to_be_calculated[i].inst_info.reservation_entry.inst.pc_curr; 
             // end
+            else if(to_be_calculated[i].inst_info.reservation_entry.inst.rs2_s == 5'b0) begin
+                alu_input_b[i] = '0;
+            end
             else begin
-                alu_input_b[i] = source_reg_2[i].register_value; 
+                alu_input_b[i] = fu_reg_data[i].rs2_v.register_value; 
             end
         end
     end  
@@ -65,8 +71,8 @@ module fu_wrapper
         cmp_input_b = alu_input_b; 
         for(int i = 0; i < SS; i++) begin
             if(to_be_calculated[i].inst_info.reservation_entry.inst.is_branch) begin
-                cmp_input_a[i] = source_reg_1[i].register_value; 
-                cmp_input_b[i] = source_reg_2[i].register_value; 
+                cmp_input_a[i] = fu_reg_data[i].rs1_v.register_value; 
+                cmp_input_b[i] = fu_reg_data[i].rs2_v.register_value; 
             end
         end
     end

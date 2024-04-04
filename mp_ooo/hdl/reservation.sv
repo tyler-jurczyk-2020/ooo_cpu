@@ -21,7 +21,9 @@ import rv32i_types::*;
 
     output fu_input_t inst_for_fu [SS], 
     // inform instruction queue to pause if our reservation table is full. 
-    output logic table_full
+    output logic table_full,
+    // Send out requests for fu inputs
+    output physical_reg_request_t fu_request [SS]
 );
 
 // *could possibly combine reg files. 
@@ -83,6 +85,23 @@ always_ff @ (posedge clk) begin
                     local_inst_fu[i].inst_info <= reservation_table[i][j];
                     local_inst_fu[i].start_calculate <= '1; 
                     reservation_table[i][j].valid <= '0; 
+                    // Issue request to register file rs_entries[i].rvfi.valid = instruction[i].valid;
+                    if(reservation_table[i][j].reservation_entry.inst.rs1_s != 5'b0) begin
+                        fu_request[i].rs1_en <= 1'b1;
+                        fu_request[i].rs1_s <= reservation_table[i][j].reservation_entry.rat.rs1;
+                    end
+                    else begin
+                        fu_request[i].rs1_en <= 1'b0;
+                        fu_request[i].rs1_s <= 'x;
+                    end
+                    if(reservation_table[i][j].reservation_entry.inst.rs2_s != 5'b0) begin
+                        fu_request[i].rs2_en <= 1'b1;
+                        fu_request[i].rs2_s <= reservation_table[i][j].reservation_entry.rat.rs2;
+                    end
+                    else begin
+                        fu_request[i].rs2_en <= 1'b0;
+                        fu_request[i].rs2_s <= 'x;
+                    end
                     break; 
                 end
             end

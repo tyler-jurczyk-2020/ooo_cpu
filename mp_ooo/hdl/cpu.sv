@@ -198,6 +198,8 @@ always_comb begin
 end
 
 logic [7:0] reservation_rob_id [SS];
+physical_reg_request_t fu_request [SS];
+physical_reg_response_t fu_reg_data [SS];
 // MODULE OUTPUT DECLARATION
 phys_reg_file #(.SS(SS)) reg_file (
     .clk(clk), 
@@ -211,7 +213,9 @@ phys_reg_file #(.SS(SS)) reg_file (
     .rs1_s_dispatch_request(sel_pr_rs1), 
     .cdb(CDB), 
     .rs2_s_dispatch_request(sel_pr_rs2), 
-    .source_reg_1(pr_rs1), .source_reg_2(pr_rs2)); 
+    .source_reg_1(pr_rs1), .source_reg_2(pr_rs2),
+    .fu_request(fu_request), .fu_reg_data(fu_reg_data)
+    ); 
 
 
 // MODULE INSTANTIATION
@@ -245,7 +249,8 @@ reservation #(.SS(SS)) reservation_table(.clk(clk), .rst(rst),
                         .cdb(CDB),
                         .reservation_rob_id(reservation_rob_id),
                         .mult_status(mult_status), 
-                        .inst_for_fu(fu_input), 
+                        .inst_for_fu(fu_input),
+                        .fu_request(fu_request), 
                         .table_full(rs_full));
 
 
@@ -260,6 +265,7 @@ fu_wrapper #(.SS(SS), .reservation_table_size(), .ROB_DEPTH()) calculator(
                        .clk(clk), .rst(rst),
                        .to_be_calculated(fu_input), 
                        .mult_status(mult_status), 
+                       .fu_reg_data(fu_reg_data),
                        .fu_output(CDB));
 
 

@@ -37,9 +37,8 @@ import rv32i_types::*;
     input logic [$clog2(TABLE_ENTRIES)-1:0] rs2_s_dispatch_request [SS], 
     output  physical_reg_data_t source_reg_1 [SS], source_reg_2 [SS],
 
-    input logic [$clog2(TABLE_ENTRIES)-1:0] rs1_s_fu_request [SS], 
-    input logic [$clog2(TABLE_ENTRIES)-1:0] rs2_s_fu_request [SS], 
-    output  physical_reg_data_t source_reg_1_fu [SS], source_reg_2_fu [SS]
+    input physical_reg_request_t fu_request [SS],
+    output physical_reg_response_t fu_reg_data [SS]
 );
 
     physical_reg_data_t  data [TABLE_ENTRIES];
@@ -61,6 +60,7 @@ import rv32i_types::*;
                             data[cdb[i].inst_info.reservation_entry.rat.rd].dependency <= '0; 
                             // break; 
                         end
+                        // ROB should not be using CDB !!!
                         else if(write_from_rob[i]) begin
                             data[cdb[i].inst_info.reservation_entry.rat.rd].ROB_ID <= ROB_ID_for_new_inst[i]; 
                             data[cdb[i].inst_info.reservation_entry.rat.rd].dependency <= '1; 
@@ -110,20 +110,21 @@ import rv32i_types::*;
             // end
         end
     end
-// bs copy for reading to fu hi
+
+    // Request in reservation station and read output in fu
     always_comb begin
         for (int i = 0; i < SS; i++) begin
-            if(write_from_fu[i] && (rs1_s_fu_request[i] == cdb[i].inst_info.reservation_entry.rat.rd)) begin
-                source_reg_1_fu[i].register_value = cdb[i].register_value;
+            if(fu_request[i].rs1_en) begin
+                fu_reg_data[i].rs1_v = data[fu_request[i].rs1_s];
             end
             else begin
-                source_reg_1_fu[i] = data[rs1_s_fu_request[i]];
+                fu_reg_data[i].rs1_v = 'x;
             end
-            if ((write_from_fu[i]) && (rs2_s_fu_request[i] == cdb[i].inst_info.reservation_entry.rat.rd)) begin
-                source_reg_2_fu[i].register_value = cdb[i].register_value;
+            if (fu_request[i].rs2_en) begin
+                fu_reg_data[i].rs2_v = data[fu_request[i].rs2_s];
             end
             else begin
-                source_reg_2_fu[i] = data[rs2_s_fu_request[i]];
+                fu_reg_data[i].rs2_v = 'x;
             end
         end
     end

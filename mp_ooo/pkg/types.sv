@@ -5,6 +5,8 @@
 
 package rv32i_types;
 
+    parameter TABLE_ENTRIES = 64;
+
     typedef enum logic [6:0] {
         op_b_lui   = 7'b0110111, // U load upper immediate 
         op_b_auipc = 7'b0010111, // U add upper immediate PC 
@@ -179,6 +181,16 @@ package rv32i_types;
         logic [7:0] ROB_ID; 
         logic dependency; 
     } physical_reg_data_t; 
+
+    typedef struct packed {
+        logic [$clog2(TABLE_ENTRIES)-1:0] rd_s, rs1_s, rs2_s; 
+        physical_reg_data_t rd_v;
+        logic rd_en, rs1_en, rs2_en;
+    } physical_reg_request_t;
+
+    typedef struct packed {
+        physical_reg_data_t rs1_v, rs2_v;
+    } physical_reg_response_t;
 
     typedef struct packed {
         // get entry from reservation station
