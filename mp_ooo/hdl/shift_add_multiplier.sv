@@ -40,7 +40,7 @@ module shift_add_multiplier
         unique case (curr_state)
             IDLE:    next_state = start ? ADD : IDLE;
             ADD:     next_state = SHIFT;
-            SHIFT:   next_state = (counter == OPERAND_WIDTH-1'b1) ? DONE : ADD;
+            SHIFT:   next_state = (counter == (OP_WIDTH_LOG)'(OPERAND_WIDTH-1)) ? DONE : ADD;
             DONE:    next_state = start ? DONE : IDLE;
             default: next_state = curr_state;
         endcase
@@ -90,7 +90,7 @@ module shift_add_multiplier
                             `UNSIGNED_UNSIGNED_MUL:
                             begin
                                 neg_result <= '0;   // Not used in case of unsigned mul, but just cuz . . .
-                                a_reg <= a;
+                                a_reg <= {{OPERAND_WIDTH{1'b0}}, a};
                                 b_reg <= b;
                             end
                             `SIGNED_SIGNED_MUL:
@@ -99,7 +99,7 @@ module shift_add_multiplier
                                 neg_result <= (a[OPERAND_WIDTH-1] ^ b[OPERAND_WIDTH-1]) && ((a != '0) && (b != '0));
                                 // If operands negative, make positive
                                 a_reg <= (a[OPERAND_WIDTH-1]) ? {OPERAND_WIDTH*{1'b0}, (~a + 1'b1)} : a;
-                                b_reg <= (b[OPERAND_WIDTH-1]) ? {OPERAND_WIDTH*{1'b0}, (~b + 1'b1)} : b;
+                                b_reg <= (b[OPERAND_WIDTH-1]) ? {(~b + 1'b1)} : b;
                             end
                             `SIGNED_UNSIGNED_MUL:
                             begin

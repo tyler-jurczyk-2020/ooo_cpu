@@ -19,8 +19,8 @@ module top_tb;
 
     // Single memory port connection when caches are integrated into design (CP3 and after)
     /*
-    bmem_itf bmem_itf(.*);
-    blocking_burst_memory burst_memory(.itf(bmem_itf));
+    banked_mem_itf bmem_itf(.*);
+    banked_memory banked_memory(.itf(bmem_itf));
     */
 
     mon_itf mon_itf(.*);    
@@ -45,12 +45,14 @@ module top_tb;
 
         // Single memory port connection when caches are integrated into design (CP3 and after)
         /*
-        .bmem_addr      (bmem_itf.addr),
-        .bmem_read      (bmem_itf.read),
-        .bmem_write     (bmem_itf.write),
-        .bmem_rdata     (bmem_itf.rdata),
-        .bmem_wdata     (bmem_itf.wdata),
-        .bmem_resp      (bmem_itf.resp)
+        .bmem_addr(bmem_itf.addr),
+        .bmem_read(bmem_itf.read),
+        .bmem_write(bmem_itf.write),
+        .bmem_wdata(bmem_itf.wdata),
+        .bmem_ready(bmem_itf.ready),
+        .bmem_raddr(bmem_itf.raddr),
+        .bmem_rdata(bmem_itf.rdata),
+        .bmem_rvalid(bmem_itf.rvalid)
         */
 
     );
@@ -66,8 +68,10 @@ module top_tb;
     end
 
     always @(posedge clk) begin
-        if (mon_itf.halt) begin
-            $finish;
+        for (int unsigned i=0; i < 8; ++i) begin
+            if (mon_itf.halt[i]) begin
+                $finish;
+            end
         end
         if (timeout == 0) begin
             $error("TB Error: Timed out");

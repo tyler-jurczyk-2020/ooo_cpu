@@ -8,6 +8,7 @@ ARCH=rv32i
 #   Magic Memory = 32 bits per address -> 4 byte ADDRESSABILITY
 #   Burst Memory = 64 bits per address -> 8 byte ADDRESSABILITY
 #   Simple Memory = 256 bits per address -> 32 byte ADDRESSABILITY
+#   Banked Memory = 256 bits per address -> 32 byte ADDRESSABILITY
 ADDRESSABILITY=4
 
 # some other settings
