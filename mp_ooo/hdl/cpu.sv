@@ -270,71 +270,74 @@ assign dmem_rmask = 4'b0;
 assign dmem_wmask = 4'b0;
 
 //RVFI Signals
-logic           valid;
-logic   [63:0]  order;
-logic   [31:0]  inst;
-logic           halt;
-logic   [4:0]   rs1_addr;
-logic   [4:0]   rs2_addr;
-logic   [31:0]  rs1_rdata;
-logic   [31:0]  rs2_rdata;
-logic   [4:0]   rd_addr;
-logic   [31:0]  rd_wdata;
+// Must be hardwired to 2 to be consistent with rvfi_reference.json
+logic           valid [2];
+logic   [63:0]  order [2];
+logic   [31:0]  inst [2];
+logic           halt [2];
+logic   [4:0]   rs1_addr [2];
+logic   [4:0]   rs2_addr [2];
+logic   [31:0]  rs1_rdata [2];
+logic   [31:0]  rs2_rdata [2];
+logic   [4:0]   rd_addr [2];
+logic   [31:0]  rd_wdata [2];
 //////////////////////////
-logic   [31:0]  pc_rdata;
-logic   [31:0]  pc_wdata;
-logic   [31:0]  mem_addr;
-logic   [3:0]   mem_rmask;
-logic   [3:0]   mem_wmask;
-logic   [31:0]  mem_rdata;
-logic   [31:0]  mem_wdata;
+logic   [31:0]  pc_rdata [2];
+logic   [31:0]  pc_wdata [2];
+logic   [31:0]  mem_addr [2];
+logic   [3:0]   mem_rmask [2];
+logic   [3:0]   mem_wmask [2];
+logic   [31:0]  mem_rdata [2];
+logic   [31:0]  mem_wdata [2];
 
-// Setup signals for non-superscalar for now
+// Signals designed for max 2-way superscalar
 always_comb begin
     // when we commit an instr 
-    if(pop_from_rob) begin
-        valid = rob_entries_to_commit[0].rvfi.valid;
-        order = rob_entries_to_commit[0].rvfi.order;
-        inst = rob_entries_to_commit[0].rvfi.inst;
-        
-        rs1_addr = rob_entries_to_commit[0].rvfi.rs1_addr;
-        rs2_addr = rob_entries_to_commit[0].rvfi.rs2_addr;
-        rs1_rdata = rob_entries_to_commit[0].rvfi.rs1_rdata;
-        rs2_rdata = rob_entries_to_commit[0].rvfi.rs2_rdata;
-        
-        rd_addr = rob_entries_to_commit[0].rvfi.rd_addr;
-        rd_wdata = rob_entries_to_commit[0].rvfi.rd_wdata;
-        
-        pc_rdata = rob_entries_to_commit[0].rvfi.pc_rdata;
-        pc_wdata = rob_entries_to_commit[0].rvfi.pc_wdata;
-        
-        mem_addr = rob_entries_to_commit[0].rvfi.mem_addr;
-        mem_rmask = rob_entries_to_commit[0].rvfi.mem_rmask;
-        mem_wmask = rob_entries_to_commit[0].rvfi.mem_wmask;
-        mem_rdata = rob_entries_to_commit[0].rvfi.mem_rdata;
-        mem_wdata = rob_entries_to_commit[0].rvfi.mem_wdata;
-    end
-    else begin
-        valid = 1'b0;
-        order = 'x;
-        inst = 'x;
-        
-        rs1_addr = 'x;
-        rs2_addr = 'x;
-        rs1_rdata = 'x;
-        rs2_rdata = 'x;
+    for(int i = 0; i < 2; i++) begin
+        if(pop_from_rob && i < SS) begin
+            valid[i] = rob_entries_to_commit[i].rvfi.valid;
+            order[i] = rob_entries_to_commit[i].rvfi.order;
+            inst[i] = rob_entries_to_commit[i].rvfi.inst;
+            
+            rs1_addr[i] = rob_entries_to_commit[i].rvfi.rs1_addr;
+            rs2_addr[i] = rob_entries_to_commit[i].rvfi.rs2_addr;
+            rs1_rdata[i] = rob_entries_to_commit[i].rvfi.rs1_rdata;
+            rs2_rdata[i] = rob_entries_to_commit[i].rvfi.rs2_rdata;
+            
+            rd_addr[i] = rob_entries_to_commit[i].rvfi.rd_addr;
+            rd_wdata[i] = rob_entries_to_commit[i].rvfi.rd_wdata;
+            
+            pc_rdata[i] = rob_entries_to_commit[i].rvfi.pc_rdata;
+            pc_wdata[i] = rob_entries_to_commit[i].rvfi.pc_wdata;
+            
+            mem_addr[i] = rob_entries_to_commit[i].rvfi.mem_addr;
+            mem_rmask[i] = rob_entries_to_commit[i].rvfi.mem_rmask;
+            mem_wmask[i] = rob_entries_to_commit[i].rvfi.mem_wmask;
+            mem_rdata[i] = rob_entries_to_commit[i].rvfi.mem_rdata;
+            mem_wdata[i] = rob_entries_to_commit[i].rvfi.mem_wdata;
+        end
+        else begin
+            valid[i] = 1'b0;
+            order[i] = 'x;
+            inst[i] = 'x;
+            
+            rs1_addr[i] = 'x;
+            rs2_addr[i] = 'x;
+            rs1_rdata[i] = 'x;
+            rs2_rdata[i] = 'x;
 
-        rd_addr = 'x;
-        rd_wdata = 'x;
-        
-        pc_rdata = 'x;
-        pc_wdata = 'x;
-        
-        mem_addr = 'x;
-        mem_rmask = 'x;
-        mem_wmask = 'x;
-        mem_rdata = 'x;
-        mem_wdata = 'x;
+            rd_addr[i] = 'x;
+            rd_wdata[i] = 'x;
+            
+            pc_rdata[i] = 'x;
+            pc_wdata[i] = 'x;
+            
+            mem_addr[i] = 'x;
+            mem_rmask[i] = 'x;
+            mem_wmask[i] = 'x;
+            mem_rdata[i] = 'x;
+            mem_wdata[i] = 'x;
+        end
     end
 end
 
