@@ -99,10 +99,10 @@ import rv32i_types::*;
                 end
 
                 if(cdb[i][j].ready_for_writeback && (dispatch_request[i].rs2_s == cdb[i][j].inst_info.reservation_entry.rat.rd)) begin
-                    dispatch_reg_data[i].rs1_v = cdb[i][j].register_value;
+                    dispatch_reg_data[i].rs2_v = cdb[i][j].register_value;
                 end
                 else begin
-                    dispatch_reg_data[i].rs1_v = data[dispatch_request[i].rs1_s];
+                    dispatch_reg_data[i].rs2_v = data[dispatch_request[i].rs2_s];
                 end
             end
         end
@@ -121,10 +121,10 @@ import rv32i_types::*;
                 end
 
                 if(cdb[i][j].ready_for_writeback && (fu_request[i].rs2_s == cdb[i][j].inst_info.reservation_entry.rat.rd)) begin
-                    fu_reg_data[i].rs1_v = cdb[i][j].register_value;
+                    fu_reg_data[i].rs2_v = cdb[i][j].register_value;
                 end
                 else begin
-                    fu_reg_data[i].rs1_v = data[dispatch_request[i].rs1_s];
+                    fu_reg_data[i].rs2_v = data[dispatch_request[i].rs1_s];
                 end
             end
         end

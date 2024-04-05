@@ -89,8 +89,10 @@ module rob
                 rob_entries_to_commit[i].rvfi.order = order_counter + {32'b0, i};
                 // Send some signal to tell rrat to commit above entries
             end
-            else
+            else begin
                 rob_entries_to_commit[i] = 'x;
+                rob_entries_to_commit[i].rvfi.valid = 1'b0;
+            end
         end
     end
     
