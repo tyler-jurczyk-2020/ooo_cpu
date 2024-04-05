@@ -8,7 +8,7 @@ module fu_wrapper
     (
         input logic clk, rst,
         // get entry from reservation station
-        input fu_input_t to_be_calculated [SS], 
+        input fu_input_t to_be_calculated, 
 
         output logic mul_available [SS],
 

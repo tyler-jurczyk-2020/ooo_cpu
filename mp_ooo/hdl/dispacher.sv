@@ -31,7 +31,7 @@ module dispatcher
         // Phys Reg to Update Mapping for
         output logic [4:0] isa_rd[SS],
         // New Phys RD for ISA RD
-        input logic [5:0] rat_rd[SS],
+        output logic [5:0] rat_rd[SS],
 
         // Acquire new mapping for destination register 
         // Free list is popped same time that the inst queue is popped
@@ -75,6 +75,7 @@ module dispatcher
                 isa_rs2[i] = inst[i].rs2_s;
                 // Set the RAT Entry whose mapping to update with free list
                 isa_rd[i] = inst[i].rd_s;
+                rat_rd[i] = free_rat_rds[i];
                 // Set the inputs to the phys. reg. file that we would like to read
                 // We get the phys. eg. to read from by the RAT
                 dispatch_request[i].rs1_s = rat_rs1[i];

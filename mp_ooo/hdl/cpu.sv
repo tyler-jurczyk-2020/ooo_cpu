@@ -131,8 +131,9 @@ assign imem_addr = if_id_reg_next.fetch_pc_curr;
 ///////////////////// Rename/Dispatch: Physical Register File /////////////////////
 // MODULE INPUTS DECLARATION 
 physical_reg_request_t dispatch_request [SS], rob_request [SS], fu_request [SS];
-physical_reg_data_t dispatch_reg_data [SS], fu_reg_data [SS];
+physical_reg_response_t dispatch_reg_data [SS], fu_reg_data [SS];
 cdb_t cdb [SS];
+logic [7:0] reservation_rob_id [SS * FU_COUNT];
 
 // MODULE OUTPUT DECLARATION
 
@@ -145,7 +146,7 @@ phys_reg_file #(.SS(SS), .TABLE_ENTRIES(TABLE_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) r
 
                 .reservation_rob_id(reservation_rob_id),
                 
-                .dispatch_request(dispatch_reg_request), .dispatch_reg_data(dispatch_reg_data), 
+                .dispatch_request(dispatch_request), .dispatch_reg_data(dispatch_reg_data), 
                 .fu_request(fu_request), .fu_reg_data(fu_reg_data),
                 .rob_request(rob_request)
                 ); 
@@ -248,27 +249,28 @@ rob #(.SS(SS), .ROB_DEPTH(ROB_DEPTH)) rb(.clk(clk), .rst(rst),
                                         );
 
 // MODULE INSTANTIATION
-logic mul_available;
+// logic mul_available;
 
-reservation #(.SS(SS)) reservation_table(.clk(clk), .rst(rst),
-                                         .reservation_entry(rs_entries), 
-                                         .avail_inst(avail_inst), 
-                                         .cdb(cdb),
-                                         .reservation_rob_id(reservation_rob_id),
-                                         .mult_status(mult_status), 
-                                         .inst_for_fu(fu_input),
-                                         .fu_request(fu_request), 
-                                         .table_full(rs_full)
-                                        );
+// reservation #(.SS(SS)) reservation_table(.clk(clk), .rst(rst),
+//                                         .reservation_entry(rs_entries), 
+//                                         .avail_inst(avail_inst), 
+//                                         .cdb(cdb),
+//                                          .reservation_rob_id(reservation_rob_id),
+//                                          .mult_status(mult_status), 
+//                                          .inst_for_fu(fu_input),
+//                                          .fu_request(fu_request), 
+//                                          .table_full(rs_full)
+//                                         );
 
-fu_wrapper #(.SS(SS), .ROB_DEPTH(ROB_DEPTH)) 
-    fuck_u(
-        .clk(clk),.rst(rst),
-        .to_be_calculated(fu_input),
-        .mul_available(mul_available),
-        .cdb(cdb),
-        .fu_reg_data(fu_reg_data)    
-    ); 
+// fu_wrapper #(.SS(SS), .ROB_DEPTH(ROB_DEPTH)) 
+//    fuck_u(
+//        .clk(clk),.rst(rst),
+//        .to_be_calculated(fu_input),
+//       .mul_available(mul_available),
+//       .cdb(cdb),
+//       .fu_reg_data(fu_reg_data)    
+//   ); 
+
 
 // Cycle 1: 
 ///////////////////// Issue: Reservation Station /////////////////////

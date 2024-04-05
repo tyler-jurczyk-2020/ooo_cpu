@@ -61,8 +61,8 @@ import rv32i_types::*;
                         end
                         // ROB should not be using CDB !!!
                         else if(rob_request[i].rd_en) begin
-                            data[cdb[i][j].inst_info.reservation_entry.rat.rd].ROB_ID <= rob_request[i].rd_s; 
-                            data[cdb[i][j].inst_info.reservation_entry.rat.rd].dependency <= '1; 
+                            data[rob_request[i].rd_s].ROB_ID <= rob_request[i].rd_s; 
+                            data[rob_request[i].rd_s].dependency <= '1; 
                             // break; 
                         end
                     // end

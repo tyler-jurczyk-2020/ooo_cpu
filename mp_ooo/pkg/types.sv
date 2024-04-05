@@ -196,7 +196,7 @@ package rv32i_types;
 
     typedef struct packed {
         // get entry from reservation station
-        reservation_entry_t inst_info; 
+        super_dispatch_t inst_info; 
 
         // signal to begin calculation 
         logic start_calculate; 
