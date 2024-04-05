@@ -3,6 +3,7 @@ import rv32i_types::*;
 #(
     parameter SS = 2,
     parameter PR_ENTRIES = 64,
+    parameter reservation_table_size = 8,
     parameter ROB_DEPTH = 7
 )
 (
@@ -113,11 +114,11 @@ end
 
 // Not correct, temporary
 // Merge cdb 
-cdb_t cdb [SS], cdb_alu, cdb_mul;
+cdb_t cdb [SS], cdb_alu [SS], cdb_mul [SS];
 always_comb begin
     for(int i = 0; i < SS; i++) begin
-        cdb[i][ALU] = cdb_alu[ALU];
-        cdb[i][MUL] = cdb_mul[MUL];
+        cdb[i][ALU] = cdb_alu[i][ALU];
+        cdb[i][MUL] = cdb_mul[i][MUL];
     end
 end
 
@@ -127,21 +128,25 @@ assign imem_addr = if_id_reg_next.fetch_pc_curr;
 // Cycle 0: 
 ///////////////////// Rename/Dispatch: Physical Register File /////////////////////
 // MODULE INPUTS DECLARATION 
-physical_reg_request_t dispatch_request [SS], rob_request [SS], fu_request [SS];
-logic [7:0] reservation_rob_id [SS * FU_COUNT];
+physical_reg_request_t dispatch_request[SS] , rob_request[SS];
+physical_reg_request_t alu_request , mul_request;
+
+
+// INPUTS FROM THE RESERVATION TABLE FROM THE ALU
+// @TYLER HOOK THIS UP ----> its hooked up now - <Gay
+
 // MODULE OUTPUT DECLARATION
-physical_reg_response_t dispatch_reg_data [SS], fu_reg_data [SS];
+physical_reg_response_t dispatch_reg_data [SS];
+physical_reg_response_t alu_reg_data, mul_reg_data;
+
 // MODULE INSTANTIATION
 phys_reg_file #(.SS(SS), .TABLE_ENTRIES(TABLE_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) reg_file (
-                .clk(clk), 
-                .rst(rst), 
-                .regf_we('1), 
-
-                .reservation_rob_id(reservation_rob_id),
-                
+                .clk(clk), .rst(rst), .regf_we('1), 
+                .cdb(cdb),
+                .rob_request(rob_request),          
                 .dispatch_request(dispatch_request), .dispatch_reg_data(dispatch_reg_data), 
-                .fu_request(fu_request), .fu_reg_data(fu_reg_data),
-                .rob_request(rob_request)
+                .alu_request(alu_request), .alu_reg_data(alu_reg_data),
+                .mul_request(mul_request), .mul_reg_data(mul_reg_data)
                 ); 
 
 // Cycle 0: 
@@ -172,6 +177,7 @@ logic avail_inst;
 
 // MODULE OUTPUT DECLARATION
 super_dispatch_t rs_rob_entry [SS]; 
+
 
 // MODULE INSTANTIATION
 dispatcher #(.SS(SS), .PR_ENTRIES(PR_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) dispatcher_i(
@@ -250,43 +256,89 @@ rob #(.SS(SS), .ROB_DEPTH(ROB_DEPTH)) rb(.clk(clk), .rst(rst),
                                         );
 
 // Cycle 1: 
-///////////////////// Issue: Reservation Station /////////////////////
+///////////////////// Issue: ALU Reservation Station /////////////////////
+// MODULE INPUTS DECLARATION 
+
+// MODULE OUTPUT DECLARATION
+                           
+fu_input_t inst_for_fu_alu; 
+logic alu_table_full; 
+
+
+// MODULE INSTANTIATION       
+
+            
+reservation_table #(.SS(SS), .TABLE_TYPE(ALU_T), .reservation_table_size(reservation_table_size), 
+       .ROB_DEPTH(ROB_DEPTH)) alu_table(.clk(clk), .rst(rst),
+                                        .dispatched(rs_rob_entry), // Dispatched shit
+                                        .avail_inst(avail_inst), // Thing
+                                        .cdb_rob_ids(cdb), // CDB 
+                                        .inst_for_fu(inst_for_fu_alu), // send instruction to be caluclated to fu
+                                        .fu_request(alu_request), // get vars from phys reg file
+                                        .fu_full('0), // ALU FU will never be full 
+                                        .table_full(alu_table_full) // Signal that the res table full 
+                                        );                
+                                        
+
+// Cycle 2: 
+///////////////////// Execute:  FU:ALU /////////////////////
+// MODULE INPUTS DECLARATION 
+// MODULE OUTPUT DECLARATION
+                                        
+// MODULE INSTANTIATION             
+
+fu_wrapper #(.SS(SS), .reservation_table_size(reservation_table_size), 
+.FU_COUNT(FU_COUNT)) 
+                                        fuck_u(
+                                             .clk(clk),.rst(rst),
+                                             .to_be_calculated(inst_for_fu_alu),
+                                             .cdb(cdb_alu),
+                                             .fu_reg_data(alu_reg_data)    
+                                       ); 
+
+
+// Cycle 1: 
+///////////////////// Issue: MULT Reservation Station /////////////////////
 // MODULE INPUTS DECLARATION 
 logic FU_ready;
 
 // MODULE OUTPUT DECLARATION
-fu_input_t fu_input;
+                           
+fu_input_t inst_for_fu_mult; 
+logic mult_table_full; 
 
-reservation #(.SS(SS)) reservation_table(.clk(clk), .rst(rst),
-                                        .reservation_entry(rs_rob_entry), 
-                                        .avail_inst(avail_inst), 
-                                        .cdb(cdb),
-                                        .reservation_rob_id(reservation_rob_id),
-                                        .inst_for_fu(fu_input),
-                                        .fu_request(fu_request), 
-                                        .table_full(rs_full)
-                                        );
+
+// MODULE INSTANTIATION       
+
+            
+reservation_table #(.SS(SS), .reservation_table_size(reservation_table_size), 
+        .ROB_DEPTH(ROB_DEPTH), .TABLE_TYPE(MUL_T)) mult_table(.clk(clk), .rst(rst),
+                                                            .dispatched(rs_rob_entry), // Dispatched shit
+                                                            .avail_inst(avail_inst), // Thing
+                                                            .cdb_rob_ids(cdb), // CDB 
+                                                            .inst_for_fu(inst_for_fu_mult), // send instruction to be caluclated to fu
+                                                            .fu_request(mul_request), // get vars from phys reg file
+                                                            .fu_full(FU_ready), // ALU FU will never be full 
+                                                            .table_full(mult_table_full) // Signal that the res table full 
+                                                            );                
+                                        
+
 // Cycle 2: 
-///////////////////// Issue: Functional Units /////////////////////
+///////////////////// Execute: FU - MULT /////////////////////
 // MODULE INPUTS DECLARATION 
 // MODULE OUTPUT DECLARATION
+                                        
+// MODULE INSTANTIATION             
 
-fu_wrapper #(.SS(SS), .ROB_DEPTH(ROB_DEPTH)) 
-   fuck_u(
-        .clk(clk),.rst(rst),
-        .to_be_calculated(fu_input),
-        .cdb(cdb_alu),
-        .fu_reg_data(fu_reg_data)    
-  ); 
+fu_wrapper_mult #(.SS(SS)) 
+                                        fuck_mu(
+                                             .clk(clk),.rst(rst),
+                                             .to_be_multiplied(inst_for_fu_mult),
+                                             .cdb(cdb_mul),
+                                             .FU_ready(FU_ready),
+                                             .fu_reg_data(mul_reg_data)    
+                                       ); 
 
-fu_wrapper_mult #(.SS(SS), .ROB_DEPTH(ROB_DEPTH)) 
-   fuck_mu(
-        .clk(clk),.rst(rst),
-        .to_be_multiplied(fu_input),
-        .cdb_multiply(cdb_mul),
-        .FU_ready(FU_ready),
-        .fu_reg_data(fu_reg_data)    
-  ); 
 
 // Temporary:
 assign dmem_rmask = 4'b0;

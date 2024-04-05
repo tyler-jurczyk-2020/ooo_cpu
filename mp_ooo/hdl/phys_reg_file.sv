@@ -23,7 +23,6 @@ import rv32i_types::*;
     // input [31:0] rd_v_FU_write_destination [SS], 
 
     // cdb/Reservation exchange
-    output logic [7:0] reservation_rob_id [SS * FU_COUNT],
     input cdb_t cdb [SS], 
     
     // ROB IO
@@ -33,9 +32,13 @@ import rv32i_types::*;
     input physical_reg_request_t dispatch_request [SS],
     output physical_reg_response_t dispatch_reg_data [SS],
 
-    // FU IO
-    input physical_reg_request_t fu_request [SS],
-    output physical_reg_response_t fu_reg_data [SS]
+    // ALU Requests 
+    input physical_reg_request_t alu_request,
+    output physical_reg_response_t alu_reg_data,
+
+    // MUL Requests
+    input physical_reg_request_t mul_request,
+    output physical_reg_response_t mul_reg_data
 );
 
     physical_reg_data_t  data [TABLE_ENTRIES];
@@ -65,13 +68,7 @@ import rv32i_types::*;
         end
     end     
 
-    always_comb begin
-        for(int i = 0; i < SS; i++) begin
-            for(int j = 0; j < FU_COUNT; j++) begin
-                reservation_rob_id[i*SS + j] = data[cdb[i][j].inst_info.rat.rd].ROB_ID;
-            end
-        end
-    end
+
     // Modifying for the transparent regfile so if we are in the dispatcher
     // and the dispatcher needs to fetch data which is being written by the functional unit(s) then
     // it can get it immediately 
@@ -98,22 +95,44 @@ import rv32i_types::*;
     end
 
     // Also supports transparency
-    // Request in reservation station and read output in fu
+    // ALU Requests 
     always_comb begin
         for (int i = 0; i < SS; i++) begin
             for(int j = 0; j < FU_COUNT; j++) begin
-                if(cdb[i][j].ready_for_writeback && (fu_request[i].rs1_s == cdb[i][j].inst_info.rat.rd)) begin
-                    fu_reg_data[i].rs1_v = cdb[i][j].register_value;
+                if(cdb[i][j].ready_for_writeback && (alu_request.rs1_s == cdb[i][j].inst_info.rat.rd)) begin
+                    alu_reg_data.rs1_v = cdb[i][j].register_value;
                 end
                 else begin
-                    fu_reg_data[i].rs1_v = data[fu_request[i].rs1_s];
+                    alu_reg_data.rs1_v = data[alu_request.rs1_s];
                 end
 
-                if(cdb[i][j].ready_for_writeback && (fu_request[i].rs2_s == cdb[i][j].inst_info.rat.rd)) begin
-                    fu_reg_data[i].rs2_v = cdb[i][j].register_value;
+                if(cdb[i][j].ready_for_writeback && (alu_request.rs2_s == cdb[i][j].inst_info.rat.rd)) begin
+                    alu_reg_data.rs2_v = cdb[i][j].register_value;
                 end
                 else begin
-                    fu_reg_data[i].rs2_v = data[dispatch_request[i].rs1_s];
+                    alu_reg_data.rs2_v = data[alu_request.rs1_s];
+                end
+            end
+        end
+    end
+
+    // Reading out 
+    // MUL Requests
+    always_comb begin
+        for (int i = 0; i < SS; i++) begin
+            for(int j = 0; j < FU_COUNT; j++) begin
+                if(cdb[i][j].ready_for_writeback && (mul_request.rs1_s == cdb[i][j].inst_info.rat.rd)) begin
+                    mul_reg_data.rs1_v = cdb[i][j].register_value;
+                end
+                else begin
+                    mul_reg_data.rs1_v = data[mul_request.rs1_s];
+                end
+
+                if(cdb[i][j].ready_for_writeback && (mul_request.rs2_s == cdb[i][j].inst_info.rat.rd)) begin
+                    mul_reg_data.rs2_v = cdb[i][j].register_value;
+                end
+                else begin
+                    mul_reg_data.rs2_v = data[mul_request.rs2_s];
                 end
             end
         end

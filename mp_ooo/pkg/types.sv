@@ -173,6 +173,11 @@ package rv32i_types;
         ZERO,
         FREE_LIST
     } initialization_t;
+
+    typedef enum logic {
+        ALU_T,
+        MUL_T
+    } reservation_table_type_t;
             
     typedef struct packed {
         logic [31:0] register_value; 

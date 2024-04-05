@@ -46,8 +46,8 @@ module rob
             for(int j = 0; j < FU_COUNT; j++) begin
                 out_bitmask[i] = 1'b1;
                 if(cdb[i][j].ready_for_writeback) begin
-                    rob_id_reg_select[i] = cdb[i][j].inst_info.reservation_entry.rob.rob_id[2:0]; // Need to fix
-                    rob_entry_in[i] = cdb[i][j].inst_info.reservation_entry;
+                    rob_id_reg_select[i] = cdb[i][j].inst_info.rob.rob_id[2:0]; // Need to fix
+                    rob_entry_in[i] = cdb[i][j].inst_info;
                     rob_entry_in[i].rob.commit = 1'b1;
                     bitmask[i] = 1'b1; 
                 end

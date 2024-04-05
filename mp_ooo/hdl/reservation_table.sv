@@ -1,9 +1,12 @@
-module res_table
+module reservation_table
     import rv32i_types::*;
     #(
         parameter SS = 2,
         parameter reservation_table_size = 8,
-        parameter ROB_DEPTH = 7 
+        parameter ROB_DEPTH = 7,
+        parameter reservation_table_type_t TABLE_TYPE = ALU_T,
+        parameter FU_COUNT = 2
+        // ALU means 0, MUL means 1
     )
     (
         input clk, rst, 
@@ -17,11 +20,11 @@ module res_table
 
 
         /////////////// ISSUING FROM TABLE ///////////////
-        output fu_input_t to_be_multiplied, // *parameterize!
+        output fu_input_t inst_for_fu, // *parameterize!
 
 
         /////////////// RETRIEVING UPDATED DEPENDECY FROM FU (CDB) ///////////////
-        input cdb_t cdb_rob_ids [SS * FU_COUNT], 
+        input cdb_t cdb_rob_ids [SS], 
 
         /////////////// REQUESTING REGISTER VALUE FROM PHYS. REG. FILE ///////////////
         output physical_reg_request_t fu_request,
@@ -30,7 +33,7 @@ module res_table
         input logic fu_full, 
         
         /////////////// STALL DISPATCHING ///////////////
-        output table_full 
+        output logic table_full 
 
     );
 
@@ -41,7 +44,7 @@ module res_table
     logic [$clog2(reservation_table_size)-1:0] counter; 
 
     fu_input_t local_inst_fu;  
-    assign to_be_multiplied = local_inst_fu;
+    assign inst_for_fu = local_inst_fu;
 
 
     // Write to the table 
@@ -56,7 +59,7 @@ module res_table
             if(avail_inst && ~table_full) begin
                 for(int i = 0; i < SS; i++) begin
                     for(int j = 0; j < reservation_table_size; j++) begin
-                        if(~reservation_table[j].full) begin
+                        if(~reservation_table[j].rs_entry.full && (dispatched[i].inst.is_mul == TABLE_TYPE)) begin
                             reservation_table[j] <= dispatched[i]; 
                             reservation_table[j].rs_entry.full <= '1; 
                             // MUST break because otherwise the entry will be put in to every available spot in the table
@@ -68,13 +71,13 @@ module res_table
             end
         end
         // For a given CDB, Check whether we need to update any of the Entries
-        for(int i = 0; i < SS * FU_COUNT; i++) begin
+        for(int i = 0; i < SS; i++) begin
             for(int j = 0; j < reservation_table_size; j++) begin
-                if(cdb_rob_ids[i].ready_for_writeback) begin
-                    if(reservation_table[j].rs_entry.rs1_source == cdb_rob_ids[i].inst_info.rs_entry.rob_id) begin
+                if(cdb_rob_ids[i][TABLE_TYPE].ready_for_writeback) begin
+                    if(reservation_table[j].rs_entry.rs1_source == cdb_rob_ids[i][TABLE_TYPE].inst_info.rob.rob_id) begin
                         reservation_table[j].rs_entry.input1_met <= '1; 
                     end
-                    if(reservation_table[j].rs_entry.rs2_source == cdb_rob_ids[i].inst_info.rs_entry.rob_id) begin
+                    if(reservation_table[j].rs_entry.rs2_source == cdb_rob_ids[i][TABLE_TYPE].inst_info.rob.rob_id) begin
                         reservation_table[j].rs_entry.input2_met <= '1; 
                     end
                 end
@@ -104,13 +107,13 @@ module res_table
     end
 
     
-    
+
     always_comb begin
         // Number of occupied entries in the table
         counter = '0;
         for(int i = 0; i < SS; i++) begin
             for(int j = 0; j < reservation_table_size; j++) begin
-                if(reservation_table[i][j].valid) begin
+                if(reservation_table[j].rs_entry.full) begin
                     counter = counter + 1'b1;
                 end
             end
@@ -123,5 +126,5 @@ module res_table
         end
     end
     
-    endmodule : res_table
+endmodule : reservation_table
     

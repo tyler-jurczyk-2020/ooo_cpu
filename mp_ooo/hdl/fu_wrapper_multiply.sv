@@ -2,8 +2,7 @@ module fu_wrapper_mult
     import rv32i_types::*;
     #(
         parameter SS = 2,
-        parameter reservation_table_size = 8,
-        parameter ROB_DEPTH = 7
+        parameter reservation_table_size = 8
     )
     (
         input logic clk, rst,
@@ -14,7 +13,7 @@ module fu_wrapper_mult
         output logic FU_ready, 
 
         // Write out results
-        output cdb_t cdb_multiply [SS],
+        output cdb_t cdb [SS],
 
         // Register values for instruction to be multiplied
         input physical_reg_response_t fu_reg_data
@@ -42,16 +41,24 @@ module fu_wrapper_mult
 
     always_ff @ (posedge clk) begin
         for(int i = 0; i < SS; i++) begin
+            if(to_be_multiplied.start_calculate) begin
+                multiplication[i].start <= '1; 
+                multiplication[i].mul_type <= to_be_multiplied.inst_info.inst.mul_type; 
+                multiplication[i].a <= fu_reg_data.rs1_v; 
+                multiplication[i].b <= fu_reg_data.rs2_v; 
+                break; 
+            end
+        end
+    end
+
+    always_ff @ (posedge clk) begin
+        for(int i = 0; i < SS; i++) begin
             if(rst) begin
                 mul_available[i] <= '0; 
             end
             else begin
                 if(to_be_multiplied.start_calculate) begin
                     mul_available[i] <= '0; 
-                    multiplication[i].start <= '1; 
-                    multiplication[i].mul_type <= to_be_multiplied.inst_info.inst.mul_type; 
-                    multiplication[i].a <= fu_reg_data.rs1_v; 
-                    multiplication[i].b <= fu_reg_data.rs2_v; 
                 end
                 else if(mult_status[i]) begin
                     mul_available[i] <= '1; 
@@ -59,6 +66,8 @@ module fu_wrapper_mult
             end
         end
     end
+
+
 
     always_comb begin
         FU_ready = '0; 
@@ -83,10 +92,10 @@ module fu_wrapper_mult
     always_comb begin
         for(int i = 0; i < SS; i++) begin
             if(mult_status[i]) begin
-                cdb[i][MUL].inst_info = to_be_multiplied[i].inst_info;
+                cdb[i][MUL].inst_info = to_be_multiplied.inst_info;
                 cdb[i][MUL].register_value = mult_output[i];
                 cdb[i][MUL].ready_for_writeback = 1'b1;
-                cdb[i][MUL].inst_info.reservation_entry.rvfi.rd_wdata = mult_output[i];
+                cdb[i][MUL].inst_info.rvfi.rd_wdata = mult_output[i];
             end
         end
     end

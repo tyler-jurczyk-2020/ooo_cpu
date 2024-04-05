@@ -3,7 +3,8 @@ module fu_wrapper
     #(
         parameter SS = 2,
         parameter reservation_table_size = 8,
-        parameter ROB_DEPTH = 7
+        parameter ROB_DEPTH = 7,
+        parameter FU_COUNT = SS
     )
     (
         input logic clk, rst,
@@ -11,7 +12,7 @@ module fu_wrapper
         input fu_input_t to_be_calculated, 
 
         output cdb_t cdb [SS],
-        input physical_reg_response_t fu_reg_data [SS]
+        input physical_reg_response_t fu_reg_data
 
     );
     // the reservation 
@@ -38,28 +39,28 @@ module fu_wrapper
     always_comb begin
         for(int i = 0; i < SS; i++) begin
             unique case (to_be_calculated.inst_info.inst.execute_operand1)
-                2'b00 : alu_input_a = fu_reg_data[i].rs1_v;
-                2'b01 : alu_input_a = to_be_calculated.inst_info.inst.immediate; 
-                2'b11 : alu_input_a = to_be_calculated.inst_info.inst.pc_curr;
-                default : alu_input_a = 'x;
+                2'b00 : alu_input_a[i] = fu_reg_data.rs1_v.register_value;
+                2'b01 : alu_input_a[i] = to_be_calculated.inst_info.inst.immediate; 
+                2'b11 : alu_input_a[i] = to_be_calculated.inst_info.inst.pc_curr;
+                default : alu_input_a[i] = 'x;
             endcase
             unique case (to_be_calculated.inst_info.inst.execute_operand2)
-                2'b00 : alu_input_b = fu_reg_data[i].rs2_v;
-                2'b01 : alu_input_b = '0;
-                2'b11 : alu_input_b = to_be_calculated.inst_info.inst.immediate;
-                default : alu_input_b = 'x;
+                2'b00 : alu_input_b[i] = fu_reg_data.rs2_v.register_value;
+                2'b01 : alu_input_b[i] = '0;
+                2'b11 : alu_input_b[i] = to_be_calculated.inst_info.inst.immediate;
+                default : alu_input_b[i] = 'x;
             endcase
         end
     end
 
     always_comb begin
-        cmp_input_a = alu_input_a; 
-        cmp_input_b = alu_input_b; 
         for(int i = 0; i < SS; i++) begin
-            if(to_be_calculated[i].inst_info.reservation_entry.inst.is_branch) begin
-                cmp_input_a[i] = fu_reg_data[i].rs1_v.register_value; 
-                cmp_input_b[i] = fu_reg_data[i].rs2_v.register_value; 
-            end
+            cmp_input_a[i] = alu_input_a[i]; 
+            cmp_input_b[i] = alu_input_b[i]; 
+            // if(to_be_calculated[i].inst_info.inst.is_branch) begin
+                cmp_input_a[i] = fu_reg_data.rs1_v.register_value; 
+                cmp_input_b[i] = fu_reg_data.rs2_v.register_value; 
+            // end
         end
     end
 
@@ -68,31 +69,26 @@ module fu_wrapper
 
     generate 
         for(genvar i = 0; i < SS; i++) begin: FUs
-            alu calculator(.aluop(to_be_calculated[i].inst_info.reservation_entry.inst.alu_operation), 
+            alu calculator(.aluop(to_be_calculated.inst_info.inst.alu_operation), 
                            .a(alu_input_a[i]), 
                            .b(alu_input_b[i]), 
                            .f(alu_output[i])); 
-            cmp comparator(.cmpop(to_be_calculated[i].inst_info.reservation_entry.inst.cmp_operation), 
+            cmp comparator(.cmpop(to_be_calculated.inst_info.inst.cmp_operation), 
                            .a(cmp_input_a[i]), 
                            .b(cmp_input_b[i]), 
                            .br_en(cmp_output[i])); 
         end
     endgenerate   
 
+        
     // Select register to push out
     always_comb begin
         for(int i = 0; i < SS; i++) begin
             // Always drive alu out since it only takes one clock cycle
-            if(to_be_calculated[i].inst_info.reservation_entry.inst.alu_en) begin
-                cdb[i][ALU].inst_info = to_be_calculated[i].inst_info;
-                cdb[i][ALU].register_value = alu_output[i];
-                cdb[i][ALU].ready_for_writeback = 1'b1;
-                cdb[i][ALU].inst_info.reservation_entry.rvfi.rd_wdata = alu_output[i];
-            end
-            else begin
-                cdb[i][ALU] = 'x;
-                cdb[i][ALU].ready_for_writeback = 1'b0;
-            end
+            cdb[i][ALU].inst_info = to_be_calculated.inst_info;
+            cdb[i][ALU].register_value = alu_output[i];
+            cdb[i][ALU].ready_for_writeback = 1'b1;
+            cdb[i][ALU].inst_info.rvfi.rd_wdata = alu_output[i];
         end
     end
         
