@@ -127,6 +127,12 @@ end
 assign imem_rmask = '1;
 assign imem_addr = if_id_reg_next.fetch_pc_curr;
 
+// Dummy read
+logic dummy_dmem_resp;
+logic [31:0] dummy_dmem_rdata;
+assign dummy_dmem_resp = dmem_resp;
+assign dummy_dmem_rdata = dmem_rdata;
+
 ///////////////////// RAT /////////////////////
 // MODULE INPUTS DECLARATION 
 logic [5:0] rat_rs1[SS], rat_rs2[SS], rat_rd[SS];
@@ -186,34 +192,23 @@ circular_queue #(.SS(SS), .QUEUE_TYPE(logic [5:0]), .INIT_TYPE(FREE_LIST), .DEPT
 // CYCLE 1 (UTILIZED IN CYCLE 0)
 ///////////////////// ISSUE: PHYSICAL REGISTER FILE /////////////////////
 // MODULE INPUTS DECLARATION 
-fu_output_t CDB [SS]; 
-logic write_fu_enable [SS]; 
+cdb_t cdb [SS]; 
+logic write_fu_enable [SS][FU_COUNT]; 
 logic write_from_rob [SS];
 logic [5:0] rob_dest_reg[SS]; 
 
-always_comb begin
-    for(int i = 0; i < SS; i++) begin
-        write_fu_enable[i] <= CDB[i].ready_for_writeback; 
-    end
-end
-
-logic [7:0] reservation_rob_id [SS];
-physical_reg_request_t fu_request [SS];
-physical_reg_response_t fu_reg_data [SS];
+logic [7:0] reservation_rob_id [SS * FU_COUNT];
+physical_reg_request_t fu_request [SS], dispatch_request [SS], rob_request [SS];
+physical_reg_response_t fu_reg_data [SS], dispatch_reg_data [SS], rob_reg_data [SS];
 // MODULE OUTPUT DECLARATION
 phys_reg_file #(.SS(SS)) reg_file (
     .clk(clk), 
     .rst(rst), 
     .regf_we('1), 
     .reservation_rob_id(reservation_rob_id),
-    .rd_s_ROB_write_destination(rob_dest_reg), 
-    .ROB_ID_for_new_inst(rob_id_next), 
-    .write_from_fu(write_fu_enable), 
-    .write_from_rob(write_from_rob), 
-    .rs1_s_dispatch_request(sel_pr_rs1), 
-    .cdb(CDB), 
-    .rs2_s_dispatch_request(sel_pr_rs2), 
-    .source_reg_1(pr_rs1), .source_reg_2(pr_rs2),
+    .cdb(cdb), 
+    .rob_request(rob_request), .rob_reg_data(rob_reg_data),
+    .dispatch_request(dispatch_request), .dispatch_reg_data(dispatch_reg_data),
     .fu_request(fu_request), .fu_reg_data(fu_reg_data)
     ); 
 
@@ -231,8 +226,8 @@ logic pop_from_rob;
 
 
 rob #(.SS(SS)) rb(.clk(clk), .rst(rst), .dispatch_info(rs_entries), .rob_id_next(rob_id_next), .avail_inst(avail_inst), 
-                  .cdb(CDB),
-                  .pop_from_rob(pop_from_rob), .rob_entries_to_commit(rob_entries_to_commit), .rob_dest_reg(rob_dest_reg), .write_from_rob(write_from_rob));
+                  .cdb(cdb),
+                  .pop_from_rob(pop_from_rob), .rob_entries_to_commit(rob_entries_to_commit));
 
 // CYCLE 1 (WRITTEN TO BY OTHER ELEMENT IN CYCLE 1) (CYCLE 1 TAKES MULTIPLE CLK CYCLES)
 ///////////////////// ISSUE: RESERVATION STATIONS /////////////////////
@@ -245,8 +240,7 @@ fu_input_t fu_input [SS];
 reservation #(.SS(SS)) reservation_table(.clk(clk), .rst(rst),
                         .reservation_entry(rs_entries), 
                         .avail_inst(avail_inst), 
-                        .write_from_fu(write_fu_enable), 
-                        .cdb(CDB),
+                        .cdb(cdb),
                         .reservation_rob_id(reservation_rob_id),
                         .mult_status(mult_status), 
                         .inst_for_fu(fu_input),
@@ -266,7 +260,7 @@ fu_wrapper #(.SS(SS), .reservation_table_size(), .ROB_DEPTH()) calculator(
                        .to_be_calculated(fu_input), 
                        .mul_available(mult_status), 
                        .fu_reg_data(fu_reg_data),
-                       .fu_output(CDB));
+                       .cdb(cdb));
 
 
 // Temporary:
