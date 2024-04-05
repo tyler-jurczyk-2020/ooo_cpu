@@ -128,6 +128,29 @@ assign imem_rmask = '1;
 assign imem_addr = if_id_reg_next.fetch_pc_curr;
 
 // Cycle 0: 
+///////////////////// Rename/Dispatch: Physical Register File /////////////////////
+// MODULE INPUTS DECLARATION 
+physical_reg_request_t dispatch_request [SS], rob_request [SS], fu_request [SS];
+physical_reg_data_t dispatch_reg_data [SS], fu_reg_data [SS];
+cdb_t cdb [SS];
+
+// MODULE OUTPUT DECLARATION
+
+
+// MODULE INSTANTIATION
+phys_reg_file #(.SS(SS), .TABLE_ENTRIES(TABLE_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) reg_file (
+                .clk(clk), 
+                .rst(rst), 
+                .regf_we('1), 
+
+                .reservation_rob_id(reservation_rob_id),
+                
+                .dispatch_request(dispatch_reg_request), .dispatch_reg_data(dispatch_reg_data), 
+                .fu_request(fu_request), .fu_reg_data(fu_reg_data),
+                .rob_request(rob_request)
+                ); 
+
+// Cycle 0: 
 ///////////////////// Rename/Dispatch: Dispatcher /////////////////////
 
 // MODULE INPUTS DECLARATION 
@@ -147,7 +170,6 @@ logic [5:0] free_rat_rds [SS]; // INPUT
 
 // Wish to check dependency for source registers
 logic [$clog2(PR_ENTRIES)-1:0] dispatch_pr_rs1_s [SS], dispatch_pr_rs2_s [SS]; // OUTPUTS
-physical_reg_data_t pr_rs1 [SS], pr_rs2 [SS]; // INPUTS
 
 // ROB ID Associated with current instruction
 logic [$clog2(ROB_DEPTH)-1:0] rob_id_next [SS]; // INPUTS
@@ -161,11 +183,13 @@ super_dispatch_t rs_rob_entry [SS];
 dispatcher #(.SS(SS), .PR_ENTRIES(PR_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) dispatcher_i(
              .clk(clk), .rst(rst), 
              .pop_inst_q(pop_inst_q), // Needs to connect to free list as well
+             .avail_inst(avail_inst),
+             
              .rs_full('0), // Resevation station informs that must stall pipeline (stop requesting pops)
              .inst_q_empty(inst_q_empty), // to prevent pop requests to free list
+             
              .inst(instruction), 
-             .avail_inst(avail_inst),
-
+             
              // RAT
              .isa_rs1(isa_rs1), .isa_rs2(isa_rs2), 
              .rat_rs1(rat_rs1), .rat_rs2(rat_rs2), 
@@ -175,13 +199,13 @@ dispatcher #(.SS(SS), .PR_ENTRIES(PR_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) dispatcher
              .free_rat_rds(free_rat_rds), 
 
              // Identify Dependencies for Curr Inst
-             .dispatch_pr_rs1_s(dispatch_pr_rs1_s), .dispatch_pr_rs2_s(dispatch_pr_rs2_s), 
-             .pr_rs1(pr_rs1), .pr_rs2(pr_rs2), 
-
+             .dispatch_request(dispatch_request), .dispatch_reg_data(dispatch_reg_data),
+             
              // ROB ID for CUR INST
              .rob_id_next(rob_id_next), 
              
-             .rs_rob_entry(rs_rob_entry)); 
+             .rs_rob_entry(rs_rob_entry)
+            ); 
 
 
 // Cycle 0: 
@@ -206,54 +230,50 @@ rat #(.SS(SS)) rt(.clk(clk), .rst(rst), .regf_we(avail_inst), // Need to connect
 circular_queue #(.SS(SS), .QUEUE_TYPE(logic [5:0]), .INIT_TYPE(FREE_LIST), .DEPTH(64))
       free_list(.clk(clk), .rst(rst), .push('0), .out(free_rat_rds), .pop(pop_inst_q));
 
-
-// Cycle 0: 
-///////////////////// Rename/Dispatch: Physical Register File /////////////////////
-// MODULE INPUTS DECLARATION 
-// Signal stating that ROB has new dependency to store in phys reg file
-logic write_from_rob [SS]; 
-logic [5:0] rob_dest_reg[SS]; 
-// MODULE OUTPUT DECLARATION
-
-// MODULE INSTANTIATION
-phys_reg_file #(.SS(SS), .TABLE_ENTRIES(TABLE_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) reg_file (
-    .clk(clk), 
-    .rst(rst), 
-    .regf_we('1), 
-    // .reservation_rob_id(), // Inform Resevation Station that this ROB ID has been updated
-    .rd_s_ROB_write_destination(rob_dest_reg), 
-    .ROB_ID_for_new_inst(rob_id_next), 
-    .write_from_fu(), 
-    .write_from_rob(write_from_rob), 
-    .rs1_s_dispatch_request(dispatch_pr_rs1_s), 
-    .cdb(), 
-    .rs2_s_dispatch_request(dispatch_pr_rs2_s), 
-    .source_reg_1(pr_rs1), .source_reg_2(pr_rs2),
-    .fu_request(), .fu_reg_data()
-    ); 
-
-
 // Cycle 0: 
 ///////////////////// Rename/Dispatch: ROB /////////////////////
 // MODULE INPUTS DECLARATION 
+
 // MODULE OUTPUT DECLARATION
+logic pop_from_rob;
+rvfi_t rob_entries_to_commit [SS];
 
 // MODULE INSTANTIATION
-rob #(.SS(SS), .ROB_DEPTH(ROB_DEPTH)) rb(.clk(clk), .rst(rst), .dispatch_info(rs_rob_entry), .rob_id_next(rob_id_next), .avail_inst(avail_inst), 
-                  .cdb(),
-                  .pop_from_rob(), .rob_entries_to_commit(), .rob_dest_reg(rob_dest_reg), .write_from_rob(write_from_rob));
+rob #(.SS(SS), .ROB_DEPTH(ROB_DEPTH)) rb(.clk(clk), .rst(rst), 
+                                         .avail_inst(avail_inst), .dispatch_info(rs_rob_entry), 
+                                         .cdb(cdb),
+                                         .rob_request(rob_request), .rob_id_next(rob_id_next), 
+                                         .rob_entries_to_commit(rob_entries_to_commit),
+                                         .pop_from_rob(pop_from_rob)
+                                        );
 
+// MODULE INSTANTIATION
+logic mul_available;
+
+reservation #(.SS(SS)) reservation_table(.clk(clk), .rst(rst),
+                                         .reservation_entry(rs_entries), 
+                                         .avail_inst(avail_inst), 
+                                         .cdb(cdb),
+                                         .reservation_rob_id(reservation_rob_id),
+                                         .mult_status(mult_status), 
+                                         .inst_for_fu(fu_input),
+                                         .fu_request(fu_request), 
+                                         .table_full(rs_full)
+                                        );
+
+fu_wrapper #(.SS(SS), .ROB_DEPTH(ROB_DEPTH)) 
+    fuck_u(
+        .clk(clk),.rst(rst),
+        .to_be_calculated(fu_input),
+        .mul_available(mul_available),
+        .cdb(cdb),
+        .fu_reg_data(fu_reg_data)    
+    ); 
 
 // Cycle 1: 
 ///////////////////// Issue: Reservation Station /////////////////////
 // MODULE INPUTS DECLARATION 
 // MODULE OUTPUT DECLARATION
-
-
-
-
-
-
 
 
 // // Temporary:
@@ -281,14 +301,53 @@ logic   [3:0]   mem_wmask [2];
 logic   [31:0]  mem_rdata [2];
 logic   [31:0]  mem_wdata [2];
 
-always_ff @ (posedge clk) begin
-    if(rst) begin
-        valid[0] <= '0; 
-        valid[1] <= '0; 
-    end
-    else begin
-        valid[0] <= '0; 
-        valid[1] <= '0; 
+always_comb begin
+    // when we commit an instr 
+    for(int i = 0; i < 2; i++) begin
+        if(pop_from_rob && i < SS) begin
+            valid[i] = rob_entries_to_commit[i].valid;
+            order[i] = rob_entries_to_commit[i].order;
+            inst[i] = rob_entries_to_commit[i].inst;
+            
+            rs1_addr[i] = rob_entries_to_commit[i].rs1_addr;
+            rs2_addr[i] = rob_entries_to_commit[i].rs2_addr;
+            rs1_rdata[i] = rob_entries_to_commit[i].rs1_rdata;
+            rs2_rdata[i] = rob_entries_to_commit[i].rs2_rdata;
+            
+            rd_addr[i] = rob_entries_to_commit[i].rd_addr;
+            rd_wdata[i] = rob_entries_to_commit[i].rd_wdata;
+            
+            pc_rdata[i] = rob_entries_to_commit[i].pc_rdata;
+            pc_wdata[i] = rob_entries_to_commit[i].pc_wdata;
+            
+            mem_addr[i] = rob_entries_to_commit[i].mem_addr;
+            mem_rmask[i] = rob_entries_to_commit[i].mem_rmask;
+            mem_wmask[i] = rob_entries_to_commit[i].mem_wmask;
+            mem_rdata[i] = rob_entries_to_commit[i].mem_rdata;
+            mem_wdata[i] = rob_entries_to_commit[i].mem_wdata;
+        end
+        else begin
+            valid[i] = 1'b0;
+            order[i] = 'x;
+            inst[i] = 'x;
+            
+            rs1_addr[i] = 'x;
+            rs2_addr[i] = 'x;
+            rs1_rdata[i] = 'x;
+            rs2_rdata[i] = 'x;
+
+            rd_addr[i] = 'x;
+            rd_wdata[i] = 'x;
+            
+            pc_rdata[i] = 'x;
+            pc_wdata[i] = 'x;
+            
+            mem_addr[i] = 'x;
+            mem_rmask[i] = 'x;
+            mem_wmask[i] = 'x;
+            mem_rdata[i] = 'x;
+            mem_wdata[i] = 'x;
+        end
     end
 end
 

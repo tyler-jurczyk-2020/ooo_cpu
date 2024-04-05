@@ -37,9 +37,9 @@ module dispatcher
         // Free list is popped same time that the inst queue is popped
         input logic [5:0] free_rat_rds [SS], 
 
-        // Acquire the ROB_ID for the relevant registers 
-        output logic [$clog2(PR_ENTRIES)-1:0] dispatch_pr_rs1_s [SS], dispatch_pr_rs2_s [SS],
-        input physical_reg_data_t pr_rs1 [SS], pr_rs2 [SS], 
+        // Physical register ports 
+        output physical_reg_request_t dispatch_request [SS],
+        input physical_reg_response_t dispatch_reg_data [SS],
 
         // Acquire ROB_ID for current inst. 
         // This will be useful for updating the reservation station later
@@ -77,26 +77,26 @@ module dispatcher
                 isa_rd[i] = inst[i].rd_s;
                 // Set the inputs to the phys. reg. file that we would like to read
                 // We get the phys. eg. to read from by the RAT
-                dispatch_pr_rs1_s[i] = rat_rs1[i];
-                dispatch_pr_rs2_s[i] = rat_rs2[i];
+                dispatch_request[i].rs1_s = rat_rs1[i];
+                dispatch_request[i].rs2_s = rat_rs2[i];
             end
 
             for(int i = 0; i < SS; i++) begin
                 // ROB Setup
                 rs_rob_entry[i].rob.rob_id = rob_id_next[i];
                 rs_rob_entry[i].rob.commit = 1'b0;
-                rs_rob_entry[i].rs1_source = pr_rs1[i].ROB_ID;
-                rs_rob_entry[i].rs2_source = pr_rs2[i].ROB_ID;
+                rs_rob_entry[i].rs1_source = dispatch_reg_data[i].rs1_v.ROB_ID;
+                rs_rob_entry[i].rs2_source = dispatch_reg_data[i].rs2_v.ROB_ID;
 
                 if(~inst[i].execute_operand1[0]) begin
-                    rs_rob_entry[i].input1_met = ~pr_rs1[i].dependency; 
+                    rs_rob_entry[i].input1_met = ~dispatch_reg_data[i].rs1_v.dependency; 
                 end
                 else begin
                     rs_rob_entry[i].input1_met = '1;  
                 end
 
                 if(~inst[i].execute_operand2[0]) begin
-                    rs_rob_entry[i].input2_met = ~pr_rs2[i].dependency; 
+                    rs_rob_entry[i].input2_met = ~dispatch_reg_data[i].rs2_v.dependency; 
                 end
                 else begin
                     rs_rob_entry[i].input2_met = '1; 
@@ -141,8 +141,8 @@ module dispatcher
                 isa_rd[i] = 'x;
                 // Set the inputs to the phys. reg. file that we would like to read
                 // We get the phys. eg. to read from by the RAT
-                dispatch_pr_rs1_s[i] = 'x; 
-                dispatch_pr_rs2_s[i] = 'x;
+                dispatch_request[i].rs1_s = 'x; 
+                dispatch_request[i].rs2_s = 'x;
             end
 
             // Setup entries going to reservation station

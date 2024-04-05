@@ -8,10 +8,11 @@ import rv32i_types::*;
 (
     input logic clk, rst,
     // Signals whether instruction is available from rename/dispatch
-    input logic pop_inst_q,
+    input logic avail_inst,
     // reservation station struct     
     input super_dispatch_t reservation_entry [SS],
-
+    // CDB to tell reservation station that this dependency 
+    // 
     input cdb_t cdb [SS], 
     input logic mult_status [SS],
 
@@ -57,7 +58,7 @@ always_ff @ (posedge clk) begin
         // Additional for loop because we will have N-entries at once based on N-way superscalar
         for(int i = 0; i < SS; i++) begin 
             for(int j = 0; j < reservation_table_size; j++) begin
-                if(pop_inst_q && ~reservation_table[i][j].valid) begin
+                if(avail_inst && ~reservation_table[i][j].valid) begin
                     reservation_table[i][j].reservation_entry <= reservation_entry[i]; 
                     reservation_table[i][j].valid <= '1; 
                     // MUST break because otherwise the entry will be put in to every available spot in the table

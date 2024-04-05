@@ -28,7 +28,6 @@ import rv32i_types::*;
     
     // ROB IO
     input physical_reg_request_t rob_request [SS],
-    output physical_reg_response_t rob_reg_data [SS],
 
     // Dispatch IO
     input physical_reg_request_t dispatch_request [SS],
