@@ -34,7 +34,7 @@ verdi:
 
 .PHONY: spike
 spike: $(ELF)
-	spike --isa=rv32i -m0x60000000:0x20000000 --log-commits $(ELF) |& tail -n +6 > sim/spike.log
+	spike --isa=rv32im -m0x60000000:0x20000000 --log-commits $(ELF) |& tail -n +6 > sim/spike.log
 
 .PHONY: interactive_spike
 interactive_spike: $(ELF)
