@@ -86,21 +86,21 @@ module dispatcher
                 // ROB Setup
                 rs_rob_entry[i].rob.rob_id = rob_id_next[i];
                 rs_rob_entry[i].rob.commit = 1'b0;
-                rs_rob_entry[i].rs1_source = dispatch_reg_data[i].rs1_v.ROB_ID;
-                rs_rob_entry[i].rs2_source = dispatch_reg_data[i].rs2_v.ROB_ID;
+                rs_rob_entry[i].rs_entry.rs1_source = dispatch_reg_data[i].rs1_v.ROB_ID;
+                rs_rob_entry[i].rs_entry.rs2_source = dispatch_reg_data[i].rs2_v.ROB_ID;
 
                 if(~inst[i].execute_operand1[0]) begin
-                    rs_rob_entry[i].input1_met = ~dispatch_reg_data[i].rs1_v.dependency; 
+                    rs_rob_entry[i].rs_entry.input1_met = ~dispatch_reg_data[i].rs1_v.dependency; 
                 end
                 else begin
-                    rs_rob_entry[i].input1_met = '1;  
+                    rs_rob_entry[i].rs_entry.input1_met = '1;  
                 end
 
                 if(~inst[i].execute_operand2[0]) begin
-                    rs_rob_entry[i].input2_met = ~dispatch_reg_data[i].rs2_v.dependency; 
+                    rs_rob_entry[i].rs_entry.input2_met = ~dispatch_reg_data[i].rs2_v.dependency; 
                 end
                 else begin
-                    rs_rob_entry[i].input2_met = '1; 
+                    rs_rob_entry[i].rs_entry.input2_met = '1; 
                 end
 
                 // RVFI Setup
@@ -151,10 +151,10 @@ module dispatcher
                 // ROB Setup
                 rs_rob_entry[i].rob.rob_id = 'x;
                 rs_rob_entry[i].rob.commit = 'x;
-                rs_rob_entry[i].input1_met = 'x;
-                rs_rob_entry[i].input2_met = 'x;
-                rs_rob_entry[i].rs1_source = 'x;
-                rs_rob_entry[i].rs2_source = 'x;
+                rs_rob_entry[i].rs_entry.input1_met = 'x;
+                rs_rob_entry[i].rs_entry.input2_met = 'x;
+                rs_rob_entry[i].rs_entry.rs1_source = 'x;
+                rs_rob_entry[i].rs_entry.rs2_source = 'x;
                 
                 // RVFI setup
                 rs_rob_entry[i].rvfi.valid = 'x; // SOUMIL IS SLOW

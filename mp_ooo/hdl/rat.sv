@@ -1,4 +1,3 @@
-// wus up
 module rat
 import rv32i_types::*;
 #(
@@ -16,19 +15,19 @@ import rv32i_types::*;
 );
 
 // MSB is valid bit
-logic   [6:0] data [32];
+logic   [5:0] data [32];
 
 always_ff @(posedge clk) begin
     if (rst) begin
         for (int i = 0; i < 32; i++) begin
-            data[i] <= i[6:0];
+            data[i] <= i[5:0];
         end
     end
 
     else if (regf_we) begin
         for (int i = 0; i < SS; i++) begin
             if(isa_rd[i] != 5'd0)
-                data[isa_rd[i]] <= {1'b1, rat_rd[i]};
+                data[isa_rd[i]] <= rat_rd[i];
         end
     end
 end

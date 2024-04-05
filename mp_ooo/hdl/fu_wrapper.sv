@@ -10,8 +10,6 @@ module fu_wrapper
         // get entry from reservation station
         input fu_input_t to_be_calculated, 
 
-        output logic mul_available [SS],
-
         output cdb_t cdb [SS],
         input physical_reg_response_t fu_reg_data [SS]
 
@@ -36,35 +34,23 @@ module fu_wrapper
     logic [31:0] cmp_input_a [SS]; 
     logic [31:0] cmp_input_b [SS]; 
 
+    // Need to properly extend to superscalar
     always_comb begin
         for(int i = 0; i < SS; i++) begin
-            // if(to_be_calculated[i].inst_info.reservation_entry.inst.op1_is_imm && ~to_be_calculated[i].inst_info.reservation_entry.inst.is_branch && ~to_be_calculated[i].inst_info.reservation_entry.inst.is_jump) begin
-            //     alu_input_a[i] = to_be_calculated[i].inst_info.reservation_entry.inst.immediate; 
-            // end
-            if(to_be_calculated[i].inst_info.reservation_entry.inst.op1_is_imm && (to_be_calculated[i].inst_info.reservation_entry.inst.is_branch || to_be_calculated[i].inst_info.reservation_entry.inst.is_jump || (to_be_calculated[i].inst_info.reservation_entry.inst.opcode == op_b_auipc))) begin
-                alu_input_a[i] = to_be_calculated[i].inst_info.reservation_entry.inst.pc_curr; 
-            end
-            else if(to_be_calculated[i].inst_info.reservation_entry.inst.rs1_s == 5'b0) begin
-                alu_input_a[i] = '0;
-            end
-            else begin
-                alu_input_a[i] = fu_reg_data[i].rs1_v.register_value; 
-            end
-
-            if(to_be_calculated[i].inst_info.reservation_entry.inst.op2_is_imm && ~to_be_calculated[i].inst_info.reservation_entry.inst.is_branch && ~to_be_calculated[i].inst_info.reservation_entry.inst.is_jump) begin
-                alu_input_b[i] = to_be_calculated[i].inst_info.reservation_entry.inst.immediate; 
-            end
-            // else if(to_be_calculated[i].inst_info.reservation_entry.inst.op2_is_imm && (to_be_calculated[i].inst_info.reservation_entry.inst.is_branch || to_be_calculated[i].inst_info.reservation_entry.inst.is_jump)) begin
-            //     alu_input_b[i] = to_be_calculated[i].inst_info.reservation_entry.inst.pc_curr; 
-            // end
-            else if(to_be_calculated[i].inst_info.reservation_entry.inst.rs2_s == 5'b0) begin
-                alu_input_b[i] = '0;
-            end
-            else begin
-                alu_input_b[i] = fu_reg_data[i].rs2_v.register_value; 
-            end
+            unique case (to_be_calculated.inst_info.inst.execute_operand1)
+                2'b00 : alu_input_a = fu_reg_data[i].rs1_v;
+                2'b01 : alu_input_a = to_be_calculated.inst_info.inst.immediate; 
+                2'b11 : alu_input_a = to_be_calculated.inst_info.inst.pc_curr;
+                default : alu_input_a = 'x;
+            endcase
+            unique case (to_be_calculated.inst_info.inst.execute_operand2)
+                2'b00 : alu_input_b = fu_reg_data[i].rs2_v;
+                2'b01 : alu_input_b = '0;
+                2'b11 : alu_input_b = to_be_calculated.inst_info.inst.immediate;
+                default : alu_input_b = 'x;
+            endcase
         end
-    end  
+    end
 
     always_comb begin
         cmp_input_a = alu_input_a; 
@@ -79,8 +65,6 @@ module fu_wrapper
 
     logic [31:0] alu_output [SS]; 
     logic cmp_output [SS]; 
-    logic [63:0] mult_output [SS];
-    logic mult_status [SS];
 
     generate 
         for(genvar i = 0; i < SS; i++) begin: FUs
@@ -92,30 +76,9 @@ module fu_wrapper
                            .a(cmp_input_a[i]), 
                            .b(cmp_input_b[i]), 
                            .br_en(cmp_output[i])); 
-            shift_add_multiplier shi(.clk(clk), 
-                                 .rst(rst), 
-                                 .start(to_be_calculated[i].start_calculate && mul_available[i]), 
-                                 .mul_type(to_be_calculated[i].inst_info.reservation_entry.inst.mul_type), 
-                                 .a(alu_input_a[i]), 
-                                 .b(alu_input_b[i]), 
-                                 .p(mult_output[i]), 
-                                 .done(mult_status[i]));
         end
     endgenerate   
 
-    // Latch values that go into computational units
-    fu_input_t alu_input [SS], mul_input [SS];
-    always_ff @(posedge clk) begin
-        for(int i = 0; i < SS; i++) begin
-            if(rst) begin
-                mul_input[i] <= 'x;
-            end
-            else begin
-                if(to_be_calculated[i].inst_info.reservation_entry.inst.is_mul)
-                    mul_input[i] <= to_be_calculated[i];
-            end
-        end
-    end
     // Select register to push out
     always_comb begin
         for(int i = 0; i < SS; i++) begin
@@ -130,40 +93,8 @@ module fu_wrapper
                 cdb[i][ALU] = 'x;
                 cdb[i][ALU].ready_for_writeback = 1'b0;
             end
-            // Drive mul output
-            if(mult_status[i]) begin
-                cdb[i][MUL].inst_info = mul_input[i].inst_info;
-                cdb[i][MUL].register_value = mult_output[i];
-                cdb[i][MUL].ready_for_writeback = 1'b1;
-                cdb[i][MUL].inst_info.reservation_entry.rvfi.rd_wdata = mult_output[i];
-            end
-            else begin
-                cdb[i][MUL] = 'x;
-                cdb[i][MUL].ready_for_writeback = 1'b0;
-            end
         end
-        // Probably need to fix. Shouldn't write out to rd during branches
-        // Not currently supporting compares for now
-        // else if(to_be_calculated[i].inst_info.reservation_entry.inst.cmp_en) begin
-        //     fu_output[i].register_value = {31'd0, cmp_output[i]};
-        //     fu_output[i].ready_for_writeback = '1; 
-        // end
     end
-
-    always_ff @ (posedge clk) begin
-        for(int i = 0; i < SS; i++) begin
-            if(rst) begin
-               mul_available[i] <= 1'b1; 
-            end
-            else begin
-                // Drive mul_available
-                if(to_be_calculated[i].start_calculate)
-                    mul_available[i] <= 1'b0;
-                else if(mult_status[i])
-                    mul_available[i] <= 1'b1;
-            end
-        end
-    end  
         
 endmodule : fu_wrapper
     

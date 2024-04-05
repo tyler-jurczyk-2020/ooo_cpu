@@ -49,8 +49,8 @@ always_ff @(posedge clk) begin
         if(INIT_TYPE == FREE_LIST) begin
             head <= '0;
             tail <= '0;
-            for(int i = 0; i < DEPTH; i++)
-                entries[i] <= {{$bits(QUEUE_TYPE)-$clog2(DEPTH){1'b0}}, i[$clog2(DEPTH)-1:0]};
+            for(int i = 32; i < 32 + DEPTH; i++)
+                entries[i-32] <= {{$bits(QUEUE_TYPE)-$clog2(DEPTH){1'b0}}, i[$clog2(DEPTH)-1:0]};
         end
     end
     else begin

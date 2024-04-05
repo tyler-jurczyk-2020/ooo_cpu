@@ -10,29 +10,38 @@ import rv32i_types::*;
     // write enable for Retired Rat
     input logic retire_we, 
     // writing random shit rn
-    input rat_t retired_rat_rd [SS], // physical regs for the dest registers of the instrs that are retiring
-    input logic [4:0] retired_isa_rd [SS], // ISA reg # bein retired
+    input super_dispatch_t rob_info [SS],
 
 ////// OUTPUTS:
-    output rat_t retired_rat_data [32], // array of rats in the retired rat state
-    output rat_t free_list_entry
+    output logic [5:0] free_list_entry,
+    output logic push_to_free_list
 );
 
+logic [5:0] data [32]; // array of rats in the retired rat state
+
+// NOT CORRECT FOR SS > 1 !!!
+assign push_to_free_list = retire_we && rob_info[0].rvfi.rd;
+
 always_ff @(posedge clk) begin
-    if (rst) begin
-        // reset all the mfing entries
-        for(int i = 0; i < 32; i++) begin
-            retired_rat_data[i].rs1 = '0;
-            retired_rat_data[i].rs2 = '0;
-            retired_rat_data[i].rd = '0;
+    for(int i = 0; i < SS; i++) begin
+        if (rst) begin
+            // reset all the mfing entries
+            for(int i = 0; i < 32; i++) 
+                data[i] = i[5:0];
+        end
+        else if(retire_we && rob_info[i].rvfi.rd != 5'b0) begin
+            // update retired rat based on instr's reg mapping
+            data[rob_info[i].rvfi.rd] <= rob_info[i].rat.rd;
         end
     end
-    else if(retire_we) begin
-        // update retired rat based on instr's reg mapping
-        for(int i = 0; i < SS; i++) begin
-            if(retired_isa_rd[i] != 5'd0)
-                retired_rat_data[retired_isa_rd[i]] <= retired_rat_rd[i];
-        end
+end
+
+always_comb begin
+    for(int i = 0; i < SS; i++) begin
+        if(retire_we && rob_info[i].rvfi.rd != 5'b0)
+            free_list_entry = data[rob_info[i].rvfi.rd];
+        else
+            free_list_entry = 'x;
     end
 end
 

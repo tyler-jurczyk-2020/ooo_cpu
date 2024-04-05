@@ -100,8 +100,8 @@ package rv32i_types;
             logic [31:0] pc_next;
             
             // signals to determine required registers and alu operands
-            logic [31:0] execute_operand1; 
-            logic [31:0] execute_operand2; 
+            logic [1:0] execute_operand1; 
+            logic [1:0] execute_operand2; 
 
 
             // logic op1_is_imm; 
@@ -152,31 +152,28 @@ package rv32i_types;
        // Hardcoded ROB depth so it compiles
        // ROB entries to refer to for dependency
     } rob_t;
+    
+    typedef struct packed {
+       logic input1_met; 
+       logic input2_met; 
+       logic [7:0] rs1_source; 
+       logic [7:0] rs2_source; 
+       logic full; 
+    } reservation_entry_t; 
 
     typedef struct packed {
        rob_t rob;
        rvfi_t rvfi; 
        instruction_info_reg_t inst;
        rat_t rat;
-       // Relevant for Reservation Table
-       logic input1_met; 
-       logic input2_met; 
-       logic [7:0] rs1_source; 
-       logic [7:0] rs2_source; 
+       reservation_entry_t rs_entry;
     } super_dispatch_t;
-
-
 
     typedef enum logic {
         ZERO,
-        FREE_LIST 
+        FREE_LIST
     } initialization_t;
-
-    typedef struct packed {
-        super_dispatch_t reservation_entry; 
-        logic valid; 
-    } reservation_entry_t; 
-        
+            
     typedef struct packed {
         logic [31:0] register_value; 
        // Hardcoded ROB depth so it compiles
@@ -203,11 +200,18 @@ package rv32i_types;
     } fu_input_t; 
 
     typedef struct packed {
-        reservation_entry_t inst_info; 
+        super_dispatch_t inst_info; 
         logic [31:0] register_value; 
         logic ready_for_writeback; 
     } fu_output_t; 
 
     typedef fu_output_t cdb_t [FU_COUNT];
+
+    typedef struct packed {
+        logic [1:0] mul_type; 
+        logic [31:0] a; 
+        logic [31:0] b; 
+        logic start; 
+    } multiply_FUs_t; 
 
 endpackage

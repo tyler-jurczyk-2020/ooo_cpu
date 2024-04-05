@@ -50,23 +50,16 @@ import rv32i_types::*;
             for (int i = 0; i < SS; i++) begin
                 for(int j = 0; j < FU_COUNT; j++) begin
                 // for the given source register, is it NOT R0?
-                // for(int j = 0; j < TABLE_ENTRIES; j++) begin
-                    // if(cdb[i].inst_info.reservation_entry.rat.rd != 6'b0) begin
-                        if(cdb[i][j].ready_for_writeback) begin
-                            // When we write via cdb for funct, then we remove ROB_ID because dependency is gone
-                            // Due to register-renaming, ROB entries and physical registers are one-to-one. So when dependency is gone, we flush the ROB. 
-                            data[cdb[i][j].inst_info.reservation_entry.rat.rd].register_value <= cdb[i][j].register_value; 
-                            data[cdb[i][j].inst_info.reservation_entry.rat.rd].dependency <= '0; 
-                            // break; 
-                        end
-                        // ROB should not be using CDB !!!
-                        else if(rob_request[i].rd_en) begin
-                            data[rob_request[i].rd_s].ROB_ID <= rob_request[i].rd_s; 
-                            data[rob_request[i].rd_s].dependency <= '1; 
-                            // break; 
-                        end
-                    // end
-                // end
+                    if(cdb[i][j].ready_for_writeback) begin
+                        // When we write via cdb for funct, then we remove ROB_ID because dependency is gone
+                        // Due to register-renaming, ROB entries and physical registers are one-to-one. So when dependency is gone, we flush the ROB. 
+                        data[cdb[i][j].inst_info.rat.rd].register_value <= cdb[i][j].register_value; 
+                        data[cdb[i][j].inst_info.rat.rd].dependency <= '0; 
+                    end
+                    else if(rob_request[i].rd_en) begin
+                        data[rob_request[i].rd_s].ROB_ID <= rob_request[i].rd_s; 
+                        data[rob_request[i].rd_s].dependency <= '1; 
+                    end
                 end
             end
         end
@@ -75,11 +68,7 @@ import rv32i_types::*;
     always_comb begin
         for(int i = 0; i < SS; i++) begin
             for(int j = 0; j < FU_COUNT; j++) begin
-            // for(int j = 0; j < TABLE_ENTRIES; j++) begin
-                // if (write_from_fu[i] && cdb[i].inst_info.reservation_entry.rat.rd == j[5:0]) begin
-                    reservation_rob_id[i*SS + j] = data[cdb[i][j].inst_info.reservation_entry.rat.rd].ROB_ID;
-                // end   
-            // end
+                reservation_rob_id[i*SS + j] = data[cdb[i][j].inst_info.rat.rd].ROB_ID;
             end
         end
     end
@@ -91,14 +80,14 @@ import rv32i_types::*;
     always_comb begin
         for (int i = 0; i < SS; i++) begin
             for(int j = 0; j < FU_COUNT; j++) begin
-                if(cdb[i][j].ready_for_writeback && (dispatch_request[i].rs1_s == cdb[i][j].inst_info.reservation_entry.rat.rd)) begin
+                if(cdb[i][j].ready_for_writeback && (dispatch_request[i].rs1_s == cdb[i][j].inst_info.rat.rd)) begin
                     dispatch_reg_data[i].rs1_v = cdb[i][j].register_value;
                 end
                 else begin
                     dispatch_reg_data[i].rs1_v = data[dispatch_request[i].rs1_s];
                 end
 
-                if(cdb[i][j].ready_for_writeback && (dispatch_request[i].rs2_s == cdb[i][j].inst_info.reservation_entry.rat.rd)) begin
+                if(cdb[i][j].ready_for_writeback && (dispatch_request[i].rs2_s == cdb[i][j].inst_info.rat.rd)) begin
                     dispatch_reg_data[i].rs2_v = cdb[i][j].register_value;
                 end
                 else begin
@@ -113,14 +102,14 @@ import rv32i_types::*;
     always_comb begin
         for (int i = 0; i < SS; i++) begin
             for(int j = 0; j < FU_COUNT; j++) begin
-                if(cdb[i][j].ready_for_writeback && (fu_request[i].rs1_s == cdb[i][j].inst_info.reservation_entry.rat.rd)) begin
+                if(cdb[i][j].ready_for_writeback && (fu_request[i].rs1_s == cdb[i][j].inst_info.rat.rd)) begin
                     fu_reg_data[i].rs1_v = cdb[i][j].register_value;
                 end
                 else begin
                     fu_reg_data[i].rs1_v = data[fu_request[i].rs1_s];
                 end
 
-                if(cdb[i][j].ready_for_writeback && (fu_request[i].rs2_s == cdb[i][j].inst_info.reservation_entry.rat.rd)) begin
+                if(cdb[i][j].ready_for_writeback && (fu_request[i].rs2_s == cdb[i][j].inst_info.rat.rd)) begin
                     fu_reg_data[i].rs2_v = cdb[i][j].register_value;
                 end
                 else begin

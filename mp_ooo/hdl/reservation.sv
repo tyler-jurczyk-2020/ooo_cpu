@@ -37,7 +37,7 @@ import rv32i_types::*;
 // through the functional unit first, then it won't be updating the same source register
 // that an older entry is depending on 
 
-reservation_entry_t reservation_table[SS][reservation_table_size]; 
+super_dispatch_t reservation_table[SS][reservation_table_size]; 
 //update size based on reservation table size
 logic [2:0] counter; 
 
@@ -47,7 +47,7 @@ always_ff @ (posedge clk) begin
     if(rst) begin
         for(int i = 0; i < SS; i++) begin
             for(int j = 0; j < reservation_table_size; j++) begin
-                reservation_table[i][j].valid <= '0; 
+                reservation_table[i][j].rs_entry.valid <= '0; 
             end
         end
         // local_inst_fu <= '0; // Also wrong type
@@ -59,8 +59,8 @@ always_ff @ (posedge clk) begin
         for(int i = 0; i < SS; i++) begin 
             for(int j = 0; j < reservation_table_size; j++) begin
                 if(avail_inst && ~reservation_table[i][j].valid) begin
-                    reservation_table[i][j].reservation_entry <= reservation_entry[i]; 
-                    reservation_table[i][j].valid <= '1; 
+                    reservation_table[i][j] <= reservation_entry[i]; 
+                    reservation_table[i][j].rs_entry.valid <= '1; 
                     // MUST break because otherwise the entry will be put in to every available spot in the table
                     break; 
                 end
@@ -73,30 +73,30 @@ always_ff @ (posedge clk) begin
         local_inst_fu[i].start_calculate <= '0; 
         for(int j = 0; j < reservation_table_size; j++) begin
             for(int k = 0; k < FU_COUNT; k++) begin
-                if(reservation_table[i][j].reservation_entry.rob.rs1_source == reservation_rob_id[i*SS + k] && cdb[i][k].ready_for_writeback) begin
-                    reservation_table[i][j].reservation_entry.rob.input1_met <= '1;  
+                if(reservation_table[i][j].rob.rs1_source == reservation_rob_id[i*SS + k] && cdb[i][k].ready_for_writeback) begin
+                    reservation_table[i][j].rob.input1_met <= '1;  
                 end
-                if(reservation_table[i][j].reservation_entry.rob.rs2_source == reservation_rob_id[i*SS + k] && cdb[i][k].ready_for_writeback) begin
-                    reservation_table[i][j].reservation_entry.rob.input2_met <= '1; 
+                if(reservation_table[i][j].rob.rs2_source == reservation_rob_id[i*SS + k] && cdb[i][k].ready_for_writeback) begin
+                    reservation_table[i][j].rob.input2_met <= '1; 
                 end
             end
             // See whether to issue any entry
-            if((reservation_table[i][j].reservation_entry.inst.alu_en || reservation_table[i][j].reservation_entry.inst.cmp_en ||
-              (reservation_table[i][j].reservation_entry.inst.is_mul && mult_status[i])) 
+            if((reservation_table[i][j].inst.alu_en || reservation_table[i][j].inst.cmp_en ||
+              (reservation_table[i][j].inst.is_mul && mult_status[i])) 
               && reservation_table[i][j].valid) begin
-                if(reservation_table[i][j].reservation_entry.rob.input1_met && reservation_table[i][j].reservation_entry.rob.input2_met) begin
+                if(reservation_table[i][j].rob.input1_met && reservation_table[i][j].rob.input2_met) begin
                     local_inst_fu[i].inst_info <= reservation_table[i][j];
-                    local_inst_fu[i].start_calculate <= reservation_table[i][j].reservation_entry.inst.is_mul; 
+                    local_inst_fu[i].start_calculate <= reservation_table[i][j].inst.is_mul; 
                     reservation_table[i][j].valid <= '0; 
                     // Issue request to register file rs_entries[i].rvfi.valid = instruction[i].valid;
-                    if(reservation_table[i][j].reservation_entry.inst.rs1_s != 5'b0) begin
-                        fu_request[i].rs1_s <= reservation_table[i][j].reservation_entry.rat.rs1;
+                    if(reservation_table[i][j].inst.rs1_s != 5'b0) begin
+                        fu_request[i].rs1_s <= reservation_table[i][j].rat.rs1;
                     end
                     else begin
                         fu_request[i].rs1_s <= 'x;
                     end
-                    if(reservation_table[i][j].reservation_entry.inst.rs2_s != 5'b0) begin
-                        fu_request[i].rs2_s <= reservation_table[i][j].reservation_entry.rat.rs2;
+                    if(reservation_table[i][j].inst.rs2_s != 5'b0) begin
+                        fu_request[i].rs2_s <= reservation_table[i][j].rat.rs2;
                     end
                     else begin
                         fu_request[i].rs2_s <= 'x;

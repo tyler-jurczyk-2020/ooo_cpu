@@ -49,19 +49,6 @@ instruction_info_reg_t decoded_inst;
 // says that a instruction is reoutputady for the buffer
 logic valid_inst_flag;
 
-
-// Dummy signals, to be removed
-// logic dummy_dmem_resp;
-// logic [31:0] dummy_dmem_data;
-// logic [1:0] dummy [SS];
-// instruction_info_reg_t dummy_reg [SS];
-// assign dummy_dmem_resp = dmem_resp;
-// assign dummy_dmem_data = dmem_rdata;
-// assign dummy[0] = '0;
-// assign dummy[1] = '0;
-// assign dummy_reg[0] = '0;
-// assign dummy_reg[1] = '0;
-
 // Dummy assign 
 assign dmem_addr = '0;
 assign dmem_wdata = '0;
@@ -124,6 +111,16 @@ always_comb begin
         valid_inst_flag = 1'b0;
 end
 
+// Not correct, temporary
+// Merge cdb 
+cdb_t cdb [SS], cdb_alu, cdb_mul;
+always_comb begin
+    for(int i = 0; i < SS; i++) begin
+        cdb[i][ALU] = cdb_alu[ALU];
+        cdb[i][MUL] = cdb_mul[MUL];
+    end
+end
+
 assign imem_rmask = '1;
 assign imem_addr = if_id_reg_next.fetch_pc_curr;
 
@@ -131,13 +128,9 @@ assign imem_addr = if_id_reg_next.fetch_pc_curr;
 ///////////////////// Rename/Dispatch: Physical Register File /////////////////////
 // MODULE INPUTS DECLARATION 
 physical_reg_request_t dispatch_request [SS], rob_request [SS], fu_request [SS];
-physical_reg_response_t dispatch_reg_data [SS], fu_reg_data [SS];
-cdb_t cdb [SS];
 logic [7:0] reservation_rob_id [SS * FU_COUNT];
-
 // MODULE OUTPUT DECLARATION
-
-
+physical_reg_response_t dispatch_reg_data [SS], fu_reg_data [SS];
 // MODULE INSTANTIATION
 phys_reg_file #(.SS(SS), .TABLE_ENTRIES(TABLE_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) reg_file (
                 .clk(clk), 
@@ -210,8 +203,11 @@ dispatcher #(.SS(SS), .PR_ENTRIES(PR_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) dispatcher
 
 
 // Cycle 0: 
-///////////////////// Rename/Dispatch: RAT /////////////////////
+///////////////////// Rename/Dispatch: RAT + RRAT /////////////////////
 // MODULE INPUTS DECLARATION 
+logic pop_from_rob;
+logic [5:0] retire_to_free_list [SS];
+super_dispatch_t rob_entries_to_commit [SS];
 // MODULE OUTPUT DECLARATION
 
 // MODULE INSTANTIATION
@@ -221,6 +217,13 @@ rat #(.SS(SS)) rt(.clk(clk), .rst(rst), .regf_we(avail_inst), // Need to connect
      .rat_rs1(rat_rs1) , .rat_rs2(rat_rs2)
      );
 
+retired_rat #(.SS(SS)) retire_ratatoullie(
+    .clk(clk), .rst(rst),
+    .retire_we(pop_from_rob),
+    .free_list_entry(retire_to_free_list),
+    .rob_info(rob_entries_to_commit)
+);
+
 // Cycle 0: 
 ///////////////////// Rename/Dispatch: Free Lists /////////////////////
 // MODULE INPUTS DECLARATION 
@@ -229,15 +232,13 @@ rat #(.SS(SS)) rt(.clk(clk), .rst(rst), .regf_we(avail_inst), // Need to connect
 // MODULE INSTANTIATION
 
 circular_queue #(.SS(SS), .QUEUE_TYPE(logic [5:0]), .INIT_TYPE(FREE_LIST), .DEPTH(64))
-      free_list(.clk(clk), .rst(rst), .push('0), .out(free_rat_rds), .pop(pop_inst_q));
-
+      free_list(.clk(clk), .rst(rst), .push(pop_from_rob), .out(free_rat_rds), .in(retire_to_free_list), .pop(pop_inst_q));
+    
 // Cycle 0: 
 ///////////////////// Rename/Dispatch: ROB /////////////////////
 // MODULE INPUTS DECLARATION 
 
 // MODULE OUTPUT DECLARATION
-logic pop_from_rob;
-rvfi_t rob_entries_to_commit [SS];
 
 // MODULE INSTANTIATION
 rob #(.SS(SS), .ROB_DEPTH(ROB_DEPTH)) rb(.clk(clk), .rst(rst), 
@@ -248,37 +249,46 @@ rob #(.SS(SS), .ROB_DEPTH(ROB_DEPTH)) rb(.clk(clk), .rst(rst),
                                          .pop_from_rob(pop_from_rob)
                                         );
 
-// MODULE INSTANTIATION
-// logic mul_available;
-
-// reservation #(.SS(SS)) reservation_table(.clk(clk), .rst(rst),
-//                                         .reservation_entry(rs_entries), 
-//                                         .avail_inst(avail_inst), 
-//                                         .cdb(cdb),
-//                                          .reservation_rob_id(reservation_rob_id),
-//                                          .mult_status(mult_status), 
-//                                          .inst_for_fu(fu_input),
-//                                          .fu_request(fu_request), 
-//                                          .table_full(rs_full)
-//                                         );
-
-// fu_wrapper #(.SS(SS), .ROB_DEPTH(ROB_DEPTH)) 
-//    fuck_u(
-//        .clk(clk),.rst(rst),
-//        .to_be_calculated(fu_input),
-//       .mul_available(mul_available),
-//       .cdb(cdb),
-//       .fu_reg_data(fu_reg_data)    
-//   ); 
-
-
 // Cycle 1: 
 ///////////////////// Issue: Reservation Station /////////////////////
 // MODULE INPUTS DECLARATION 
+logic FU_ready;
+
+// MODULE OUTPUT DECLARATION
+fu_input_t fu_input;
+
+reservation #(.SS(SS)) reservation_table(.clk(clk), .rst(rst),
+                                        .reservation_entry(rs_rob_entry), 
+                                        .avail_inst(avail_inst), 
+                                        .cdb(cdb),
+                                        .reservation_rob_id(reservation_rob_id),
+                                        .inst_for_fu(fu_input),
+                                        .fu_request(fu_request), 
+                                        .table_full(rs_full)
+                                        );
+// Cycle 2: 
+///////////////////// Issue: Functional Units /////////////////////
+// MODULE INPUTS DECLARATION 
 // MODULE OUTPUT DECLARATION
 
+fu_wrapper #(.SS(SS), .ROB_DEPTH(ROB_DEPTH)) 
+   fuck_u(
+        .clk(clk),.rst(rst),
+        .to_be_calculated(fu_input),
+        .cdb(cdb_alu),
+        .fu_reg_data(fu_reg_data)    
+  ); 
 
-// // Temporary:
+fu_wrapper_mult #(.SS(SS), .ROB_DEPTH(ROB_DEPTH)) 
+   fuck_mu(
+        .clk(clk),.rst(rst),
+        .to_be_multiplied(fu_input),
+        .cdb_multiply(cdb_mul),
+        .FU_ready(FU_ready),
+        .fu_reg_data(fu_reg_data)    
+  ); 
+
+// Temporary:
 assign dmem_rmask = 4'b0;
 assign dmem_wmask = 4'b0;
 
@@ -307,26 +317,26 @@ always_comb begin
     // when we commit an instr 
     for(int i = 0; i < 2; i++) begin
         if(pop_from_rob && i < SS) begin
-            valid[i] = rob_entries_to_commit[i].valid;
-            order[i] = rob_entries_to_commit[i].order;
-            inst[i] = rob_entries_to_commit[i].inst;
+            valid[i] = rob_entries_to_commit[i].rvfi.valid;
+            order[i] = rob_entries_to_commit[i].rvfi.order;
+            inst[i] = rob_entries_to_commit[i].rvfi.inst;
             
-            rs1_addr[i] = rob_entries_to_commit[i].rs1_addr;
-            rs2_addr[i] = rob_entries_to_commit[i].rs2_addr;
-            rs1_rdata[i] = rob_entries_to_commit[i].rs1_rdata;
-            rs2_rdata[i] = rob_entries_to_commit[i].rs2_rdata;
+            rs1_addr[i] = rob_entries_to_commit[i].rvfi.rs1_addr;
+            rs2_addr[i] = rob_entries_to_commit[i].rvfi.rs2_addr;
+            rs1_rdata[i] = rob_entries_to_commit[i].rvfi.rs1_rdata;
+            rs2_rdata[i] = rob_entries_to_commit[i].rvfi.rs2_rdata;
             
-            rd_addr[i] = rob_entries_to_commit[i].rd_addr;
-            rd_wdata[i] = rob_entries_to_commit[i].rd_wdata;
+            rd_addr[i] = rob_entries_to_commit[i].rvfi.rd_addr;
+            rd_wdata[i] = rob_entries_to_commit[i].rvfi.rd_wdata;
             
-            pc_rdata[i] = rob_entries_to_commit[i].pc_rdata;
-            pc_wdata[i] = rob_entries_to_commit[i].pc_wdata;
+            pc_rdata[i] = rob_entries_to_commit[i].rvfi.pc_rdata;
+            pc_wdata[i] = rob_entries_to_commit[i].rvfi.pc_wdata;
             
-            mem_addr[i] = rob_entries_to_commit[i].mem_addr;
-            mem_rmask[i] = rob_entries_to_commit[i].mem_rmask;
-            mem_wmask[i] = rob_entries_to_commit[i].mem_wmask;
-            mem_rdata[i] = rob_entries_to_commit[i].mem_rdata;
-            mem_wdata[i] = rob_entries_to_commit[i].mem_wdata;
+            mem_addr[i] = rob_entries_to_commit[i].rvfi.mem_addr;
+            mem_rmask[i] = rob_entries_to_commit[i].rvfi.mem_rmask;
+            mem_wmask[i] = rob_entries_to_commit[i].rvfi.mem_wmask;
+            mem_rdata[i] = rob_entries_to_commit[i].rvfi.mem_rdata;
+            mem_wdata[i] = rob_entries_to_commit[i].rvfi.mem_wdata;
         end
         else begin
             valid[i] = 1'b0;

@@ -18,7 +18,7 @@ module rob
         // rob id are sent out
         output logic [$clog2(ROB_DEPTH)-1:0] rob_id_next [SS],
         // updated RVFI order
-        output rvfi_t rob_entries_to_commit [SS],
+        output super_dispatch_t rob_entries_to_commit [SS],
         // pop from rob queue
         output logic pop_from_rob
     );
@@ -85,13 +85,13 @@ module rob
     always_comb begin
         for(int i = 0; i < SS; i++) begin
             if(pop_from_rob) begin
-                rob_entries_to_commit[i] = inspect_queue[i].rvfi;
-                rob_entries_to_commit[i].order = order_counter + {32'b0, i};
+                rob_entries_to_commit[i] = inspect_queue[i];
+                rob_entries_to_commit[i].rvfi.order = order_counter + {32'b0, i};
                 // Send some signal to tell rrat to commit above entries
             end
             else begin
                 rob_entries_to_commit[i] = 'x;
-                rob_entries_to_commit[i].valid = 1'b0;
+                rob_entries_to_commit[i].rvfi.valid = 1'b0;
             end
         end
     end
