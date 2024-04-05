@@ -78,14 +78,14 @@ import rv32i_types::*;
         for (int i = 0; i < SS; i++) begin
             for(int j = 0; j < FU_COUNT; j++) begin
                 if(cdb[i][j].ready_for_writeback && (dispatch_request[i].rs1_s == cdb[i][j].inst_info.rat.rd)) begin
-                    dispatch_reg_data[i].rs1_v = cdb[i][j].register_value;
+                    dispatch_reg_data[i].rs1_v.register_value = cdb[i][j].register_value;
                 end
                 else begin
                     dispatch_reg_data[i].rs1_v = data[dispatch_request[i].rs1_s];
                 end
 
                 if(cdb[i][j].ready_for_writeback && (dispatch_request[i].rs2_s == cdb[i][j].inst_info.rat.rd)) begin
-                    dispatch_reg_data[i].rs2_v = cdb[i][j].register_value;
+                    dispatch_reg_data[i].rs2_v.register_value = cdb[i][j].register_value;
                 end
                 else begin
                     dispatch_reg_data[i].rs2_v = data[dispatch_request[i].rs2_s];
@@ -100,14 +100,14 @@ import rv32i_types::*;
         for (int i = 0; i < SS; i++) begin
             for(int j = 0; j < FU_COUNT; j++) begin
                 if(cdb[i][j].ready_for_writeback && (alu_request.rs1_s == cdb[i][j].inst_info.rat.rd)) begin
-                    alu_reg_data.rs1_v = cdb[i][j].register_value;
+                    alu_reg_data.rs1_v.register_value = cdb[i][j].register_value;
                 end
                 else begin
                     alu_reg_data.rs1_v = data[alu_request.rs1_s];
                 end
 
                 if(cdb[i][j].ready_for_writeback && (alu_request.rs2_s == cdb[i][j].inst_info.rat.rd)) begin
-                    alu_reg_data.rs2_v = cdb[i][j].register_value;
+                    alu_reg_data.rs2_v.register_value = cdb[i][j].register_value;
                 end
                 else begin
                     alu_reg_data.rs2_v = data[alu_request.rs2_s];

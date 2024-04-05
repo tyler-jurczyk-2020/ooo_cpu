@@ -48,6 +48,8 @@ module fu_wrapper_mult
                 multiplication[i].b <= fu_reg_data.rs2_v.register_value; 
                 break; 
             end
+            else if(mult_status[i])
+                multiplication[i].start <= '0;
         end
     end
 
@@ -71,6 +73,8 @@ module fu_wrapper_mult
         FU_ready = '0; 
         for(int i = 0; i < SS; i++) begin
             FU_ready |= mul_available[i];
+            // Black magic
+            FU_ready &= ~to_be_multiplied.start_calculate;
         end
     end
 

@@ -89,6 +89,8 @@ module fu_wrapper
             cdb[i][ALU].register_value = alu_output[i];
             cdb[i][ALU].ready_for_writeback = 1'b1;
             cdb[i][ALU].inst_info.rvfi.rd_wdata = alu_output[i];
+            cdb[i][ALU].inst_info.rvfi.rs1_rdata = fu_reg_data.rs1_v.register_value;
+            cdb[i][ALU].inst_info.rvfi.rs2_rdata = fu_reg_data.rs2_v.register_value;
         end
     end
         
