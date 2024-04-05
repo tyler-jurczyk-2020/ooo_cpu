@@ -94,6 +94,8 @@ module fu_wrapper_mult
                 cdb[i][MUL].register_value = mult_output[i];
                 cdb[i][MUL].ready_for_writeback = 1'b1;
                 cdb[i][MUL].inst_info.rvfi.rd_wdata = mult_output[i];
+                cdb[i][MUL].inst_info.rvfi.rs1_rdata = multiplication[i].a;
+                cdb[i][MUL].inst_info.rvfi.rs2_rdata = multiplication[i].b;
             end
         end
     end

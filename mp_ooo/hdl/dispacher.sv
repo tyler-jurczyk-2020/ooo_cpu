@@ -16,6 +16,7 @@ module dispatcher
         // This is based on whether the reservation station is full or not
         input logic rs_full, 
         input logic inst_q_empty, 
+        input logic rob_full,
 
         // inst input from the inst queue
         input instruction_info_reg_t inst [SS], 
@@ -63,7 +64,7 @@ module dispatcher
         end
     end
 
-    assign pop_inst_q = ~rs_full && ~inst_q_empty; 
+    assign pop_inst_q = ~rs_full && ~inst_q_empty && ~rob_full; 
     
     always_comb begin
         if(pop_inst_q) begin

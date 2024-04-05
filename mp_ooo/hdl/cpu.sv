@@ -4,7 +4,7 @@ import rv32i_types::*;
     parameter SS = 2,
     parameter PR_ENTRIES = 64,
     parameter reservation_table_size = 8,
-    parameter ROB_DEPTH = 7
+    parameter ROB_DEPTH = 8
 )
 (
     // Explicit dual port connections when caches are not integrated into design yet (Before CP3)
@@ -154,6 +154,7 @@ phys_reg_file #(.SS(SS), .TABLE_ENTRIES(TABLE_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) r
 
 // MODULE INPUTS DECLARATION 
 logic rs_full; 
+logic rob_full;
 
 // Input Arch. Reg. for RAT
 logic [4:0] isa_rs1[SS], isa_rs2[SS]; // OUTPUTS
@@ -187,7 +188,7 @@ dispatcher #(.SS(SS), .PR_ENTRIES(PR_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) dispatcher
              
              .rs_full('0), // Resevation station informs that must stall pipeline (stop requesting pops)
              .inst_q_empty(inst_q_empty), // to prevent pop requests to free list
-             
+             .rob_full(rob_full),
              .inst(instruction), 
              
              // RAT
@@ -252,6 +253,7 @@ rob #(.SS(SS), .ROB_DEPTH(ROB_DEPTH)) rb(.clk(clk), .rst(rst),
                                          .cdb(cdb),
                                          .rob_request(rob_request), .rob_id_next(rob_id_next), 
                                          .rob_entries_to_commit(rob_entries_to_commit),
+                                         .rob_full(rob_full),
                                          .pop_from_rob(pop_from_rob)
                                         );
 

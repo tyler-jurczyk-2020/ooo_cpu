@@ -19,6 +19,8 @@ module rob
         output logic [$clog2(ROB_DEPTH)-1:0] rob_id_next [SS],
         // updated RVFI order
         output super_dispatch_t rob_entries_to_commit [SS],
+        // send out full rob
+        output logic rob_full,
         // pop from rob queue
         output logic pop_from_rob
     );
@@ -27,7 +29,7 @@ module rob
     logic [$clog2(ROB_DEPTH)-1:0] head, tail;
     logic push_to_rob;
     super_dispatch_t inspect_queue [SS];
-    logic rob_full, rob_empty;
+    logic rob_empty;
 
     logic [$clog2(ROB_DEPTH)-1:0] rob_id_out[SS];
     

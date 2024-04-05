@@ -22,13 +22,14 @@ import rv32i_types::*;
 );
 
 QUEUE_TYPE entries [DEPTH];
-logic [$clog2(DEPTH):0] head, tail, head_next, tail_next; // One bit to differentiate between full/empty
+logic [$clog2(DEPTH):0] head, tail, head_next, tail_next, head_spec; // One bit to differentiate between full/empty
 logic [31:0] sext_head, sext_tail, sext_amount;
 
 assign head_out = head[$clog2(DEPTH)-1:0];
 assign tail_out = tail[$clog2(DEPTH)-1:0];
 
-assign full = (head[$clog2(DEPTH)-1:0] == tail[$clog2(DEPTH)-1:0]) && (head[$clog2(DEPTH)] != tail[$clog2(DEPTH)]);
+assign head_spec = head + SS[$clog2(DEPTH):0]; // Need to make superscalar
+
 assign empty = (head == tail);
 
 assign sext_head = {{(32-$clog2(DEPTH)-1){1'b0}}, head[$clog2(DEPTH)-1:0]}; // Excludes top bit so queue is indexed properly
@@ -37,6 +38,13 @@ assign sext_amount = (2'h1 << (SS - 1));
 
 assign head_next = head + {{($clog2(DEPTH)-1){1'b0}}, (2'h1 << (SS - 1))};
 assign tail_next = tail + {{($clog2(DEPTH)-1){1'b0}}, (2'h1 << (SS - 1))};
+
+always_comb begin
+    if(~push)
+        full = (head[$clog2(DEPTH)-1:0] == tail[$clog2(DEPTH)-1:0]) && (head[$clog2(DEPTH)] != tail[$clog2(DEPTH)]);
+    else
+        full = (head_spec[$clog2(DEPTH)-1:0] == tail[$clog2(DEPTH)-1:0]) && (head_spec[$clog2(DEPTH)] != tail[$clog2(DEPTH)]);
+end
 
 always_ff @(posedge clk) begin
     if(rst) begin
