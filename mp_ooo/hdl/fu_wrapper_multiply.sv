@@ -1,9 +1,5 @@
 module fu_wrapper_mult
     import rv32i_types::*;
-    #(
-        parameter SS = 2,
-        parameter reservation_table_size = 8
-    )
     (
         input logic clk, rst,
         // get entry from reservation station
@@ -13,7 +9,7 @@ module fu_wrapper_mult
         output logic FU_ready, 
 
         // Write out results
-        output cdb_t cdb [SS],
+        output fu_output_t mul_output,
 
         // Register values for instruction to be multiplied
         input physical_reg_response_t fu_reg_data
@@ -33,37 +29,35 @@ module fu_wrapper_mult
     // B-Type: CMP R1 & R2, ALU PC + bmm (Yes, Yes) (Yes, Yes)
     // J-type: neither PC + 4, PC + jmm (No, No) (Yes, Yes) 
 
-    logic mult_status [SS]; 
-    logic mul_available [SS];
-    logic [63:0] mult_output [SS];
+    logic mult_status; 
+    logic mul_available;
+    logic [63:0] mult_output;
 
-    multiply_FUs_t multiplication [SS]; 
+    multiply_FUs_t multiplication; 
 
     always_ff @ (posedge clk) begin
-        for(int i = 0; i < SS; i++) begin
             if(to_be_multiplied.start_calculate) begin
-                multiplication[i].start <= '1; 
-                multiplication[i].mul_type <= to_be_multiplied.inst_info.inst.mul_type; 
-                multiplication[i].a <= fu_reg_data.rs1_v.register_value; 
-                multiplication[i].b <= fu_reg_data.rs2_v.register_value; 
+                multiplication.start <= '1; 
+                multiplication.mul_type <= to_be_multiplied.inst_info.inst.mul_type; 
+                multiplication.a <= fu_reg_data.rs1_v.register_value; 
+                multiplication.b <= fu_reg_data.rs2_v.register_value; 
                 break; 
             end
-            else if(mult_status[i])
-                multiplication[i].start <= '0;
-        end
+            else if(mult_status)
+                multiplication.start <= '0;
     end
 
     always_ff @ (posedge clk) begin
         for(int i = 0; i < SS; i++) begin
             if(rst) begin
-                mul_available[i] <= '1; 
+                mul_available <= '1; 
             end
             else begin
                 if(to_be_multiplied.start_calculate) begin
-                    mul_available[i] <= '0; 
+                    mul_available <= '0; 
                 end
-                else if(mult_status[i]) begin
-                    mul_available[i] <= '1; 
+                else if(mult_status) begin
+                    mul_available <= '1; 
                 end
             end
         end
@@ -72,40 +66,33 @@ module fu_wrapper_mult
     always_comb begin
         FU_ready = '0; 
         for(int i = 0; i < SS; i++) begin
-            FU_ready |= mul_available[i];
+            FU_ready |= mul_available;
             // Black magic
             FU_ready &= ~to_be_multiplied.start_calculate;
         end
     end
 
-    generate 
-        for(genvar i = 0; i < SS; i++) begin: MULTs
-            shift_add_multiplier shi(.clk(clk), 
-                                 .rst(rst), 
-                                 .start(multiplication[i].start), 
-                                 .mul_type(multiplication[i].mul_type), 
-                                 .a(multiplication[i].a), 
-                                 .b(multiplication[i].b), 
-                                 .p(mult_output[i]), 
-                                 .done(mult_status[i]));
-        end
-    endgenerate   
+    shift_add_multiplier shi(.clk(clk), 
+                            .rst(rst), 
+                            .start(multiplication.start), 
+                            .mul_type(multiplication.mul_type), 
+                            .a(multiplication.a), 
+                            .b(multiplication.b), 
+                            .p(mult_output), 
+                            .done(mult_status));
 
     always_comb begin
-        for(int i = 0; i < SS; i++) begin
-            if(mult_status[i]) begin
-                cdb[i][MUL].inst_info = to_be_multiplied.inst_info;
-                cdb[i][MUL].register_value = mult_output[i];
-                cdb[i][MUL].ready_for_writeback = 1'b1;
-                cdb[i][MUL].inst_info.rvfi.rd_wdata = mult_output[i];
-                cdb[i][MUL].inst_info.rvfi.rs1_rdata = multiplication[i].a;
-                cdb[i][MUL].inst_info.rvfi.rs2_rdata = multiplication[i].b;
-            end
-            // Fix to make lint work
-            else 
-                cdb[i][MUL] = '0;
+        if(mult_status[i]) begin
+            alu_output.inst_info = to_be_multiplied.inst_info;
+            alu_output.register_value = mult_output;
+            alu_output.ready_for_writeback = 1'b1;
+            alu_output.inst_info.rvfi.rd_wdata = mult_output;
+            alu_output.inst_info.rvfi.rs1_rdata = multiplication.a;
+            alu_output.inst_info.rvfi.rs2_rdata = multiplication.b;
         end
+        // Fix to make lint work
+        else 
+            alu_output_t = '0;
     end
-
 endmodule : fu_wrapper_mult
     

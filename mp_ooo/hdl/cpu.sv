@@ -59,23 +59,6 @@ assign dmem_wdata = '0;
 // Instruction Queue:
 instruction_info_reg_t instruction [SS];
 logic inst_q_empty, pop_inst_q;
-// Dummy Instruction Inputs
-logic [1:0] d_out_bitmask;
-logic [1:0] d_in_bitmask [1];
-logic [$clog2(DEPTH)-1:0] d_reg_sel_in [SS][DIM_SEL];
-logic [1:0] d_reg_sel_out;
-instruction_info_reg_t d_reg_in [1][1]; 
-assign d_out_bitmask = '0;
-assign d_in_bitmask[0] = '0;
-assign d_reg_sel_out = '0;
-assign d_reg_in[0][0] = 2'b0;
-always_comb begin
-    for(int i = 0; i < SS; i++) begin
-        for(int j = 0; j < DIM_SEL; j++) begin
-            d_reg_sel_in[i][j] = '0;
-        end
-    end
-end
 circular_queue #(.SS(SS)) instruction_queue
                 (.clk(clk), .rst(rst), // Defaults to instruction queue type
                  .full(inst_queue_full), .in(valid_inst),
@@ -134,7 +117,6 @@ end
 
 // Not correct, temporary
 // Merge cdb 
-cdb_t cdb [SS], cdb_alu [SS], cdb_mul [SS];
 always_comb begin
     for(int i = 0; i < SS; i++) begin
         cdb[i][ALU] = cdb_alu[i][ALU];
@@ -341,8 +323,8 @@ fu_wrapper #(.SS(SS), .reservation_table_size(reservation_table_size),
                                         fuck_u(
                                              .clk(clk),.rst(rst),
                                              .to_be_calculated(inst_for_fu_alu),
-                                             .cdb(cdb_alu),
-                                             .fu_reg_data(alu_reg_data)    
+                                             .alu_output(),
+                                             .fu_reg_data(alu_reg_data)
                                        ); 
 
 
@@ -383,9 +365,9 @@ fu_wrapper_mult #(.SS(SS))
                                         fuck_mu(
                                              .clk(clk),.rst(rst),
                                              .to_be_multiplied(inst_for_fu_mult),
-                                             .cdb(cdb_mul),
+                                             .mul_output(),
                                              .FU_ready(FU_ready),
-                                             .fu_reg_data(mul_reg_data)    
+                                             .fu_reg_data(mul_reg_data)
                                        ); 
 
 

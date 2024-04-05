@@ -1,17 +1,11 @@
 module fu_wrapper
     import rv32i_types::*;
-    #(
-        parameter SS = 2,
-        parameter reservation_table_size = 8,
-        parameter ROB_DEPTH = 7,
-        parameter FU_COUNT = SS
-    )
     (
         input logic clk, rst,
         // get entry from reservation station
         input fu_input_t to_be_calculated, 
 
-        output cdb_t cdb [SS],
+        output fu_output_t alu_output,
         input physical_reg_response_t fu_reg_data
 
     );
@@ -30,69 +24,56 @@ module fu_wrapper
     // B-Type: CMP R1 & R2, ALU PC + bmm (Yes, Yes) (Yes, Yes)
     // J-type: neither PC + 4, PC + jmm (No, No) (Yes, Yes) 
 
-    logic [31:0] alu_input_a [SS]; 
-    logic [31:0] alu_input_b [SS]; 
-    logic [31:0] cmp_input_a [SS]; 
-    logic [31:0] cmp_input_b [SS]; 
+    logic [31:0] alu_input_a; 
+    logic [31:0] alu_input_b; 
+    logic [31:0] cmp_input_a; 
+    logic [31:0] cmp_input_b; 
 
     // Need to properly extend to superscalar
     always_comb begin
-        for(int i = 0; i < SS; i++) begin
-            unique case (to_be_calculated.inst_info.inst.execute_operand1)
-                2'b00 : alu_input_a[i] = fu_reg_data.rs1_v.register_value;
-                2'b01 : alu_input_a[i] = to_be_calculated.inst_info.inst.immediate; 
-                2'b11 : alu_input_a[i] = to_be_calculated.inst_info.inst.pc_curr;
-                default : alu_input_a[i] = 'x;
-            endcase
-            unique case (to_be_calculated.inst_info.inst.execute_operand2)
-                2'b00 : alu_input_b[i] = fu_reg_data.rs2_v.register_value;
-                2'b01 : alu_input_b[i] = '0;
-                2'b11 : alu_input_b[i] = to_be_calculated.inst_info.inst.immediate;
-                default : alu_input_b[i] = 'x;
-            endcase
-        end
+        unique case (to_be_calculated.inst_info.inst.execute_operand1)
+            2'b00 : alu_input_a = fu_reg_data.rs1_v.register_value;
+            2'b01 : alu_input_a = to_be_calculated.inst_info.inst.immediate; 
+            2'b11 : alu_input_a = to_be_calculated.inst_info.inst.pc_curr;
+            default : alu_input_a = 'x;
+        endcase
+        unique case (to_be_calculated.inst_info.inst.execute_operand2)
+            2'b00 : alu_input_b = fu_reg_data.rs2_v.register_value;
+            2'b01 : alu_input_b = '0;
+            2'b11 : alu_input_b = to_be_calculated.inst_info.inst.immediate;
+            default : alu_input_b = 'x;
+        endcase
     end
 
     always_comb begin
-        for(int i = 0; i < SS; i++) begin
-            cmp_input_a[i] = alu_input_a[i]; 
-            cmp_input_b[i] = alu_input_b[i]; 
-            // if(to_be_calculated[i].inst_info.inst.is_branch) begin
-                cmp_input_a[i] = fu_reg_data.rs1_v.register_value; 
-                cmp_input_b[i] = fu_reg_data.rs2_v.register_value; 
-            // end
-        end
+        cmp_input_a = alu_input_a;
+        cmp_input_b = alu_input_b;
+        // if(to_be_calculated.inst_info.inst.is_branch) begin
+            cmp_input_a = fu_reg_data.rs1_v.register_value;
+            cmp_input_b = fu_reg_data.rs2_v.register_value;
     end
 
-    logic [31:0] alu_output [SS]; 
-    logic cmp_output [SS]; 
+    logic [31:0] alu_output; 
+    logic cmp_output; 
 
-    generate 
-        for(genvar i = 0; i < SS; i++) begin: FUs
-            alu calculator(.aluop(to_be_calculated.inst_info.inst.alu_operation), 
-                           .a(alu_input_a[i]), 
-                           .b(alu_input_b[i]), 
-                           .f(alu_output[i])); 
-            cmp comparator(.cmpop(to_be_calculated.inst_info.inst.cmp_operation), 
-                           .a(cmp_input_a[i]), 
-                           .b(cmp_input_b[i]), 
-                           .br_en(cmp_output[i])); 
-        end
-    endgenerate   
+    alu calculator(.aluop(to_be_calculated.inst_info.inst.alu_operation), 
+                    .a(alu_input_a),
+                    .b(alu_input_b),
+                    .f(alu_output));
+    cmp comparator(.cmpop(to_be_calculated.inst_info.inst.cmp_operation), 
+                    .a(cmp_input_a),
+                    .b(cmp_input_b),
+                    .br_en(cmp_output));
 
-        
     // Select register to push out
     always_comb begin
-        for(int i = 0; i < SS; i++) begin
             // Always drive alu out since it only takes one clock cycle
-            cdb[i][ALU].inst_info = to_be_calculated.inst_info;
-            cdb[i][ALU].register_value = alu_output[i];
-            cdb[i][ALU].ready_for_writeback = 1'b1;
-            cdb[i][ALU].inst_info.rvfi.rd_wdata = alu_output[i];
-            cdb[i][ALU].inst_info.rvfi.rs1_rdata = fu_reg_data.rs1_v.register_value;
-            cdb[i][ALU].inst_info.rvfi.rs2_rdata = fu_reg_data.rs2_v.register_value;
-        end
+            alu_output.inst_info = to_be_calculated.inst_info;
+            alu_output.register_value = alu_output;
+            alu_output.ready_for_writeback = 1'b1;
+            alu_output.inst_info.rvfi.rd_wdata = alu_output;
+            alu_output.inst_info.rvfi.rs1_rdata = fu_reg_data.rs1_v.register_value;
+            alu_output.inst_info.rvfi.rs2_rdata = fu_reg_data.rs2_v.register_value;
     end
         
 endmodule : fu_wrapper
-    

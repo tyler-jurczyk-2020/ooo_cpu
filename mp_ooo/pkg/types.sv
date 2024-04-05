@@ -6,9 +6,8 @@
 package rv32i_types;
 
     parameter TABLE_ENTRIES = 64;
-    parameter ALU = 0;
-    parameter MUL = 1;
-    parameter FU_COUNT = 2;
+    parameter N_MUL = 1;
+    parameter N_ALU = 1;
 
     typedef enum logic [6:0] {
         op_b_lui   = 7'b0110111, // U load upper immediate 
@@ -210,7 +209,10 @@ package rv32i_types;
         logic ready_for_writeback; 
     } fu_output_t; 
 
-    typedef fu_output_t cdb_t [FU_COUNT];
+    typedef struct {
+        fu_output_t alu_out [N_ALU],
+        fu_output_t mul_out [N_MUL]
+    } cdb_t;
 
     typedef struct packed {
         logic [1:0] mul_type; 
