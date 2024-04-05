@@ -152,6 +152,8 @@ physical_reg_data_t pr_rs1 [SS], pr_rs2 [SS]; // INPUTS
 // ROB ID Associated with current instruction
 logic [$clog2(ROB_DEPTH)-1:0] rob_id_next [SS]; // INPUTS
 
+logic avail_inst; 
+
 // MODULE OUTPUT DECLARATION
 super_dispatch_t rs_rob_entry [SS]; 
 
@@ -162,6 +164,7 @@ dispatcher #(.SS(SS), .PR_ENTRIES(PR_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) dispatcher
              .rs_full('0), // Resevation station informs that must stall pipeline (stop requesting pops)
              .inst_q_empty(inst_q_empty), // to prevent pop requests to free list
              .inst(instruction), 
+             .avail_inst(avail_inst),
 
              // RAT
              .isa_rs1(isa_rs1), .isa_rs2(isa_rs2), 
@@ -187,7 +190,7 @@ dispatcher #(.SS(SS), .PR_ENTRIES(PR_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) dispatcher
 // MODULE OUTPUT DECLARATION
 
 // MODULE INSTANTIATION
-rat #(.SS(SS)) rt(.clk(clk), .rst(rst), .regf_we(pop_inst_q), // Need to connect write enable to pop_inst_q?
+rat #(.SS(SS)) rt(.clk(clk), .rst(rst), .regf_we(avail_inst), // Need to connect write enable to pop_inst_q?
      .rat_rd(rat_rd),
      .isa_rd(isa_rd), .isa_rs1(isa_rs1), .isa_rs2(isa_rs2),
      .rat_rs1(rat_rs1) , .rat_rs2(rat_rs2)
@@ -217,7 +220,7 @@ phys_reg_file #(.SS(SS), .TABLE_ENTRIES(TABLE_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) r
     .clk(clk), 
     .rst(rst), 
     .regf_we('1), 
-    .reservation_rob_id(), // Inform Resevation Station that this ROB ID has been updated
+    // .reservation_rob_id(), // Inform Resevation Station that this ROB ID has been updated
     .rd_s_ROB_write_destination(rob_dest_reg), 
     .ROB_ID_for_new_inst(rob_id_next), 
     .write_from_fu(), 
@@ -236,7 +239,7 @@ phys_reg_file #(.SS(SS), .TABLE_ENTRIES(TABLE_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) r
 // MODULE OUTPUT DECLARATION
 
 // MODULE INSTANTIATION
-rob #(.SS(SS), .ROB_DEPTH(ROB_DEPTH)) rb(.clk(clk), .rst(rst), .dispatch_info(rs_rob_entry), .rob_id_next(rob_id_next), .avail_inst(pop_inst_q), 
+rob #(.SS(SS), .ROB_DEPTH(ROB_DEPTH)) rb(.clk(clk), .rst(rst), .dispatch_info(rs_rob_entry), .rob_id_next(rob_id_next), .avail_inst(avail_inst), 
                   .cdb(),
                   .pop_from_rob(), .rob_entries_to_commit(), .rob_dest_reg(rob_dest_reg), .write_from_rob(write_from_rob));
 

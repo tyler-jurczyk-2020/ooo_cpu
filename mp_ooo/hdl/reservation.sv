@@ -59,7 +59,7 @@ always_ff @ (posedge clk) begin
         // Additional for loop because we will have N-entries at once based on N-way superscalar
         for(int i = 0; i < SS; i++) begin 
             for(int j = 0; j < reservation_table_size; j++) begin
-                if(avail_inst && ~reservation_table[i][j].valid) begin
+                if(pop_inst_q && ~reservation_table[i][j].valid) begin
                     reservation_table[i][j].reservation_entry <= reservation_entry[i]; 
                     reservation_table[i][j].valid <= '1; 
                     // MUST break because otherwise the entry will be put in to every available spot in the table
