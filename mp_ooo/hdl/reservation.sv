@@ -70,7 +70,7 @@ always_ff @ (posedge clk) begin
     for(int i = 0; i < SS; i++) begin 
         local_inst_fu[i].start_calculate <= '0; 
         for(int j = 0; j < reservation_table_size; j++) begin
-            for(int k = 0; j < FU_COUNT; k++) begin
+            for(int k = 0; k < FU_COUNT; k++) begin
                 if(reservation_table[i][j].reservation_entry.rob.rs1_source == reservation_rob_id[i*SS + k] && cdb[i][k].ready_for_writeback) begin
                     reservation_table[i][j].reservation_entry.rob.input1_met <= '1;  
                 end
