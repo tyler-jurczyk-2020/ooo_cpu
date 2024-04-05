@@ -44,8 +44,8 @@ module fu_wrapper_mult
             if(to_be_multiplied.start_calculate) begin
                 multiplication[i].start <= '1; 
                 multiplication[i].mul_type <= to_be_multiplied.inst_info.inst.mul_type; 
-                multiplication[i].a <= fu_reg_data.rs1_v; 
-                multiplication[i].b <= fu_reg_data.rs2_v; 
+                multiplication[i].a <= fu_reg_data.rs1_v.register_value; 
+                multiplication[i].b <= fu_reg_data.rs2_v.register_value; 
                 break; 
             end
         end
@@ -54,7 +54,7 @@ module fu_wrapper_mult
     always_ff @ (posedge clk) begin
         for(int i = 0; i < SS; i++) begin
             if(rst) begin
-                mul_available[i] <= '0; 
+                mul_available[i] <= '1; 
             end
             else begin
                 if(to_be_multiplied.start_calculate) begin
@@ -66,8 +66,6 @@ module fu_wrapper_mult
             end
         end
     end
-
-
 
     always_comb begin
         FU_ready = '0; 

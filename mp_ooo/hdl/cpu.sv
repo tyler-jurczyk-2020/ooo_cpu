@@ -275,7 +275,7 @@ reservation_table #(.SS(SS), .TABLE_TYPE(ALU_T), .reservation_table_size(reserva
                                         .cdb_rob_ids(cdb), // CDB 
                                         .inst_for_fu(inst_for_fu_alu), // send instruction to be caluclated to fu
                                         .fu_request(alu_request), // get vars from phys reg file
-                                        .fu_full('0), // ALU FU will never be full 
+                                        .FU_Ready('1), // ALU FU will never be full 
                                         .table_full(alu_table_full) // Signal that the res table full 
                                         );                
                                         
@@ -318,7 +318,7 @@ reservation_table #(.SS(SS), .reservation_table_size(reservation_table_size),
                                                             .cdb_rob_ids(cdb), // CDB 
                                                             .inst_for_fu(inst_for_fu_mult), // send instruction to be caluclated to fu
                                                             .fu_request(mul_request), // get vars from phys reg file
-                                                            .fu_full(FU_ready), // ALU FU will never be full 
+                                                            .FU_Ready(FU_ready), // ALU FU will never be full 
                                                             .table_full(mult_table_full) // Signal that the res table full 
                                                             );                
                                         

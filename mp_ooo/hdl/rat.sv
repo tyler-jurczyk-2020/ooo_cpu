@@ -35,7 +35,7 @@ end
 always_comb begin
     for(int i = 0; i < SS; i++) begin
         rat_rs1[i] = (isa_rs1[i] != 5'd0) ? data[isa_rs1[i]][5:0] : '0;
-        rat_rs2[i] = (isa_rs2[i] != 5'd0) ? data[isa_rs1[i]][5:0] : '0;
+        rat_rs2[i] = (isa_rs2[i] != 5'd0) ? data[isa_rs2[i]][5:0] : '0;
     end
 end
 

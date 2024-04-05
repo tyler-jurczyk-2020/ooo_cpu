@@ -30,7 +30,7 @@ module reservation_table
         output physical_reg_request_t fu_request,
 
         /////////////// FU FULL - DON'T ISSUE ///////////////
-        input logic fu_full, 
+        input logic FU_Ready, 
         
         /////////////// STALL DISPATCHING ///////////////
         output logic table_full 
@@ -81,26 +81,23 @@ module reservation_table
                         reservation_table[j].rs_entry.input2_met <= '1; 
                     end
                 end
-                local_inst_fu.start_calculate <= '0; 
-                // See whether to issue an entry
+                
+            end
+        end
+        for(int i = 0; i < SS; i++) begin
+            for(int j = 0; j < reservation_table_size; j++) begin
                 if(reservation_table[j].rs_entry.full && reservation_table[j].rs_entry.input1_met && reservation_table[j].rs_entry.input2_met) begin
-                    if(~fu_full) begin
+                    if(FU_Ready) begin
                         reservation_table[j].rs_entry.full <= '0;
                         local_inst_fu.inst_info <= reservation_table[j]; 
                         local_inst_fu.start_calculate <= '1; 
-                        if(reservation_table[j].inst.rs1_s != 5'b0) begin
-                            fu_request.rs1_s <= reservation_table[j].rat.rs1;
-                        end
-                        else begin
-                            fu_request.rs1_s <= 'x;
-                        end
-                        if(reservation_table[j].inst.rs2_s != 5'b0) begin
-                            fu_request.rs2_s <= reservation_table[j].rat.rs2;
-                        end
-                        else begin
-                            fu_request.rs2_s <= 'x;
-                        end
+                        fu_request.rs1_s <= reservation_table[j].rat.rs1;
+                        fu_request.rs2_s <= reservation_table[j].rat.rs2;
+                        break;
                     end
+                end
+                else begin
+                    local_inst_fu.start_calculate <= '0; 
                 end
             end
         end
