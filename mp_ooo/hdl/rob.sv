@@ -70,6 +70,7 @@ module rob
                 // Regfile should be updated w/ new phys reg mapping
                 rob_request[i].rd_en = 1'b1; 
                 rob_request[i].rd_s = dispatch_info[i].rat.rd; // Need to get PR not ISA reg
+                rob_request[i].rd_v.ROB_ID = rob_id_next[i];
             end
             else begin
                 rob_request[i].rd_en = 1'b0;

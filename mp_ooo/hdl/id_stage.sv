@@ -163,8 +163,8 @@ module id_stage
                 endcase
             end
             op_b_auipc : begin
-                instruction_info.execute_operand1 = 2'b01; 
-                instruction_info.execute_operand2 = 2'b01; 
+                instruction_info.execute_operand1 = 2'b11; 
+                instruction_info.execute_operand2 = 2'b11; 
                 instruction_info.immediate = u_imm;
                 instruction_info.alu_operation = alu_add; 
                 instruction_info.cmp_operation = '0; 

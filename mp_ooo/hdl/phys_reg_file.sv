@@ -60,7 +60,7 @@ import rv32i_types::*;
                         data[cdb[i][j].inst_info.rat.rd].dependency <= '0; 
                     end
                     else if(rob_request[i].rd_en) begin
-                        data[rob_request[i].rd_s].ROB_ID <= rob_request[i].rd_s; 
+                        data[rob_request[i].rd_s].ROB_ID <= rob_request[i].rd_v.ROB_ID; 
                         data[rob_request[i].rd_s].dependency <= '1; 
                     end
                 end
