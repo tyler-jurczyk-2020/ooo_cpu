@@ -11,6 +11,7 @@ import rv32i_types::*;
     input logic push, pop,
     input QUEUE_TYPE in [SS], // Values pushed in
     input QUEUE_TYPE reg_in [SS][DIM_SEL], // Values used to modify entries
+    
     input logic [$clog2(DEPTH)-1:0] reg_select_in [SS][DIM_SEL], reg_select_out [SS],
     input logic [SS-1:0] in_bitmask [DIM_SEL], out_bitmask,
  

@@ -141,6 +141,7 @@ module dispatcher
                 isa_rs1[i] = 'x;
                 isa_rs2[i] = 'x;
                 isa_rd[i] = 'x;
+                rat_rd[i] = 'x;
                 // Set the inputs to the phys. reg. file that we would like to read
                 // We get the phys. eg. to read from by the RAT
                 dispatch_request[i].rs1_s = 'x; 

@@ -77,8 +77,13 @@ import rv32i_types::*;
     always_comb begin
         for (int i = 0; i < SS; i++) begin
             for(int j = 0; j < FU_COUNT; j++) begin
+                // fix to make  lint work
+                
+
                 if(cdb[i][j].ready_for_writeback && (dispatch_request[i].rs1_s == cdb[i][j].inst_info.rat.rd)) begin
                     dispatch_reg_data[i].rs1_v.register_value = cdb[i][j].register_value;
+                    dispatch_reg_data[i].rs1_v.dependency = ~cdb[i][j].inst_info.rs_entry.input1_met;
+                    dispatch_reg_data[i].rs1_v.ROB_ID = cdb[i][j].inst_info.rob.rob_id;
                 end
                 else begin
                     dispatch_reg_data[i].rs1_v = data[dispatch_request[i].rs1_s];
@@ -86,6 +91,8 @@ import rv32i_types::*;
 
                 if(cdb[i][j].ready_for_writeback && (dispatch_request[i].rs2_s == cdb[i][j].inst_info.rat.rd)) begin
                     dispatch_reg_data[i].rs2_v.register_value = cdb[i][j].register_value;
+                    dispatch_reg_data[i].rs2_v.dependency = ~cdb[i][j].inst_info.rs_entry.input2_met;
+                    dispatch_reg_data[i].rs2_v.ROB_ID = cdb[i][j].inst_info.rob.rob_id;
                 end
                 else begin
                     dispatch_reg_data[i].rs2_v = data[dispatch_request[i].rs2_s];
@@ -101,6 +108,8 @@ import rv32i_types::*;
             for(int j = 0; j < FU_COUNT; j++) begin
                 if(cdb[i][j].ready_for_writeback && (alu_request.rs1_s == cdb[i][j].inst_info.rat.rd)) begin
                     alu_reg_data.rs1_v.register_value = cdb[i][j].register_value;
+                    alu_reg_data.rs1_v.dependency = ~cdb[i][j].inst_info.rs_entry.input1_met;
+                    alu_reg_data.rs1_v.ROB_ID = cdb[i][j].inst_info.rob.rob_id;
                 end
                 else begin
                     alu_reg_data.rs1_v = data[alu_request.rs1_s];
@@ -108,6 +117,8 @@ import rv32i_types::*;
 
                 if(cdb[i][j].ready_for_writeback && (alu_request.rs2_s == cdb[i][j].inst_info.rat.rd)) begin
                     alu_reg_data.rs2_v.register_value = cdb[i][j].register_value;
+                    alu_reg_data.rs2_v.dependency = ~cdb[i][j].inst_info.rs_entry.input2_met;
+                    alu_reg_data.rs2_v.ROB_ID = cdb[i][j].inst_info.rob.rob_id;
                 end
                 else begin
                     alu_reg_data.rs2_v = data[alu_request.rs2_s];
@@ -118,18 +129,22 @@ import rv32i_types::*;
 
     // Reading out 
     // MUL Requests
-    always_comb begin
+        always_comb begin
         for (int i = 0; i < SS; i++) begin
             for(int j = 0; j < FU_COUNT; j++) begin
                 if(cdb[i][j].ready_for_writeback && (mul_request.rs1_s == cdb[i][j].inst_info.rat.rd)) begin
-                    mul_reg_data.rs1_v = cdb[i][j].register_value;
+                    mul_reg_data.rs1_v.register_value = cdb[i][j].register_value;
+                    mul_reg_data.rs1_v.dependency = ~cdb[i][j].inst_info.rs_entry.input1_met;
+                    mul_reg_data.rs1_v.ROB_ID = cdb[i][j].inst_info.rob.rob_id;
                 end
                 else begin
                     mul_reg_data.rs1_v = data[mul_request.rs1_s];
                 end
 
                 if(cdb[i][j].ready_for_writeback && (mul_request.rs2_s == cdb[i][j].inst_info.rat.rd)) begin
-                    mul_reg_data.rs2_v = cdb[i][j].register_value;
+                    mul_reg_data.rs2_v.register_value = cdb[i][j].register_value;
+                    mul_reg_data.rs2_v.dependency = ~cdb[i][j].inst_info.rs_entry.input2_met;
+                    mul_reg_data.rs2_v.ROB_ID = cdb[i][j].inst_info.rob.rob_id;
                 end
                 else begin
                     mul_reg_data.rs2_v = data[mul_request.rs2_s];

@@ -4,7 +4,9 @@ import rv32i_types::*;
     parameter SS = 2,
     parameter PR_ENTRIES = 64,
     parameter reservation_table_size = 8,
-    parameter ROB_DEPTH = 8
+    parameter DEPTH = 4,
+    parameter ROB_DEPTH = 8,
+    parameter DIM_SEL = 1
 )
 (
     // Explicit dual port connections when caches are not integrated into design yet (Before CP3)
@@ -57,12 +59,30 @@ assign dmem_wdata = '0;
 // Instruction Queue:
 instruction_info_reg_t instruction [SS];
 logic inst_q_empty, pop_inst_q;
+// Dummy Instruction Inputs
+logic [1:0] d_out_bitmask;
+logic [1:0] d_in_bitmask [1];
+logic [$clog2(DEPTH)-1:0] d_reg_sel_in [SS][DIM_SEL];
+logic [1:0] d_reg_sel_out;
+instruction_info_reg_t d_reg_in [1][1]; 
+assign d_out_bitmask = '0;
+assign d_in_bitmask[0] = '0;
+assign d_reg_sel_out = '0;
+assign d_reg_in[0][0] = 2'b0;
+always_comb begin
+    for(int i = 0; i < SS; i++) begin
+        for(int j = 0; j < DIM_SEL; j++) begin
+            d_reg_sel_in[i][j] = '0;
+        end
+    end
+end
 circular_queue #(.SS(SS)) instruction_queue
                 (.clk(clk), .rst(rst), // Defaults to instruction queue type
                  .full(inst_queue_full), .in(valid_inst),
                  .out(instruction),
                  .push(valid_buffer_flag), .pop(pop_inst_q), .empty(inst_q_empty),
-                 .out_bitmask('0), .in_bitmask({'0}), .reg_select_in(), .reg_select_out(), .reg_in());
+                 .out_bitmask(d_out_bitmask), .in_bitmask(d_in_bitmask), .reg_select_in(d_reg_sel_in), .reg_select_out(d_reg_sel_out), .reg_in(d_reg_in));
+                // planning on passing dummy shit or 0 into reg_select shit 
 
 ///////////////////// INSTRUCTION FETCH (SIMILAR TO MP2) /////////////////////
 logic reset_hack;
@@ -238,8 +258,35 @@ retired_rat #(.SS(SS)) retire_ratatoullie(
 
 // MODULE INSTANTIATION
 
+// logic dummy_free_reg_in, dummy_free_reg_select_in, dummy_free_reg_select_out;
+// logic dummy_free_empty, dummy_free_full, dummy_free_head_out, dummy_free_tail_out;
+// logic dummy_free_reg_out;
+
+
+logic [1:0] d_free_out_bitmask;
+logic [1:0] d_free_in_bitmask [1];
+logic [1:0] d_free_reg_sel_in [1];
+logic [1:0] d_free_reg_select_out;
+
+logic [5:0] d_free_reg_in[1];
+
+always_comb begin
+    d_free_out_bitmask = '0;
+    d_free_in_bitmask[0] = '0;
+    d_free_reg_sel_in[0] = '0;
+    d_free_reg_select_out = '0;
+    d_free_reg_in[0]  = '0;
+end
+
 circular_queue #(.SS(SS), .QUEUE_TYPE(logic [5:0]), .INIT_TYPE(FREE_LIST), .DEPTH(64))
-      free_list(.clk(clk), .rst(rst), .push(pop_from_rob), .out(free_rat_rds), .in(retire_to_free_list), .pop(pop_inst_q));
+      free_list(.clk(clk), .rst(rst), .d_free_reg_sel_in(),
+      .reg_in(d_free_reg_in), .reg_select_in(d_free_reg_sel_in), .reg_select_out(d_free_reg_select_out),      
+      .out_bitmask(d_free_out_bitmask), .in_bitmask(d_free_in_bitmask),
+      // outputs
+      .empty(), .full(), .head_out(), .tail_out(),  
+      .out(free_rat_rds), 
+      .reg_out()
+    );
     
 // Cycle 0: 
 ///////////////////// Rename/Dispatch: ROB /////////////////////

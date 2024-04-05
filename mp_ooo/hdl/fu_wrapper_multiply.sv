@@ -101,6 +101,9 @@ module fu_wrapper_mult
                 cdb[i][MUL].inst_info.rvfi.rs1_rdata = multiplication[i].a;
                 cdb[i][MUL].inst_info.rvfi.rs2_rdata = multiplication[i].b;
             end
+            // Fix to make lint work
+            else 
+                cdb[i][MUL] = '0;
         end
     end
 

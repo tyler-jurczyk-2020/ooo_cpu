@@ -53,6 +53,12 @@ module rob
                     rob_entry_in[i][j].rob.commit = 1'b1;
                     bitmask[j][i] = 1'b1; 
                 end
+                // to fix lint warnings
+                else begin
+                    rob_id_reg_select[i][j] = 'x;
+                    rob_entry_in[i][j] = 'x;
+                    bitmask[j][i] = 1'b0;
+                end
             end
         end
     end
@@ -77,7 +83,9 @@ module rob
             else begin
                 rob_request[i].rd_en = 1'b0;
                 for(int i = 0; i < SS; i++) begin
-                    rob_request[i].rd_s = 'x; 
+                    rob_request[i].rd_s = 'x;
+                    rob_request[i].rd_en = 1'b0;
+                    rob_request[i].rd_v = 'x; 
                 end
             end
         end
