@@ -63,6 +63,7 @@ module id_stage
         instruction_info.cmp_en = '1;  
         instruction_info.is_branch = '0;  
         instruction_info.is_jump = '0;
+        instruction_info.is_mul = '0;
         instruction_info.alu_operation = alu_add; 
         instruction_info.cmp_operation = funct3;
         instruction_info.inst = imem_rdata;

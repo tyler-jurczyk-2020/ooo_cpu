@@ -14,11 +14,8 @@ import rv32i_types::*;
 
     // We write to the physical register file with the associated ROB
     // when we dispatch a new instruction into the issue stage 
-    // the write destination is provided by the dispatcher
-    // The ROB_ID is provided preemptively by the ROB_ID so writing ROB_ID
-    // happens at the same time dispatcher runs
-    input logic [$clog2(TABLE_ENTRIES)-1:0] rd_s_ROB_write_destination [SS], 
-    input logic [$clog2(ROB_DEPTH)-1:0] ROB_ID_for_new_inst [SS], 
+    // ROB ID from the ROB directly
+
     
     // We write to the phys reg file also when we have info from the funct. unit
     // This info is passed into the cdb which will set the input signals
@@ -26,22 +23,18 @@ import rv32i_types::*;
     // input [31:0] rd_v_FU_write_destination [SS], 
 
     // cdb/Reservation exchange
-    // The CDB provides a updated PR Value and this wire here gets updated with 
-    // the ROB_ID which is now satisfied due to this which is sent to the reservation
-    // station to inform that this dependency is resolved 
-    // output logic [7:0] reservation_rob_id [SS],
-    input fu_output_t cdb [SS], 
+    output logic [7:0] reservation_rob_id [SS * FU_COUNT],
+    input cdb_t cdb [SS], 
     
-    // flag to indicate which values we are receiving, as we won't always be overwriting the rd_v specifically
-    // Both could be high at the same time
-    input logic write_from_fu [SS], 
-    input logic write_from_rob [SS], 
+    // ROB IO
+    input physical_reg_request_t rob_request [SS],
+    output physical_reg_response_t rob_reg_data [SS],
 
-    // registers we'd like to read from the phys. reg. file for the dispatcher
-    input logic [$clog2(TABLE_ENTRIES)-1:0] rs1_s_dispatch_request [SS], 
-    input logic [$clog2(TABLE_ENTRIES)-1:0] rs2_s_dispatch_request [SS], 
-    output  physical_reg_data_t source_reg_1 [SS], source_reg_2 [SS],
+    // Dispatch IO
+    input physical_reg_request_t dispatch_request [SS],
+    output physical_reg_response_t dispatch_reg_data [SS],
 
+    // FU IO
     input physical_reg_request_t fu_request [SS],
     output physical_reg_response_t fu_reg_data [SS]
 );
@@ -56,71 +49,84 @@ import rv32i_types::*;
         end else if (regf_we) begin
             // NOT ITERATING WAYS, BUT ITERATING THROUGH THE MULTI-BUS CDB
             for (int i = 0; i < SS; i++) begin
+                for(int j = 0; j < FU_COUNT; j++) begin
                 // for the given source register, is it NOT R0?
                 // for(int j = 0; j < TABLE_ENTRIES; j++) begin
                     // if(cdb[i].inst_info.reservation_entry.rat.rd != 6'b0) begin
-                        if(write_from_fu[i]) begin
+                        if(cdb[i][j].ready_for_writeback) begin
                             // When we write via cdb for funct, then we remove ROB_ID because dependency is gone
                             // Due to register-renaming, ROB entries and physical registers are one-to-one. So when dependency is gone, we flush the ROB. 
-                            data[cdb[i].inst_info.reservation_entry.rat.rd].register_value <= cdb[i].register_value; 
-                            data[cdb[i].inst_info.reservation_entry.rat.rd].dependency <= '0; 
+                            data[cdb[i][j].inst_info.reservation_entry.rat.rd].register_value <= cdb[i][j].register_value; 
+                            data[cdb[i][j].inst_info.reservation_entry.rat.rd].dependency <= '0; 
                             // break; 
                         end
-                        if(write_from_rob[i]) begin
-                            data[rd_s_ROB_write_destination[i]].ROB_ID <= ROB_ID_for_new_inst[i]; 
-                            data[rd_s_ROB_write_destination[i]].dependency <= '1; 
+                        // ROB should not be using CDB !!!
+                        else if(rob_request[i].rd_en) begin
+                            data[cdb[i][j].inst_info.reservation_entry.rat.rd].ROB_ID <= rob_request[i].rd_s; 
+                            data[cdb[i][j].inst_info.reservation_entry.rat.rd].dependency <= '1; 
                             // break; 
                         end
                     // end
                 // end
+                end
             end
         end
     end     
 
-    // always_comb begin
-    //     for(int i = 0; i < SS; i++) begin
-    //         // for(int j = 0; j < TABLE_ENTRIES; j++) begin
-    //             // if (write_from_fu[i] && cdb[i].inst_info.reservation_entry.rat.rd == j[5:0]) begin
-    //                 reservation_rob_id[i] = data[cdb[i].inst_info.reservation_entry.rat.rd].ROB_ID;
-    //             // end   
-    //         // end
-    //     end
-    // end
+    always_comb begin
+        for(int i = 0; i < SS; i++) begin
+            for(int j = 0; j < FU_COUNT; j++) begin
+            // for(int j = 0; j < TABLE_ENTRIES; j++) begin
+                // if (write_from_fu[i] && cdb[i].inst_info.reservation_entry.rat.rd == j[5:0]) begin
+                    reservation_rob_id[i*SS + j] = data[cdb[i][j].inst_info.reservation_entry.rat.rd].ROB_ID;
+                // end   
+            // end
+            end
+        end
+    end
     // Modifying for the transparent regfile so if we are in the dispatcher
     // and the dispatcher needs to fetch data which is being written by the functional unit(s) then
     // it can get it immediately 
+    //
+    // Request from dispatch
     always_comb begin
         for (int i = 0; i < SS; i++) begin
-            // if(write_from_fu[i] && (rs1_s_dispatch_request[i] == cdb[i].inst_info.reservation_entry.rat.rd)) begin
-            //     source_reg_1[i].register_value = cdb[i].register_value;
-            // end
-            // else begin
-                source_reg_1[i] = data[rs1_s_dispatch_request[i]];
-            // end
-            // if(write_from_fu[i] && (rs2_s_dispatch_request[i] == cdb[i].inst_info.reservation_entry.rat.rd)) begin
-            //     source_reg_2[i].register_value = cdb[i].register_value;
-            // end
-            // else begin
-                source_reg_2[i] = data[rs2_s_dispatch_request[i]];
-            // end
-            
+            for(int j = 0; j < FU_COUNT; j++) begin
+                if(cdb[i][j].ready_for_writeback && (dispatch_request[i].rs1_s == cdb[i][j].inst_info.reservation_entry.rat.rd)) begin
+                    dispatch_reg_data[i].rs1_v = cdb[i][j].register_value;
+                end
+                else begin
+                    dispatch_reg_data[i].rs1_v = data[dispatch_request[i].rs1_s];
+                end
+
+                if(cdb[i][j].ready_for_writeback && (dispatch_request[i].rs2_s == cdb[i][j].inst_info.reservation_entry.rat.rd)) begin
+                    dispatch_reg_data[i].rs2_v = cdb[i][j].register_value;
+                end
+                else begin
+                    dispatch_reg_data[i].rs2_v = data[dispatch_request[i].rs2_s];
+                end
+            end
         end
     end
 
+    // Also supports transparency
     // Request in reservation station and read output in fu
     always_comb begin
         for (int i = 0; i < SS; i++) begin
-            if(fu_request[i].rs1_en) begin
-                fu_reg_data[i].rs1_v = data[fu_request[i].rs1_s];
-            end
-            else begin
-                fu_reg_data[i].rs1_v = 'x;
-            end
-            if (fu_request[i].rs2_en) begin
-                fu_reg_data[i].rs2_v = data[fu_request[i].rs2_s];
-            end
-            else begin
-                fu_reg_data[i].rs2_v = 'x;
+            for(int j = 0; j < FU_COUNT; j++) begin
+                if(cdb[i][j].ready_for_writeback && (fu_request[i].rs1_s == cdb[i][j].inst_info.reservation_entry.rat.rd)) begin
+                    fu_reg_data[i].rs1_v = cdb[i][j].register_value;
+                end
+                else begin
+                    fu_reg_data[i].rs1_v = data[fu_request[i].rs1_s];
+                end
+
+                if(cdb[i][j].ready_for_writeback && (fu_request[i].rs2_s == cdb[i][j].inst_info.reservation_entry.rat.rd)) begin
+                    fu_reg_data[i].rs2_v = cdb[i][j].register_value;
+                end
+                else begin
+                    fu_reg_data[i].rs2_v = data[dispatch_request[i].rs1_s];
+                end
             end
         end
     end

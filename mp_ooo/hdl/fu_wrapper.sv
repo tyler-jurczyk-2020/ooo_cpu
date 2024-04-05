@@ -12,7 +12,7 @@ module fu_wrapper
 
         output logic mul_available [SS],
 
-        output fu_output_t fu_output [SS], 
+        output cdb_t cdb [SS],
         input physical_reg_response_t fu_reg_data [SS]
 
     );
@@ -103,6 +103,53 @@ module fu_wrapper
         end
     endgenerate   
 
+    // Latch values that go into computational units
+    fu_input_t alu_input [SS], mul_input [SS];
+    always_ff @(posedge clk) begin
+        for(int i = 0; i < SS; i++) begin
+            if(rst) begin
+                mul_input[i] <= 'x;
+            end
+            else begin
+                if(to_be_calculated[i].inst_info.reservation_entry.inst.is_mul)
+                    mul_input[i] <= to_be_calculated[i];
+            end
+        end
+    end
+    // Select register to push out
+    always_comb begin
+        for(int i = 0; i < SS; i++) begin
+            // Always drive alu out since it only takes one clock cycle
+            if(to_be_calculated[i].inst_info.reservation_entry.inst.alu_en) begin
+                cdb[i][ALU].inst_info = to_be_calculated[i].inst_info;
+                cdb[i][ALU].register_value = alu_output[i];
+                cdb[i][ALU].ready_for_writeback = 1'b1;
+                cdb[i][ALU].inst_info.reservation_entry.rvfi.rd_wdata = alu_output[i];
+            end
+            else begin
+                cdb[i][ALU] = 'x;
+                cdb[i][ALU].ready_for_writeback = 1'b0;
+            end
+            // Drive mul output
+            if(mult_status[i]) begin
+                cdb[i][MUL].inst_info = mul_input[i].inst_info;
+                cdb[i][MUL].register_value = mult_output[i];
+                cdb[i][MUL].ready_for_writeback = 1'b1;
+                cdb[i][MUL].inst_info.reservation_entry.rvfi.rd_wdata = mult_output[i];
+            end
+            else begin
+                cdb[i][MUL] = 'x;
+                cdb[i][MUL].ready_for_writeback = 1'b0;
+            end
+        end
+        // Probably need to fix. Shouldn't write out to rd during branches
+        // Not currently supporting compares for now
+        // else if(to_be_calculated[i].inst_info.reservation_entry.inst.cmp_en) begin
+        //     fu_output[i].register_value = {31'd0, cmp_output[i]};
+        //     fu_output[i].ready_for_writeback = '1; 
+        // end
+    end
+
     always_ff @ (posedge clk) begin
         for(int i = 0; i < SS; i++) begin
             if(rst) begin
@@ -114,25 +161,6 @@ module fu_wrapper
                     mul_available[i] <= 1'b0;
                 else if(mult_status[i])
                     mul_available[i] <= 1'b1;
-                
-                // Drive output
-                fu_output[i].inst_info <= to_be_calculated[i].inst_info; 
-                if(to_be_calculated[i].inst_info.reservation_entry.inst.alu_en) begin
-                    fu_output[i].register_value <= alu_output[i];
-                    fu_output[i].ready_for_writeback <= '1; 
-                    fu_output[i].inst_info.reservation_entry.rvfi.rd_wdata <= alu_output[i];
-                end
-                else if(to_be_calculated[i].inst_info.reservation_entry.inst.is_mul
-                        && mult_status[i]) begin
-                    fu_output[i].register_value <= mult_output[i];
-                    fu_output[i].ready_for_writeback <= '1; 
-                    fu_output[i].inst_info.reservation_entry.rvfi.rd_wdata <= mult_output[i];
-                end
-                // Probably need to fix. Shouldn't write out to rd during branches
-                else if(to_be_calculated[i].inst_info.reservation_entry.inst.cmp_en) begin
-                    fu_output[i].register_value <= {31'd0, cmp_output[i]};
-                    fu_output[i].ready_for_writeback <= '1; 
-                end
             end
         end
     end  

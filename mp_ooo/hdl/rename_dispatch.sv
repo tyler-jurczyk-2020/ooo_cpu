@@ -25,8 +25,8 @@ import rv32i_types::*;
     input [5:0] free_list_regs [SS], 
 
     // Get source register dependencies from physical register
-    output logic [$clog2(PR_ENTRIES)-1:0] sel_pr_rs1 [SS], sel_pr_rs2 [SS],
-    input physical_reg_data_t pr_rs1 [SS], pr_rs2 [SS],
+    output physical_reg_request_t dispatch_request [SS],
+    input physical_reg_response_t dispatch_reg_data [SS],
 
     // Get ROB info
     input logic [$clog2(ROB_DEPTH)-1:0] rob_id_next [SS],
@@ -51,8 +51,8 @@ always_comb begin
             isa_rs1[i] = instruction[i].rs1_s;
             isa_rs2[i] = instruction[i].rs2_s;
             isa_rd[i] = instruction[i].rd_s;
-            sel_pr_rs1[i] = rat_rs1[i];
-            sel_pr_rs2[i] = rat_rs2[i];
+            dispatch_request[i].rs1_s = rat_rs1[i];
+            dispatch_request[i].rs2_s = rat_rs2[i];
         end
         rat_dest = free_list_regs;
         
@@ -61,20 +61,20 @@ always_comb begin
             // ROB Setup
             rs_entries[i].rob.rob_id = rob_id_next[i];
             rs_entries[i].rob.commit = 1'b0;
-            rs_entries[i].rob.rs1_source = pr_rs1[i].ROB_ID;
-            rs_entries[i].rob.rs2_source = pr_rs2[i].ROB_ID;
+            rs_entries[i].rob.rs1_source = dispatch_reg_data[i].rs1_v.ROB_ID;
+            rs_entries[i].rob.rs2_source = dispatch_reg_data[i].rs2_v.ROB_ID;
 
             // if we need rs1, then if there is no dependency then input1 is met
             // if we need rs1, then if there is a dependency in waiting then input1 is not met
             // if we don't need rs1, then input1 is met
             if(instruction[i].rs1_needed) begin
-                rs_entries[i].rob.input1_met = ~pr_rs1[i].dependency; 
+                rs_entries[i].rob.input1_met = ~dispatch_reg_data[i].rs1_v.dependency; 
             end
             else begin
                 rs_entries[i].rob.input1_met = '1;  
             end
             if(instruction[i].rs2_needed) begin
-                rs_entries[i].rob.input2_met = ~pr_rs2[i].dependency; 
+                rs_entries[i].rob.input2_met = ~dispatch_reg_data[i].rs2_v.dependency; 
             end
             else begin
                 rs_entries[i].rob.input2_met = '1;  

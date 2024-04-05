@@ -6,6 +6,9 @@
 package rv32i_types;
 
     parameter TABLE_ENTRIES = 64;
+    parameter ALU = 0;
+    parameter MUL = 1;
+    parameter FU_COUNT = 2;
 
     typedef enum logic [6:0] {
         op_b_lui   = 7'b0110111, // U load upper immediate 
@@ -184,7 +187,7 @@ package rv32i_types;
     typedef struct packed {
         logic [$clog2(TABLE_ENTRIES)-1:0] rd_s, rs1_s, rs2_s; 
         physical_reg_data_t rd_v;
-        logic rd_en, rs1_en, rs2_en;
+        logic rd_en;
     } physical_reg_request_t;
 
     typedef struct packed {
@@ -204,5 +207,7 @@ package rv32i_types;
         logic [31:0] register_value; 
         logic ready_for_writeback; 
     } fu_output_t; 
+
+    typedef fu_output_t cdb_t [FU_COUNT];
 
 endpackage

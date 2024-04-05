@@ -11,14 +11,12 @@ module rob
         input logic avail_inst,
         input super_dispatch_t dispatch_info [SS],
         // commit signal sent in by the functional unit
-        input fu_output_t cdb [SS],
+        input cdb_t cdb [SS],
     ////// OUTPUTS:
-        // when to update regfile
-        output logic write_from_rob[SS],
+        // ROB line of comm to physical register file
+        output physical_reg_request_t rob_request [SS],
         // rob id are sent out
         output logic [$clog2(ROB_DEPTH)-1:0] rob_id_next [SS],
-        // destination regs for the instr
-        output logic [5:0] rob_dest_reg[SS],
         // updated RVFI order
         output super_dispatch_t rob_entries_to_commit [SS],
         // pop from rob queue
@@ -45,12 +43,14 @@ module rob
 
     always_comb begin
         for(int i = 0; i < SS; i++)begin
-            out_bitmask[i] = 1'b1;
-            if(cdb[i].ready_for_writeback) begin
-                rob_id_reg_select[i] = cdb[i].inst_info.reservation_entry.rob.rob_id[2:0];
-                rob_entry_in[i] = cdb[i].inst_info.reservation_entry;
-                rob_entry_in[i].rob.commit = 1'b1;
-                bitmask[i] = 1'b1; 
+            for(int j = 0; j < FU_COUNT; j++) begin
+                out_bitmask[i] = 1'b1;
+                if(cdb[i][j].ready_for_writeback) begin
+                    rob_id_reg_select[i] = cdb[i][j].inst_info.reservation_entry.rob.rob_id[2:0]; // Need to fix
+                    rob_entry_in[i] = cdb[i][j].inst_info.reservation_entry;
+                    rob_entry_in[i].rob.commit = 1'b1;
+                    bitmask[i] = 1'b1; 
+                end
             end
         end
     end
@@ -68,13 +68,13 @@ module rob
             // Check each ss slot if an instruction has been dispatched
             if (avail_inst)begin     
                 // Regfile should be updated w/ new phys reg mapping
-                write_from_rob[i] = '1;
-                rob_dest_reg[i] = dispatch_info[i].rat.rd; // Need to get PR not ISA reg
+                rob_request[i].rd_en = 1'b1; 
+                rob_request[i].rd_s = dispatch_info[i].rat.rd; // Need to get PR not ISA reg
             end
             else begin
-                write_from_rob[i] = '0;
+                rob_request[i].rd_en = 1'b0;
                 for(int i = 0; i < SS; i++) begin
-                    rob_dest_reg[i] = 'x; 
+                    rob_request[i].rd_s = 'x; 
                 end
             end
         end
@@ -89,8 +89,10 @@ module rob
                 rob_entries_to_commit[i].rvfi.order = order_counter + {32'b0, i};
                 // Send some signal to tell rrat to commit above entries
             end
-            else
+            else begin
                 rob_entries_to_commit[i] = 'x;
+                rob_entries_to_commit[i].rvfi.valid = 1'b0;
+            end
         end
     end
     
