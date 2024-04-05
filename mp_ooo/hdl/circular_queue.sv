@@ -4,14 +4,15 @@ import rv32i_types::*;
     type QUEUE_TYPE = instruction_info_reg_t,
     parameter initialization_t INIT_TYPE = ZERO,
     parameter SS = 2,
-    parameter DEPTH = 4
+    parameter DEPTH = 4,
+    parameter DIM_SEL = 1
 )(
     input logic clk, rst, 
     input logic push, pop,
     input QUEUE_TYPE in [SS], // Values pushed in
-    input QUEUE_TYPE reg_in [SS], // Values used to modify entries
-    input logic [$clog2(DEPTH)-1:0] reg_select_in [SS], reg_select_out [SS],
-    input logic [SS-1:0] in_bitmask, out_bitmask,
+    input QUEUE_TYPE reg_in [SS][DIM_SEL], // Values used to modify entries
+    input logic [$clog2(DEPTH)-1:0] reg_select_in [SS][DIM_SEL], reg_select_out [SS],
+    input logic [SS-1:0] in_bitmask [DIM_SEL], out_bitmask,
  
     // Need to consider potentially how partial pushes/pops may work in superscalar context
     output logic empty,
@@ -83,8 +84,10 @@ always_ff @(posedge clk) begin
         end
 
         for(int i = 0; i < SS; i++) begin
-            if(in_bitmask[i])
-                entries[reg_select_in[i]] <= reg_in[i];
+            for(int j = 0; j < DIM_SEL; j++) begin
+                if(in_bitmask[j][i])
+                    entries[reg_select_in[i][j]] <= reg_in[i][j];
+            end
         end
     end
 end

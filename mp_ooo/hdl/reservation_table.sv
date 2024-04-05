@@ -73,11 +73,12 @@ module reservation_table
         // For a given CDB, Check whether we need to update any of the Entries
         for(int i = 0; i < SS; i++) begin
             for(int j = 0; j < reservation_table_size; j++) begin
-                if(cdb_rob_ids[i][TABLE_TYPE].ready_for_writeback) begin
-                    if(reservation_table[j].rs_entry.rs1_source == cdb_rob_ids[i][TABLE_TYPE].inst_info.rob.rob_id) begin
+                for(int k = 0; k < FU_COUNT; k++) // Need to cross check with other tables
+                if(cdb_rob_ids[i][k].ready_for_writeback) begin
+                    if(reservation_table[j].rs_entry.rs1_source == cdb_rob_ids[i][k].inst_info.rob.rob_id) begin
                         reservation_table[j].rs_entry.input1_met <= '1; 
                     end
-                    if(reservation_table[j].rs_entry.rs2_source == cdb_rob_ids[i][TABLE_TYPE].inst_info.rob.rob_id) begin
+                    if(reservation_table[j].rs_entry.rs2_source == cdb_rob_ids[i][k].inst_info.rob.rob_id) begin
                         reservation_table[j].rs_entry.input2_met <= '1; 
                     end
                 end

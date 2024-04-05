@@ -33,11 +33,11 @@ module rob
 
     logic [$clog2(ROB_DEPTH)-1:0] rob_id_out[SS];
     
-    logic [$clog2(ROB_DEPTH)-1:0] rob_id_reg_select[SS];
-    super_dispatch_t rob_entry_in[SS];
-    logic [SS-1:0] bitmask, out_bitmask;
+    logic [$clog2(ROB_DEPTH)-1:0] rob_id_reg_select[SS][FU_COUNT];
+    super_dispatch_t rob_entry_in[SS][FU_COUNT];
+    logic [SS-1:0] bitmask[FU_COUNT], out_bitmask;
     // ROB receives data from cdb and updates commit flag in circular queue
-    circular_queue #(.SS(SS), .QUEUE_TYPE(super_dispatch_t), .DEPTH(ROB_DEPTH)) rob_dut(.clk(clk), .rst(rst), .in(dispatch_info), .push(avail_inst), .pop(pop_from_rob), 
+    circular_queue #(.SS(SS), .QUEUE_TYPE(super_dispatch_t), .DEPTH(ROB_DEPTH), .DIM_SEL(FU_COUNT)) rob_dut(.clk(clk), .rst(rst), .in(dispatch_info), .push(avail_inst), .pop(pop_from_rob), 
     .reg_select_out(rob_id_out), 
     .reg_out(inspect_queue), .reg_select_in(rob_id_reg_select), .reg_in(rob_entry_in), .in_bitmask(bitmask), .out_bitmask(out_bitmask),// One hot bitmask
     .head_out(head), .tail_out(tail), .full(rob_full), .empty(rob_empty));
@@ -48,10 +48,10 @@ module rob
             for(int j = 0; j < FU_COUNT; j++) begin
                 out_bitmask[i] = 1'b1;
                 if(cdb[i][j].ready_for_writeback) begin
-                    rob_id_reg_select[i] = cdb[i][j].inst_info.rob.rob_id[2:0]; // Need to fix
-                    rob_entry_in[i] = cdb[i][j].inst_info;
-                    rob_entry_in[i].rob.commit = 1'b1;
-                    bitmask[i] = 1'b1; 
+                    rob_id_reg_select[i][j] = cdb[i][j].inst_info.rob.rob_id[2:0]; // Need to fix
+                    rob_entry_in[i][j] = cdb[i][j].inst_info;
+                    rob_entry_in[i][j].rob.commit = 1'b1;
+                    bitmask[j][i] = 1'b1; 
                 end
             end
         end

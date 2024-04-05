@@ -62,7 +62,7 @@ circular_queue #(.SS(SS)) instruction_queue
                  .full(inst_queue_full), .in(valid_inst),
                  .out(instruction),
                  .push(valid_buffer_flag), .pop(pop_inst_q), .empty(inst_q_empty),
-                 .out_bitmask('0), .in_bitmask('0), .reg_select_in(), .reg_select_out(), .reg_in());
+                 .out_bitmask('0), .in_bitmask({'0}), .reg_select_in(), .reg_select_out(), .reg_in());
 
 ///////////////////// INSTRUCTION FETCH (SIMILAR TO MP2) /////////////////////
 logic reset_hack;

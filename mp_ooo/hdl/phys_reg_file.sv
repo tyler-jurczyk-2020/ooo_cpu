@@ -59,7 +59,7 @@ import rv32i_types::*;
                         data[cdb[i][j].inst_info.rat.rd].register_value <= cdb[i][j].register_value; 
                         data[cdb[i][j].inst_info.rat.rd].dependency <= '0; 
                     end
-                    else if(rob_request[i].rd_en) begin
+                    if(rob_request[i].rd_en) begin
                         data[rob_request[i].rd_s].ROB_ID <= rob_request[i].rd_v.ROB_ID; 
                         data[rob_request[i].rd_s].dependency <= '1; 
                     end
@@ -110,7 +110,7 @@ import rv32i_types::*;
                     alu_reg_data.rs2_v = cdb[i][j].register_value;
                 end
                 else begin
-                    alu_reg_data.rs2_v = data[alu_request.rs1_s];
+                    alu_reg_data.rs2_v = data[alu_request.rs2_s];
                 end
             end
         end
