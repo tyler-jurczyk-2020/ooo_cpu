@@ -88,19 +88,15 @@ always_ff @ (posedge clk) begin
                     reservation_table[i][j].valid <= '0; 
                     // Issue request to register file rs_entries[i].rvfi.valid = instruction[i].valid;
                     if(reservation_table[i][j].reservation_entry.inst.rs1_s != 5'b0) begin
-                        fu_request[i].rs1_en <= 1'b1;
                         fu_request[i].rs1_s <= reservation_table[i][j].reservation_entry.rat.rs1;
                     end
                     else begin
-                        fu_request[i].rs1_en <= 1'b0;
                         fu_request[i].rs1_s <= 'x;
                     end
                     if(reservation_table[i][j].reservation_entry.inst.rs2_s != 5'b0) begin
-                        fu_request[i].rs2_en <= 1'b1;
                         fu_request[i].rs2_s <= reservation_table[i][j].reservation_entry.rat.rs2;
                     end
                     else begin
-                        fu_request[i].rs2_en <= 1'b0;
                         fu_request[i].rs2_s <= 'x;
                     end
                     break; 

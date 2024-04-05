@@ -91,24 +91,18 @@ import rv32i_types::*;
     always_comb begin
         for (int i = 0; i < SS; i++) begin
             for(int j = 0; j < FU_COUNT; j++) begin
-                if(cdb[i][j].ready_for_writeback && dispatch_request[i].rs1_en && (dispatch_request[i].rs1_s == cdb[i][j].inst_info.reservation_entry.rat.rd)) begin
+                if(cdb[i][j].ready_for_writeback && (dispatch_request[i].rs1_s == cdb[i][j].inst_info.reservation_entry.rat.rd)) begin
                     dispatch_reg_data[i].rs1_v = cdb[i][j].register_value;
                 end
-                else if(dispatch_request[i].rs1_en)begin
-                    dispatch_reg_data[i].rs1_v = data[dispatch_request[i].rs1_s];
-                end
                 else begin
-                    dispatch_reg_data[i].rs1_v = 'x;
+                    dispatch_reg_data[i].rs1_v = data[dispatch_request[i].rs1_s];
                 end
 
-                if(cdb[i][j].ready_for_writeback && dispatch_request[i].rs2_en && (dispatch_request[i].rs2_s == cdb[i][j].inst_info.reservation_entry.rat.rd)) begin
+                if(cdb[i][j].ready_for_writeback && (dispatch_request[i].rs2_s == cdb[i][j].inst_info.reservation_entry.rat.rd)) begin
                     dispatch_reg_data[i].rs1_v = cdb[i][j].register_value;
                 end
-                else if(dispatch_request[i].rs1_en)begin
-                    dispatch_reg_data[i].rs1_v = data[dispatch_request[i].rs1_s];
-                end
                 else begin
-                    dispatch_reg_data[i].rs1_v = 'x;
+                    dispatch_reg_data[i].rs1_v = data[dispatch_request[i].rs1_s];
                 end
             end
         end
@@ -119,24 +113,18 @@ import rv32i_types::*;
     always_comb begin
         for (int i = 0; i < SS; i++) begin
             for(int j = 0; j < FU_COUNT; j++) begin
-                if(cdb[i][j].ready_for_writeback && fu_request[i].rs1_en && (fu_request[i].rs1_s == cdb[i][j].inst_info.reservation_entry.rat.rd)) begin
+                if(cdb[i][j].ready_for_writeback && (fu_request[i].rs1_s == cdb[i][j].inst_info.reservation_entry.rat.rd)) begin
                     fu_reg_data[i].rs1_v = cdb[i][j].register_value;
                 end
-                else if(dispatch_request[i].rs1_en)begin
+                else begin
                     fu_reg_data[i].rs1_v = data[fu_request[i].rs1_s];
                 end
-                else begin
-                    fu_reg_data[i].rs1_v = 'x;
-                end
 
-                if(cdb[i][j].ready_for_writeback && fu_request[i].rs2_en && (fu_request[i].rs2_s == cdb[i][j].inst_info.reservation_entry.rat.rd)) begin
+                if(cdb[i][j].ready_for_writeback && (fu_request[i].rs2_s == cdb[i][j].inst_info.reservation_entry.rat.rd)) begin
                     fu_reg_data[i].rs1_v = cdb[i][j].register_value;
                 end
-                else if(dispatch_request[i].rs1_en)begin
-                    fu_reg_data[i].rs1_v = data[dispatch_request[i].rs1_s];
-                end
                 else begin
-                    fu_reg_data[i].rs1_v = 'x;
+                    fu_reg_data[i].rs1_v = data[dispatch_request[i].rs1_s];
                 end
             end
         end

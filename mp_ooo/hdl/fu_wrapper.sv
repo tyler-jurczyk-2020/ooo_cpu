@@ -108,12 +108,9 @@ module fu_wrapper
     always_ff @(posedge clk) begin
         for(int i = 0; i < SS; i++) begin
             if(rst) begin
-                alu_input[i]<= 'x;
                 mul_input[i] <= 'x;
             end
             else begin
-                if(to_be_calculated[i].inst_info.reservation_entry.inst.alu_en)
-                    alu_input[i] <= to_be_calculated[i];
                 if(to_be_calculated[i].inst_info.reservation_entry.inst.is_mul)
                     mul_input[i] <= to_be_calculated[i];
             end
@@ -123,10 +120,16 @@ module fu_wrapper
     always_comb begin
         for(int i = 0; i < SS; i++) begin
             // Always drive alu out since it only takes one clock cycle
-            cdb[i][ALU].inst_info = alu_input[i].inst_info;
-            cdb[i][ALU].register_value = alu_output[i];
-            cdb[i][ALU].ready_for_writeback = 1'b1;
-            cdb[i][ALU].inst_info.reservation_entry.rvfi.rd_wdata = alu_output[i];
+            if(to_be_calculated[i].inst_info.reservation_entry.inst.alu_en) begin
+                cdb[i][ALU].inst_info = to_be_calculated[i].inst_info;
+                cdb[i][ALU].register_value = alu_output[i];
+                cdb[i][ALU].ready_for_writeback = 1'b1;
+                cdb[i][ALU].inst_info.reservation_entry.rvfi.rd_wdata = alu_output[i];
+            end
+            else begin
+                cdb[i][ALU] = 'x;
+                cdb[i][ALU].ready_for_writeback = 1'b0;
+            end
             // Drive mul output
             if(mult_status[i]) begin
                 cdb[i][MUL].inst_info = mul_input[i].inst_info;

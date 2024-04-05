@@ -188,7 +188,7 @@ package rv32i_types;
     typedef struct packed {
         logic [$clog2(TABLE_ENTRIES)-1:0] rd_s, rs1_s, rs2_s; 
         physical_reg_data_t rd_v;
-        logic rd_en, rs1_en, rs2_en;
+        logic rd_en;
     } physical_reg_request_t;
 
     typedef struct packed {

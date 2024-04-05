@@ -133,6 +133,28 @@ logic [31:0] dummy_dmem_rdata;
 assign dummy_dmem_resp = dmem_resp;
 assign dummy_dmem_rdata = dmem_rdata;
 
+///////////////////// ISSUE: PHYSICAL REGISTER FILE /////////////////////
+// MODULE INPUTS DECLARATION 
+cdb_t cdb [SS]; 
+logic write_fu_enable [SS][FU_COUNT]; 
+logic write_from_rob [SS];
+logic [5:0] rob_dest_reg[SS]; 
+
+logic [7:0] reservation_rob_id [SS * FU_COUNT];
+physical_reg_request_t fu_request [SS], dispatch_request [SS], rob_request [SS];
+physical_reg_response_t fu_reg_data [SS], dispatch_reg_data [SS], rob_reg_data [SS];
+// MODULE OUTPUT DECLARATION
+phys_reg_file #(.SS(SS)) reg_file (
+    .clk(clk), 
+    .rst(rst), 
+    .regf_we('1), 
+    .reservation_rob_id(reservation_rob_id),
+    .cdb(cdb), 
+    .rob_request(rob_request), .rob_reg_data(rob_reg_data),
+    .dispatch_request(dispatch_request), .dispatch_reg_data(dispatch_reg_data),
+    .fu_request(fu_request), .fu_reg_data(fu_reg_data)
+    ); 
+
 ///////////////////// RAT /////////////////////
 // MODULE INPUTS DECLARATION 
 logic [5:0] rat_rs1[SS], rat_rs2[SS], rat_rd[SS];
@@ -175,7 +197,7 @@ rename_dispatch #(.SS(SS)) rd(.clk(clk), .rst(rst),
 
                    .rat_dest(rat_rd),
                    .isa_rs1(isa_rs1), .isa_rs2(isa_rs2), .isa_rd(isa_rd),
-                   .sel_pr_rs1(sel_pr_rs1), .sel_pr_rs2(sel_pr_rs2), .pr_rs1(pr_rs1), .pr_rs2(pr_rs2),
+                   .dispatch_request(dispatch_request), .dispatch_reg_data(dispatch_reg_data),
                    .pop_inst_q(pop_inst_q),
                    .rs_entries(rs_entries) 
                    );
@@ -190,28 +212,6 @@ circular_queue #(.SS(SS), .QUEUE_TYPE(logic [5:0]), .INIT_TYPE(FREE_LIST), .DEPT
       free_list(.clk(clk), .rst(rst), .push('0), .out(free_list_regs), .pop(pop_inst_q));
 
 // CYCLE 1 (UTILIZED IN CYCLE 0)
-///////////////////// ISSUE: PHYSICAL REGISTER FILE /////////////////////
-// MODULE INPUTS DECLARATION 
-cdb_t cdb [SS]; 
-logic write_fu_enable [SS][FU_COUNT]; 
-logic write_from_rob [SS];
-logic [5:0] rob_dest_reg[SS]; 
-
-logic [7:0] reservation_rob_id [SS * FU_COUNT];
-physical_reg_request_t fu_request [SS], dispatch_request [SS], rob_request [SS];
-physical_reg_response_t fu_reg_data [SS], dispatch_reg_data [SS], rob_reg_data [SS];
-// MODULE OUTPUT DECLARATION
-phys_reg_file #(.SS(SS)) reg_file (
-    .clk(clk), 
-    .rst(rst), 
-    .regf_we('1), 
-    .reservation_rob_id(reservation_rob_id),
-    .cdb(cdb), 
-    .rob_request(rob_request), .rob_reg_data(rob_reg_data),
-    .dispatch_request(dispatch_request), .dispatch_reg_data(dispatch_reg_data),
-    .fu_request(fu_request), .fu_reg_data(fu_reg_data)
-    ); 
-
 
 // MODULE INSTANTIATION
 
