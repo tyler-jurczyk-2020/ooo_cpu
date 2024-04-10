@@ -11,7 +11,7 @@ module rob
         input logic avail_inst,
         input super_dispatch_t dispatch_info [SS],
         // commit signal sent in by the functional unit
-        input cdb_t cdb [SS],
+        input cdb_t cdb,
     ////// OUTPUTS:
         // ROB line of comm to physical register file
         output physical_reg_request_t rob_request [SS],
@@ -33,32 +33,48 @@ module rob
 
     logic [$clog2(ROB_DEPTH)-1:0] rob_id_out[SS];
     
-    logic [$clog2(ROB_DEPTH)-1:0] rob_id_reg_select[SS][FU_COUNT];
-    super_dispatch_t rob_entry_in[SS][FU_COUNT];
-    logic [SS-1:0] bitmask[FU_COUNT], out_bitmask;
+    logic [$clog2(ROB_DEPTH)-1:0] rob_id_reg_select [N_ALU + N_MUL];
+    super_dispatch_t rob_entry_in [N_ALU + N_MUL];
+    logic [(N_ALU + N_MUL)-1:0] bitmask;
+    logic [SS-1:0] out_bitmask;
     // ROB receives data from cdb and updates commit flag in circular queue
-    circular_queue #(.SS(SS), .QUEUE_TYPE(super_dispatch_t), .DEPTH(ROB_DEPTH), .DIM_SEL(FU_COUNT)) rob_dut(.clk(clk), .rst(rst), .in(dispatch_info), .push(avail_inst), .pop(pop_from_rob), 
+    circular_queue #(.SS(SS), .SEL_IN(N_ALU + N_MUL), .SEL_OUT(SS), .QUEUE_TYPE(super_dispatch_t), .DEPTH(ROB_DEPTH)) rob_dut(.clk(clk), .rst(rst), .in(dispatch_info), .push(avail_inst), .pop(pop_from_rob), 
     .reg_select_out(rob_id_out), 
     .reg_out(inspect_queue), .reg_select_in(rob_id_reg_select), .reg_in(rob_entry_in), .in_bitmask(bitmask), .out_bitmask(out_bitmask),// One hot bitmask
     .head_out(head), .tail_out(tail), .full(rob_full), .empty(rob_empty));
 
-
     always_comb begin
-        for(int i = 0; i < SS; i++)begin
-            for(int j = 0; j < FU_COUNT; j++) begin
-                out_bitmask[i] = 1'b1;
-                if(cdb[i][j].ready_for_writeback) begin
-                    rob_id_reg_select[i][j] = cdb[i][j].inst_info.rob.rob_id[2:0]; // Need to fix
-                    rob_entry_in[i][j] = cdb[i][j].inst_info;
-                    rob_entry_in[i][j].rob.commit = 1'b1;
-                    bitmask[j][i] = 1'b1; 
-                end
-                // to fix lint warnings
-                else begin
-                    rob_id_reg_select[i][j] = 'x;
-                    rob_entry_in[i][j] = 'x;
-                    bitmask[j][i] = 1'b0;
-                end
+        // ALU
+        for(int i = 0; i < N_ALU; i++)begin
+            out_bitmask[i] = 1'b1;
+            if(cdb.alu_out[i].ready_for_writeback) begin
+                rob_id_reg_select[i] = cdb.alu_out[i].inst_info.rob.rob_id[2:0]; // Need to fix
+                rob_entry_in[i] = cdb.alu_out[i].inst_info;
+                rob_entry_in[i].rob.commit = 1'b1;
+                bitmask[i] = 1'b1; 
+            end
+            // to fix lint warnings
+            else begin
+                rob_id_reg_select[i] = 'x;
+                rob_entry_in[i] = 'x;
+                bitmask[i] = 1'b0;
+            end
+        end
+
+        //MUL
+        for(int i = N_ALU; i < N_ALU + N_MUL; i++) begin
+            out_bitmask[i] = 1'b1;
+            if(cdb.mul_out[i].ready_for_writeback) begin
+                rob_id_reg_select[i] = cdb.mul_out[i].inst_info.rob.rob_id[2:0]; // Need to fix
+                rob_entry_in[i] = cdb.mul_out[i].inst_info;
+                rob_entry_in[i].rob.commit = 1'b1;
+                bitmask[i] = 1'b1; 
+            end
+            // to fix lint warnings
+            else begin
+                rob_id_reg_select[i] = 'x;
+                rob_entry_in[i] = 'x;
+                bitmask[i] = 1'b0;
             end
         end
     end

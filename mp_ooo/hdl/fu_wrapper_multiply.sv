@@ -36,40 +36,35 @@ module fu_wrapper_mult
     multiply_FUs_t multiplication; 
 
     always_ff @ (posedge clk) begin
-            if(to_be_multiplied.start_calculate) begin
-                multiplication.start <= '1; 
-                multiplication.mul_type <= to_be_multiplied.inst_info.inst.mul_type; 
-                multiplication.a <= fu_reg_data.rs1_v.register_value; 
-                multiplication.b <= fu_reg_data.rs2_v.register_value; 
-                break; 
-            end
-            else if(mult_status)
-                multiplication.start <= '0;
+        if(to_be_multiplied.start_calculate) begin
+            multiplication.start <= '1; 
+            multiplication.mul_type <= to_be_multiplied.inst_info.inst.mul_type; 
+            multiplication.a <= fu_reg_data.rs1_v.register_value; 
+            multiplication.b <= fu_reg_data.rs2_v.register_value; 
+        end
+        else if(mult_status)
+            multiplication.start <= '0;
     end
 
     always_ff @ (posedge clk) begin
-        for(int i = 0; i < SS; i++) begin
-            if(rst) begin
-                mul_available <= '1; 
+        if(rst) begin
+            mul_available <= '1; 
+        end
+        else begin
+            if(to_be_multiplied.start_calculate) begin
+                mul_available <= '0; 
             end
-            else begin
-                if(to_be_multiplied.start_calculate) begin
-                    mul_available <= '0; 
-                end
-                else if(mult_status) begin
-                    mul_available <= '1; 
-                end
+            else if(mult_status) begin
+                mul_available <= '1; 
             end
         end
     end
 
     always_comb begin
         FU_ready = '0; 
-        for(int i = 0; i < SS; i++) begin
-            FU_ready |= mul_available;
-            // Black magic
-            FU_ready &= ~to_be_multiplied.start_calculate;
-        end
+        FU_ready |= mul_available;
+        // Black magic
+        FU_ready &= ~to_be_multiplied.start_calculate;
     end
 
     shift_add_multiplier shi(.clk(clk), 
@@ -82,17 +77,16 @@ module fu_wrapper_mult
                             .done(mult_status));
 
     always_comb begin
-        if(mult_status[i]) begin
-            alu_output.inst_info = to_be_multiplied.inst_info;
-            alu_output.register_value = mult_output;
-            alu_output.ready_for_writeback = 1'b1;
-            alu_output.inst_info.rvfi.rd_wdata = mult_output;
-            alu_output.inst_info.rvfi.rs1_rdata = multiplication.a;
-            alu_output.inst_info.rvfi.rs2_rdata = multiplication.b;
+        if(mult_status) begin
+            mul_output.inst_info = to_be_multiplied.inst_info;
+            mul_output.register_value = mult_output;
+            mul_output.ready_for_writeback = 1'b1;
+            mul_output.inst_info.rvfi.rd_wdata = mult_output;
+            mul_output.inst_info.rvfi.rs1_rdata = multiplication.a;
+            mul_output.inst_info.rvfi.rs2_rdata = multiplication.b;
         end
         // Fix to make lint work
         else 
-            alu_output_t = '0;
+            mul_output = '0;
     end
 endmodule : fu_wrapper_mult
-    

@@ -56,15 +56,27 @@ logic valid_inst_flag;
 assign dmem_addr = '0;
 assign dmem_wdata = '0;
 
+// Dummy instruction assigns
+logic [SS-1:0] d_bitmask; 
+logic [$clog2(DEPTH)-1:0] d_reg_sel [SS];
+instruction_info_reg_t d_reg_in [SS];
+always_comb begin
+    d_bitmask = '0;
+    for(int i = 0; i < SS; i++) begin
+        d_reg_sel[i] = '0;
+        d_reg_in[i] = '0;
+    end
+end
+
 // Instruction Queue:
 instruction_info_reg_t instruction [SS];
 logic inst_q_empty, pop_inst_q;
-circular_queue #(.SS(SS)) instruction_queue
+circular_queue #(.SS(SS), .SEL_IN(SS), .SEL_OUT(SS), .DEPTH(DEPTH)) instruction_queue
                 (.clk(clk), .rst(rst), // Defaults to instruction queue type
                  .full(inst_queue_full), .in(valid_inst),
                  .out(instruction),
                  .push(valid_buffer_flag), .pop(pop_inst_q), .empty(inst_q_empty),
-                 .out_bitmask(d_out_bitmask), .in_bitmask(d_in_bitmask), .reg_select_in(d_reg_sel_in), .reg_select_out(d_reg_sel_out), .reg_in(d_reg_in));
+                 .out_bitmask(d_bitmask), .in_bitmask(d_bitmask), .reg_select_in(d_reg_sel), .reg_select_out(d_reg_sel), .reg_in(d_reg_in));
                 // planning on passing dummy shit or 0 into reg_select shit 
 
 ///////////////////// INSTRUCTION FETCH (SIMILAR TO MP2) /////////////////////
@@ -116,11 +128,15 @@ always_comb begin
 end
 
 // Not correct, temporary
+cdb_t cdb;
+fu_output_t alu_output [N_ALU], mul_output [N_MUL];
 // Merge cdb 
 always_comb begin
-    for(int i = 0; i < SS; i++) begin
-        cdb[i][ALU] = cdb_alu[i][ALU];
-        cdb[i][MUL] = cdb_mul[i][MUL];
+    for(int i = 0; i < N_ALU; i++) begin
+        cdb.alu_out[i] = alu_output[i];
+    end
+    for(int i = 0; i < N_MUL; i++) begin
+        cdb.mul_out[i] = mul_output[i];
     end
 end
 
@@ -131,7 +147,7 @@ assign imem_addr = if_id_reg_next.fetch_pc_curr;
 ///////////////////// Rename/Dispatch: Physical Register File /////////////////////
 // MODULE INPUTS DECLARATION 
 physical_reg_request_t dispatch_request[SS] , rob_request[SS];
-physical_reg_request_t alu_request , mul_request;
+physical_reg_request_t alu_request [N_ALU] , mul_request [N_MUL];
 
 
 // INPUTS FROM THE RESERVATION TABLE FROM THE ALU
@@ -139,7 +155,7 @@ physical_reg_request_t alu_request , mul_request;
 
 // MODULE OUTPUT DECLARATION
 physical_reg_response_t dispatch_reg_data [SS];
-physical_reg_response_t alu_reg_data, mul_reg_data;
+physical_reg_response_t alu_reg_data [N_ALU], mul_reg_data [N_MUL];
 
 // MODULE INSTANTIATION
 phys_reg_file #(.SS(SS), .TABLE_ENTRIES(TABLE_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) reg_file (
@@ -245,25 +261,20 @@ retired_rat #(.SS(SS)) retire_ratatoullie(
 // logic dummy_free_reg_out;
 
 
-logic [1:0] d_free_out_bitmask;
-logic [1:0] d_free_in_bitmask [1];
-logic [1:0] d_free_reg_sel_in [1];
-logic [1:0] d_free_reg_select_out;
-
-logic [5:0] d_free_reg_in[1];
-
+// Dummy free list assigns
+logic [$clog2(64)-1:0] d_free_reg_sel [SS];
+logic [5:0] d_free_reg_in [SS];
 always_comb begin
-    d_free_out_bitmask = '0;
-    d_free_in_bitmask[0] = '0;
-    d_free_reg_sel_in[0] = '0;
-    d_free_reg_select_out = '0;
-    d_free_reg_in[0]  = '0;
+    for(int i = 0; i < SS; i++) begin
+        d_free_reg_sel[i] = '0;
+        d_free_reg_in[i] = '0;
+    end
 end
 
-circular_queue #(.SS(SS), .QUEUE_TYPE(logic [5:0]), .INIT_TYPE(FREE_LIST), .DEPTH(64))
-      free_list(.clk(clk), .rst(rst), .d_free_reg_sel_in(),
-      .reg_in(d_free_reg_in), .reg_select_in(d_free_reg_sel_in), .reg_select_out(d_free_reg_select_out),      
-      .out_bitmask(d_free_out_bitmask), .in_bitmask(d_free_in_bitmask),
+circular_queue #(.SS(SS), .SEL_IN(SS), .SEL_OUT(SS), .QUEUE_TYPE(logic [5:0]), .INIT_TYPE(FREE_LIST), .DEPTH(64))
+      free_list(.clk(clk), .rst(rst),
+      .reg_in(d_free_reg_in), .reg_select_in(d_free_reg_sel), .reg_select_out(d_free_reg_sel),      
+      .out_bitmask(d_bitmask), .in_bitmask(d_bitmask),
       // outputs
       .empty(), .full(), .head_out(), .tail_out(),  
       .out(free_rat_rds), 
@@ -292,21 +303,27 @@ rob #(.SS(SS), .ROB_DEPTH(ROB_DEPTH)) rb(.clk(clk), .rst(rst),
 
 // MODULE OUTPUT DECLARATION
                            
-fu_input_t inst_for_fu_alu; 
+fu_input_t inst_for_fu_alu [N_ALU]; 
 logic alu_table_full; 
+logic FU_ready_alu [N_ALU];
+always_comb begin
+    for(int i = 0; i < N_ALU; i++) begin
+        FU_ready_alu[i] = 1'b1;
+    end
+end
 
 
 // MODULE INSTANTIATION       
 
             
-reservation_table #(.SS(SS), .TABLE_TYPE(ALU_T), .reservation_table_size(reservation_table_size), 
+reservation_table #(.SS(SS), .REQUEST(N_ALU), .TABLE_TYPE(ALU_T), .reservation_table_size(reservation_table_size), 
        .ROB_DEPTH(ROB_DEPTH)) alu_table(.clk(clk), .rst(rst),
                                         .dispatched(rs_rob_entry), // Dispatched shit
                                         .avail_inst(avail_inst), // Thing
-                                        .cdb_rob_ids(cdb), // CDB 
+                                        .cdb_rob_ids(cdb.mul_out), // CDB 
                                         .inst_for_fu(inst_for_fu_alu), // send instruction to be caluclated to fu
                                         .fu_request(alu_request), // get vars from phys reg file
-                                        .FU_Ready('1), // ALU FU will never be full 
+                                        .FU_Ready(FU_ready_alu), // ALU FU will never be full 
                                         .table_full(alu_table_full) // Signal that the res table full 
                                         );                
                                         
@@ -318,35 +335,38 @@ reservation_table #(.SS(SS), .TABLE_TYPE(ALU_T), .reservation_table_size(reserva
                                         
 // MODULE INSTANTIATION             
 
-fu_wrapper #(.SS(SS), .reservation_table_size(reservation_table_size), 
-.FU_COUNT(FU_COUNT)) 
-                                        fuck_u(
-                                             .clk(clk),.rst(rst),
-                                             .to_be_calculated(inst_for_fu_alu),
-                                             .alu_output(),
-                                             .fu_reg_data(alu_reg_data)
-                                       ); 
+generate
+for(genvar i = 0; i < N_ALU; i++) begin : fu_alus
+    fu_wrapper #(.SS(SS), .reservation_table_size(reservation_table_size)) 
+        fuck_u(
+            .clk(clk),.rst(rst),
+            .to_be_calculated(inst_for_fu_alu[i]),
+            .alu_output(alu_output[i]),
+            .fu_reg_data(alu_reg_data[i])
+        ); 
+end
+endgenerate
 
 
 // Cycle 1: 
 ///////////////////// Issue: MULT Reservation Station /////////////////////
 // MODULE INPUTS DECLARATION 
-logic FU_ready;
+logic FU_ready [N_MUL];
 
 // MODULE OUTPUT DECLARATION
                            
-fu_input_t inst_for_fu_mult; 
+fu_input_t inst_for_fu_mult [N_MUL]; 
 logic mult_table_full; 
 
 
 // MODULE INSTANTIATION       
 
             
-reservation_table #(.SS(SS), .reservation_table_size(reservation_table_size), 
+reservation_table #(.SS(SS), .REQUEST(N_MUL), .reservation_table_size(reservation_table_size), 
         .ROB_DEPTH(ROB_DEPTH), .TABLE_TYPE(MUL_T)) mult_table(.clk(clk), .rst(rst),
                                                             .dispatched(rs_rob_entry), // Dispatched shit
                                                             .avail_inst(avail_inst), // Thing
-                                                            .cdb_rob_ids(cdb), // CDB 
+                                                            .cdb_rob_ids(cdb.alu_out), // CDB 
                                                             .inst_for_fu(inst_for_fu_mult), // send instruction to be caluclated to fu
                                                             .fu_request(mul_request), // get vars from phys reg file
                                                             .FU_Ready(FU_ready), // ALU FU will never be full 
@@ -361,15 +381,18 @@ reservation_table #(.SS(SS), .reservation_table_size(reservation_table_size),
                                         
 // MODULE INSTANTIATION             
 
-fu_wrapper_mult #(.SS(SS)) 
-                                        fuck_mu(
-                                             .clk(clk),.rst(rst),
-                                             .to_be_multiplied(inst_for_fu_mult),
-                                             .mul_output(),
-                                             .FU_ready(FU_ready),
-                                             .fu_reg_data(mul_reg_data)
-                                       ); 
-
+generate
+for(genvar i = 0; i < N_MUL; i++) begin : fu_muls
+    fu_wrapper_mult #(.SS(SS)) 
+        fuck_mu(
+            .clk(clk),.rst(rst),
+            .to_be_multiplied(inst_for_fu_mult[i]),
+            .mul_output(mul_output[i]),
+            .FU_ready(FU_ready[i]),
+            .fu_reg_data(mul_reg_data[i])
+        ); 
+end
+endgenerate
 
 // Temporary:
 assign dmem_rmask = 4'b0;

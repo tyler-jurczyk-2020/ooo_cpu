@@ -210,8 +210,8 @@ package rv32i_types;
     } fu_output_t; 
 
     typedef struct {
-        fu_output_t alu_out [N_ALU],
-        fu_output_t mul_out [N_MUL]
+        fu_output_t alu_out [N_ALU];
+        fu_output_t mul_out [N_MUL];
     } cdb_t;
 
     typedef struct packed {

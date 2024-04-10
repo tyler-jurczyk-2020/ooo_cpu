@@ -5,7 +5,7 @@ module reservation_table
         parameter reservation_table_size = 8,
         parameter ROB_DEPTH = 7,
         parameter reservation_table_type_t TABLE_TYPE = ALU_T,
-        parameter FU_COUNT = 2
+        parameter REQUEST = 2
         // ALU means 0, MUL means 1
     )
     (
@@ -20,17 +20,16 @@ module reservation_table
 
 
         /////////////// ISSUING FROM TABLE ///////////////
-        output fu_input_t inst_for_fu, // *parameterize!
-
+        output fu_input_t inst_for_fu [REQUEST], // *parameterize!
 
         /////////////// RETRIEVING UPDATED DEPENDECY FROM FU (CDB) ///////////////
-        input cdb_t cdb_rob_ids [SS], 
+        input fu_output_t cdb_rob_ids [REQUEST], 
 
         /////////////// REQUESTING REGISTER VALUE FROM PHYS. REG. FILE ///////////////
-        output physical_reg_request_t fu_request,
+        output physical_reg_request_t fu_request [REQUEST],
 
         /////////////// FU FULL - DON'T ISSUE ///////////////
-        input logic FU_Ready, 
+        input logic FU_Ready [REQUEST], 
         
         /////////////// STALL DISPATCHING ///////////////
         output logic table_full 
@@ -42,10 +41,6 @@ module reservation_table
 
     // Determine for determing whether table is full or not 
     logic [$clog2(reservation_table_size)-1:0] counter; 
-
-    fu_input_t local_inst_fu;  
-    assign inst_for_fu = local_inst_fu;
-
 
     // Write to the table 
     always_ff @ (posedge clk) begin
@@ -71,42 +66,41 @@ module reservation_table
             end
         end
         // For a given CDB, Check whether we need to update any of the Entries
-        for(int i = 0; i < SS; i++) begin
-            for(int j = 0; j < reservation_table_size; j++) begin
-                for(int k = 0; k < FU_COUNT; k++) // Need to cross check with other tables
-                if(cdb_rob_ids[i][k].ready_for_writeback) begin
-                    if(reservation_table[j].rs_entry.rs1_source == cdb_rob_ids[i][k].inst_info.rob.rob_id) begin
-                        reservation_table[j].rs_entry.input1_met <= '1; 
+        // ALU
+        for(int j = 0; j < reservation_table_size; j++) begin
+            for(int i = 0; i < REQUEST; i++) begin
+                    if(cdb_rob_ids[i].ready_for_writeback) begin
+                        if(reservation_table[j].rs_entry.rs1_source == cdb_rob_ids[i].inst_info.rob.rob_id) begin
+                            reservation_table[j].rs_entry.input1_met <= '1; 
+                        end
+                        if(reservation_table[j].rs_entry.rs2_source == cdb_rob_ids[i].inst_info.rob.rob_id) begin
+                            reservation_table[j].rs_entry.input2_met <= '1; 
+                        end
                     end
-                    if(reservation_table[j].rs_entry.rs2_source == cdb_rob_ids[i][k].inst_info.rob.rob_id) begin
-                        reservation_table[j].rs_entry.input2_met <= '1; 
-                    end
-                end
-                
             end
         end
-        for(int i = 0; i < SS; i++) begin
-            for(int j = 0; j < reservation_table_size; j++) begin
+
+        for(int j = 0; j < reservation_table_size; j++) begin
+            for(int i = 0; i < REQUEST; i++) begin
+                inst_for_fu[i] <= 'x;
                 if(reservation_table[j].rs_entry.full && reservation_table[j].rs_entry.input1_met && reservation_table[j].rs_entry.input2_met) begin
                     if(FU_Ready) begin
                         reservation_table[j].rs_entry.full <= '0;
-                        local_inst_fu.inst_info <= reservation_table[j]; 
-                        local_inst_fu.start_calculate <= '1; 
-                        fu_request.rs1_s <= reservation_table[j].rat.rs1;
-                        fu_request.rs2_s <= reservation_table[j].rat.rs2;
+                        inst_for_fu[i].inst_info <= reservation_table[j]; 
+                        inst_for_fu[i].start_calculate <= '1; 
+                        fu_request[i].rs1_s <= reservation_table[j].rat.rs1;
+                        fu_request[i].rs2_s <= reservation_table[j].rat.rs2;
                         break;
                     end
                 end
                 else begin
-                    local_inst_fu.start_calculate <= '0; 
+                    inst_for_fu[i].start_calculate <= '0; 
                 end
             end
         end
     end
 
-    
-
-    always_comb begin
+always_comb begin
         // Number of occupied entries in the table
         counter = '0;
         for(int i = 0; i < SS; i++) begin
@@ -125,4 +119,3 @@ module reservation_table
     end
     
 endmodule : reservation_table
-    

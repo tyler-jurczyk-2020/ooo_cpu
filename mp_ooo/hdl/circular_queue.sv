@@ -4,23 +4,25 @@ import rv32i_types::*;
     type QUEUE_TYPE = instruction_info_reg_t,
     parameter initialization_t INIT_TYPE = ZERO,
     parameter SS = 2,
-    parameter DEPTH = 4,
-    parameter DIM_SEL = 1
+    parameter SEL_IN = 2,
+    parameter SEL_OUT = 2,
+    parameter DEPTH = 4
 )(
     input logic clk, rst, 
     input logic push, pop,
     input QUEUE_TYPE in [SS], // Values pushed in
-    input QUEUE_TYPE reg_in [SS][DIM_SEL], // Values used to modify entries
+    input QUEUE_TYPE reg_in [SEL_IN], // Values used to modify entries
     
-    input logic [$clog2(DEPTH)-1:0] reg_select_in [SS][DIM_SEL], reg_select_out [SS],
-    input logic [SS-1:0] in_bitmask [DIM_SEL], out_bitmask,
+    input logic [$clog2(DEPTH)-1:0] reg_select_in [SEL_IN], reg_select_out [SEL_OUT],
+    input logic [SEL_IN-1:0] in_bitmask,
+    input logic [SEL_OUT-1:0] out_bitmask,
  
     // Need to consider potentially how partial pushes/pops may work in superscalar context
     output logic empty,
     output logic full,
     output logic [$clog2(DEPTH)-1:0] head_out, tail_out,
     output QUEUE_TYPE out [SS], // Values pushed out
-    output QUEUE_TYPE reg_out [SS] // Values selected to be observed
+    output QUEUE_TYPE reg_out [SEL_OUT] // Values selected to be observed
 );
 
 QUEUE_TYPE entries [DEPTH];
@@ -84,17 +86,15 @@ always_ff @(posedge clk) begin
                 out[i] <= 'x;
         end
 
-        for(int i = 0; i < SS; i++) begin
-            for(int j = 0; j < DIM_SEL; j++) begin
-                if(in_bitmask[j][i])
-                    entries[reg_select_in[i][j]] <= reg_in[i][j];
-            end
+        for(int i = 0; i < SEL_IN; i++) begin
+            if(in_bitmask[i])
+                entries[reg_select_in[i]] <= reg_in[i];
         end
     end
 end
 
 always_comb begin
-    for(int i = 0; i < SS; i++) begin
+    for(int i = 0; i < SEL_OUT; i++) begin
         if(out_bitmask[i])
             reg_out[i] = entries[reg_select_out[i]];
         else
