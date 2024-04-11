@@ -6,17 +6,16 @@ module reservation_table
         parameter ROB_DEPTH = 7,
         parameter reservation_table_type_t TABLE_TYPE = ALU_T,
         parameter REQUEST = 2
-        // ALU means 0, MUL means 1
     )
     (
         input clk, rst, 
 
         /////////////// WRITING TO TABLE ///////////////
         // get entry from the dispatcher 
-        super_dispatch_t dispatched [SS], 
+        input super_dispatch_t dispatched [SS], 
 
         // indicates whether dispatched signal is new signal
-        logic avail_inst, 
+        input logic avail_inst, 
 
 
         /////////////// ISSUING FROM TABLE ///////////////
@@ -81,7 +80,6 @@ module reservation_table
 
             for(int j = 0; j < reservation_table_size; j++) begin
                 for(int i = 0; i < REQUEST; i++) begin
-                    inst_for_fu[i] <= 'x;
                     if(reservation_table[j].rs_entry.full && reservation_table[j].rs_entry.input1_met && reservation_table[j].rs_entry.input2_met) begin
                         if(FU_Ready) begin
                             reservation_table[j].rs_entry.full <= '0;

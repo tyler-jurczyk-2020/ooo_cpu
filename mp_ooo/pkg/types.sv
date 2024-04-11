@@ -5,9 +5,9 @@
 
 package rv32i_types;
 
-    parameter TABLE_ENTRIES = 64;
-    parameter N_MUL = 1;
-    parameter N_ALU = 1;
+    localparam TABLE_ENTRIES = 64;
+    localparam N_MUL = 1;
+    localparam N_ALU = 1;
 
     typedef enum logic [6:0] {
         op_b_lui   = 7'b0110111, // U load upper immediate 

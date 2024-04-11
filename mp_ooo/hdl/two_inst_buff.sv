@@ -29,12 +29,19 @@ always_ff @ (posedge clk) begin
             counter <= counter + 1'b1; 
     end
 
-    if(counter == 1'b1 && valid && SS == 2)
-        valid_out <= 1'b1; 
-    else if(counter == 1'b0 && valid && SS == 1)
-        valid_out <= 1'b1;
-    else 
-        valid_out <= 1'b0;
+    if(SS == 2) begin
+        if(counter == 1'b1 && valid)
+            valid_out <= 1'b1; 
+        else
+            valid_out <= 1'b0;
+    end
+
+    if(SS == 1) begin
+        if(counter == 1'b0 && valid)
+            valid_out <= 1'b1;
+        else 
+            valid_out <= 1'b0;
+    end
 end
 
 always_comb begin

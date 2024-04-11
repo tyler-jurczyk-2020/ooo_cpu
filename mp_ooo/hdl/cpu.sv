@@ -3,7 +3,7 @@ import rv32i_types::*;
 #(
     parameter SS = 2,
     parameter PR_ENTRIES = 64,
-    parameter reservation_table_size = 8,
+    parameter reservation_table_size = 4,
     parameter DEPTH = 4,
     parameter ROB_DEPTH = 8,
     parameter DIM_SEL = 1
