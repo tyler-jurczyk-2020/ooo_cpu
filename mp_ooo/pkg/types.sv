@@ -222,3 +222,22 @@ package rv32i_types;
     } multiply_FUs_t; 
 
 endpackage
+
+package cache_types;
+
+    typedef enum bit [1:0] {
+        idle_s,
+        compare_tag_s,
+        allocate_s,
+        writeback_s
+    } state_t;
+
+    typedef enum bit [2:0] {
+        A = 3'b000,
+        B = 3'b001,
+        C = 3'b010,
+        D = 3'b011,
+        F = 3'b111
+    } way_t;
+
+endpackage
