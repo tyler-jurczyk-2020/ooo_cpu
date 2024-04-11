@@ -26,7 +26,7 @@ always_ff @(posedge clk) begin
     for(int i = 0; i < SS; i++) begin
         if (rst) begin
             // reset all the mfing entries
-            for(int i = 0; i < 32; i++) 
+            for(int unsigned i = 0; i < 32; i++) 
                 data[i] <= 6'(i);
         end
         else if(retire_we && rob_info[i].inst.rd_s != 5'b0) begin

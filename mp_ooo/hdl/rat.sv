@@ -19,7 +19,7 @@ logic   [5:0] data [32];
 
 always_ff @(posedge clk) begin
     if (rst) begin
-        for (int i = 0; i < 32; i++) begin
+        for (int unsigned i = 0; i < 32; i++) begin
             data[i] <= 6'(i);
         end
     end

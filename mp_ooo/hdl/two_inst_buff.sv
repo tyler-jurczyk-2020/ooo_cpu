@@ -13,7 +13,7 @@ import rv32i_types::*;
     output logic valid_out
 );
 // Following module only guarenteed to work for one and two way SS
-instruction_info_reg_t buffer[2]; 
+instruction_info_reg_t buffer[SS]; 
 logic counter; 
 logic update_output;
 

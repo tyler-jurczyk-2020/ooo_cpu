@@ -111,7 +111,7 @@ always_comb begin
     
         // Table full
         table_full = '0; 
-        if({{29{1'b0}},counter} >= ROB_DEPTH-SS) begin // Probably need to fix width
+        if(32'(counter) >= unsigned'(ROB_DEPTH-SS)) begin // Probably need to fix width
             table_full = '1; 
         end
     end

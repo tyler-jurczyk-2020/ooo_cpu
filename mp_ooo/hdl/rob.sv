@@ -82,7 +82,7 @@ module rob
     always_comb begin
         pop_from_rob = '1;
         // Dispatch:
-        for(int i = 0; i < SS; i++)begin
+        for(int unsigned i = 0; i < SS; i++)begin
             // setting up to read the first SS entries in the rob
             //inspect_queue[i].rob.commit = cdb[i].inst_info.reservation_entry.rob.commit;
             pop_from_rob &= inspect_queue[i].rob.commit && !rob_empty; //pop from queue if instr at the head is ready to commit

@@ -40,7 +40,7 @@ module shift_add_multiplier
         unique case (curr_state)
             IDLE:    next_state = start ? ADD : IDLE;
             ADD:     next_state = SHIFT;
-            SHIFT:   next_state = (counter == (OP_WIDTH_LOG)'(OPERAND_WIDTH-1)) ? DONE : ADD;
+            SHIFT:   next_state = (counter == (OP_WIDTH_LOG)'(unsigned'(OPERAND_WIDTH-1))) ? DONE : ADD;
             DONE:    next_state = start ? DONE : IDLE;
             default: next_state = curr_state;
         endcase

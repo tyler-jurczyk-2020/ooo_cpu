@@ -61,24 +61,24 @@ always_ff @(posedge clk) begin
         if(INIT_TYPE == FREE_LIST) begin
             head <= '0;
             tail <= '0;
-            for(int i = 32; i < 32 + DEPTH; i++)
+            for(int unsigned i = 32; i < 32 + unsigned'(DEPTH); i++)
                 entries[i-32] <= ($clog2(DEPTH)-1)'(i);
         end
     end
     else begin
         if(push) begin
             head <= head_next;
-            for(int i = 0; i < DEPTH; i++) begin
-                if(unsigned'(i) < sext_head + sext_amount && unsigned'(i) >= sext_head)
-                    entries[unsigned'(i)] <= in[unsigned'(i) - sext_head];
+            for(int unsigned i = 0; i < DEPTH; i++) begin
+                if(i < sext_head + sext_amount && i >= sext_head)
+                    entries[i] <= in[i - sext_head];
             end
         end
         
         if(pop)  begin
             tail <= tail_next;
-            for(int i = 0; i < DEPTH; i++) begin
-                if(unsigned'(i) < sext_tail + sext_amount && unsigned'(i) >= sext_tail)
-                    out[unsigned'(i) - sext_tail] <= entries[unsigned'(i)];
+            for(int unsigned i = 0; i < DEPTH; i++) begin
+                if(i < sext_tail + sext_amount && i >= sext_tail)
+                    out[i - sext_tail] <= entries[i];
             end
         end
         else begin

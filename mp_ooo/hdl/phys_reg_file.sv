@@ -90,69 +90,79 @@ import rv32i_types::*;
     // Request from dispatch
     always_comb begin
         // ALU dispatch
-        for (int i = 0; i < N_ALU; i++) begin
-            if(cdb.alu_out[i].ready_for_writeback && (dispatch_request[i].rs1_s == cdb.alu_out[i].inst_info.rat.rd)) begin
-                dispatch_reg_data[i].rs1_v.register_value = cdb.alu_out[i].register_value;
-                dispatch_reg_data[i].rs1_v.dependency = ~cdb.alu_out[i].inst_info.rs_entry.input1_met;
-                dispatch_reg_data[i].rs1_v.ROB_ID = cdb.alu_out[i].inst_info.rob.rob_id;
-            end
-            else begin
-                dispatch_reg_data[i].rs1_v = data[dispatch_request[i].rs1_s];
-            end
-
-            if(cdb.alu_out[i].ready_for_writeback && (dispatch_request[i].rs2_s == cdb.alu_out[i].inst_info.rat.rd)) begin
-                dispatch_reg_data[i].rs2_v.register_value = cdb.alu_out[i].register_value;
-                dispatch_reg_data[i].rs2_v.dependency = ~cdb.alu_out[i].inst_info.rs_entry.input2_met;
-                dispatch_reg_data[i].rs2_v.ROB_ID = cdb.alu_out[i].inst_info.rob.rob_id;
-            end
-            else begin
-                dispatch_reg_data[i].rs2_v = data[dispatch_request[i].rs2_s];
+        for(int k = 0; k < SS; k++) begin
+            for (int i = 0; i < N_ALU; i++) begin
+                for(int j = 0; j < N_MUL; j++) begin
+                    // RS1
+                    if(cdb.alu_out[i].ready_for_writeback && (dispatch_request[k].rs1_s == cdb.alu_out[i].inst_info.rat.rd)) begin
+                        dispatch_reg_data[k].rs1_v.register_value = cdb.alu_out[i].register_value;
+                        dispatch_reg_data[k].rs1_v.dependency = ~cdb.alu_out[i].inst_info.rs_entry.input1_met;
+                        dispatch_reg_data[k].rs1_v.ROB_ID = cdb.alu_out[i].inst_info.rob.rob_id;
+                    end
+                    else if(cdb.mul_out[j].ready_for_writeback && (dispatch_request[k].rs1_s == cdb.mul_out[j].inst_info.rat.rd)) begin
+                        dispatch_reg_data[k].rs1_v.register_value = cdb.mul_out[j].register_value;
+                        dispatch_reg_data[k].rs1_v.dependency = ~cdb.mul_out[j].inst_info.rs_entry.input1_met;
+                        dispatch_reg_data[k].rs1_v.ROB_ID = cdb.mul_out[j].inst_info.rob.rob_id;
+                    end
+                    else begin
+                        dispatch_reg_data[k].rs1_v = data[dispatch_request[k].rs1_s];
+                    end
+                    // RS2
+                    if(cdb.alu_out[i].ready_for_writeback && (dispatch_request[k].rs2_s == cdb.alu_out[i].inst_info.rat.rd)) begin
+                        dispatch_reg_data[k].rs2_v.register_value = cdb.alu_out[i].register_value;
+                        dispatch_reg_data[k].rs2_v.dependency = ~cdb.alu_out[i].inst_info.rs_entry.input2_met;
+                        dispatch_reg_data[k].rs2_v.ROB_ID = cdb.alu_out[i].inst_info.rob.rob_id;
+                    end
+                    else if(cdb.mul_out[j].ready_for_writeback && (dispatch_request[k].rs2_s == cdb.mul_out[j].inst_info.rat.rd)) begin
+                        dispatch_reg_data[k].rs2_v.register_value = cdb.mul_out[j].register_value;
+                        dispatch_reg_data[k].rs2_v.dependency = ~cdb.mul_out[j].inst_info.rs_entry.input2_met;
+                        dispatch_reg_data[k].rs2_v.ROB_ID = cdb.mul_out[j].inst_info.rob.rob_id;
+                    end
+                    else begin
+                        dispatch_reg_data[k].rs2_v = data[dispatch_request[k].rs2_s];
+                    end
+                end
             end
         end
-
-        // MUL Dispatch
-        for (int i = 0; i < N_ALU; i++) begin
-            if(cdb.mul_out[i].ready_for_writeback && (dispatch_request[i].rs1_s == cdb.mul_out[i].inst_info.rat.rd)) begin
-                dispatch_reg_data[i].rs1_v.register_value = cdb.mul_out[i].register_value;
-                dispatch_reg_data[i].rs1_v.dependency = ~cdb.mul_out[i].inst_info.rs_entry.input1_met;
-                dispatch_reg_data[i].rs1_v.ROB_ID = cdb.mul_out[i].inst_info.rob.rob_id;
-            end
-            else begin
-                dispatch_reg_data[i].rs1_v = data[dispatch_request[i].rs1_s];
-            end
-
-            if(cdb.mul_out[i].ready_for_writeback && (dispatch_request[i].rs2_s == cdb.mul_out[i].inst_info.rat.rd)) begin
-                dispatch_reg_data[i].rs2_v.register_value = cdb.mul_out[i].register_value;
-                dispatch_reg_data[i].rs2_v.dependency = ~cdb.mul_out[i].inst_info.rs_entry.input2_met;
-                dispatch_reg_data[i].rs2_v.ROB_ID = cdb.mul_out[i].inst_info.rob.rob_id;
-            end
-            else begin
-                dispatch_reg_data[i].rs2_v = data[dispatch_request[i].rs2_s];
-            end
-        end   
     end
 
     // Also supports transparency
     // ALU Requests 
+    // i selects alu to forward
+    // j select mul to forward
+    // k selects data to output to alu
     always_comb begin
-        for (int i = 0; i < N_ALU; i++) begin
-            for(int j = 0; j < N_ALU; j++) begin
-                if(cdb.alu_out[i].ready_for_writeback && (alu_request[j].rs1_s == cdb.alu_out[i].inst_info.rat.rd)) begin
-                    alu_reg_data[j].rs1_v.register_value = cdb.alu_out[i].register_value;
-                    alu_reg_data[j].rs1_v.dependency = ~cdb.alu_out[i].inst_info.rs_entry.input1_met;
-                    alu_reg_data[j].rs1_v.ROB_ID = cdb.alu_out[i].inst_info.rob.rob_id;
-                end
-                else begin
-                    alu_reg_data[j].rs1_v = data[alu_request[j].rs1_s];
-                end
-
-                if(cdb.alu_out[i].ready_for_writeback && (alu_request[j].rs2_s == cdb.alu_out[i].inst_info.rat.rd)) begin
-                    alu_reg_data[j].rs2_v.register_value = cdb.alu_out[i].register_value;
-                    alu_reg_data[j].rs2_v.dependency = ~cdb.alu_out[i].inst_info.rs_entry.input2_met;
-                    alu_reg_data[j].rs2_v.ROB_ID = cdb.alu_out[i].inst_info.rob.rob_id;
-                end
-                else begin
-                    alu_reg_data[j].rs2_v = data[alu_request[j].rs2_s];
+        for(int k = 0; k < N_ALU; k++) begin
+            for (int i = 0; i < N_ALU; i++) begin
+                for(int j = 0; j < N_MUL; j++) begin
+                    // RS1
+                    if(cdb.alu_out[i].ready_for_writeback && (alu_request[k].rs1_s == cdb.alu_out[i].inst_info.rat.rd)) begin
+                        alu_reg_data[k].rs1_v.register_value = cdb.alu_out[i].register_value;
+                        alu_reg_data[k].rs1_v.dependency = ~cdb.alu_out[i].inst_info.rs_entry.input1_met;
+                        alu_reg_data[k].rs1_v.ROB_ID = cdb.alu_out[i].inst_info.rob.rob_id;
+                    end
+                    else if(cdb.mul_out[j].ready_for_writeback && (alu_request[k].rs1_s == cdb.mul_out[j].inst_info.rat.rd)) begin
+                        alu_reg_data[k].rs1_v.register_value = cdb.mul_out[j].register_value;
+                        alu_reg_data[k].rs1_v.dependency = ~cdb.mul_out[j].inst_info.rs_entry.input1_met;
+                        alu_reg_data[k].rs1_v.ROB_ID = cdb.mul_out[j].inst_info.rob.rob_id;
+                    end
+                    else begin
+                        alu_reg_data[k].rs1_v = data[alu_request[k].rs1_s];
+                    end
+                    // RS2
+                    if(cdb.alu_out[i].ready_for_writeback && (alu_request[k].rs2_s == cdb.alu_out[i].inst_info.rat.rd)) begin
+                        alu_reg_data[k].rs2_v.register_value = cdb.alu_out[i].register_value;
+                        alu_reg_data[k].rs2_v.dependency = ~cdb.alu_out[i].inst_info.rs_entry.input2_met;
+                        alu_reg_data[k].rs2_v.ROB_ID = cdb.alu_out[i].inst_info.rob.rob_id;
+                    end
+                    else if(cdb.mul_out[j].ready_for_writeback && (alu_request[k].rs2_s == cdb.mul_out[j].inst_info.rat.rd)) begin
+                        alu_reg_data[k].rs2_v.register_value = cdb.mul_out[j].register_value;
+                        alu_reg_data[k].rs2_v.dependency = ~cdb.mul_out[j].inst_info.rs_entry.input2_met;
+                        alu_reg_data[k].rs2_v.ROB_ID = cdb.mul_out[j].inst_info.rob.rob_id;
+                    end
+                    else begin
+                        alu_reg_data[k].rs2_v = data[alu_request[k].rs2_s];
+                    end
                 end
             end
         end
@@ -160,25 +170,41 @@ import rv32i_types::*;
 
     // Reading out 
     // MUL Requests
+    // i selects alu to forward
+    // j select mul to forward
+    // k selects data to output to mul
     always_comb begin
-        for (int i = 0; i < N_MUL; i++) begin
-            for(int j = 0; j < N_MUL; j++) begin
-                if(cdb.mul_out[i].ready_for_writeback && (mul_request[j].rs1_s == cdb.mul_out[i].inst_info.rat.rd)) begin
-                    mul_reg_data[j].rs1_v.register_value = cdb.mul_out[i].register_value;
-                    mul_reg_data[j].rs1_v.dependency = ~cdb.mul_out[i].inst_info.rs_entry.input1_met;
-                    mul_reg_data[j].rs1_v.ROB_ID = cdb.mul_out[i].inst_info.rob.rob_id;
-                end
-                else begin
-                    mul_reg_data[j].rs1_v = data[mul_request[j].rs1_s];
-                end
-
-                if(cdb.mul_out[i].ready_for_writeback && (mul_request[j].rs2_s == cdb.mul_out[i].inst_info.rat.rd)) begin
-                    mul_reg_data[j].rs2_v.register_value = cdb.mul_out[i].register_value;
-                    mul_reg_data[j].rs2_v.dependency = ~cdb.mul_out[i].inst_info.rs_entry.input2_met;
-                    mul_reg_data[j].rs2_v.ROB_ID = cdb.mul_out[i].inst_info.rob.rob_id;
-                end
-                else begin
-                    mul_reg_data[j].rs2_v = data[mul_request[j].rs2_s];
+        for(int k = 0; k < N_MUL; k++) begin
+            for (int i = 0; i < N_ALU; i++) begin
+                for(int j = 0; j < N_MUL; j++) begin
+                    // RS1
+                    if(cdb.alu_out[i].ready_for_writeback && (mul_request[k].rs1_s == cdb.alu_out[i].inst_info.rat.rd)) begin
+                        mul_reg_data[k].rs1_v.register_value = cdb.alu_out[i].register_value;
+                        mul_reg_data[k].rs1_v.dependency = ~cdb.alu_out[i].inst_info.rs_entry.input1_met;
+                        mul_reg_data[k].rs1_v.ROB_ID = cdb.alu_out[i].inst_info.rob.rob_id;
+                    end
+                    else if(cdb.mul_out[j].ready_for_writeback && (mul_request[k].rs1_s == cdb.mul_out[j].inst_info.rat.rd)) begin
+                        mul_reg_data[k].rs1_v.register_value = cdb.mul_out[j].register_value;
+                        mul_reg_data[k].rs1_v.dependency = ~cdb.mul_out[j].inst_info.rs_entry.input1_met;
+                        mul_reg_data[k].rs1_v.ROB_ID = cdb.mul_out[j].inst_info.rob.rob_id;
+                    end
+                    else begin
+                        mul_reg_data[k].rs1_v = data[mul_request[k].rs1_s];
+                    end
+                    // RS2
+                    if(cdb.alu_out[i].ready_for_writeback && (mul_request[k].rs2_s == cdb.alu_out[i].inst_info.rat.rd)) begin
+                        mul_reg_data[k].rs2_v.register_value = cdb.alu_out[i].register_value;
+                        mul_reg_data[k].rs2_v.dependency = ~cdb.alu_out[i].inst_info.rs_entry.input2_met;
+                        mul_reg_data[k].rs2_v.ROB_ID = cdb.alu_out[i].inst_info.rob.rob_id;
+                    end
+                    else if(cdb.mul_out[j].ready_for_writeback && (mul_request[k].rs2_s == cdb.mul_out[j].inst_info.rat.rd)) begin
+                        mul_reg_data[k].rs2_v.register_value = cdb.mul_out[j].register_value;
+                        mul_reg_data[k].rs2_v.dependency = ~cdb.mul_out[j].inst_info.rs_entry.input2_met;
+                        mul_reg_data[k].rs2_v.ROB_ID = cdb.mul_out[j].inst_info.rob.rob_id;
+                    end
+                    else begin
+                        mul_reg_data[k].rs2_v = data[mul_request[k].rs2_s];
+                    end
                 end
             end
         end

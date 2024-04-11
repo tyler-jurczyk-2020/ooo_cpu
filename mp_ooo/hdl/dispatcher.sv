@@ -81,14 +81,14 @@ module dispatcher
                 // We get the phys. eg. to read from by the RAT
                 dispatch_request[i].rs1_s = rat_rs1[i];
                 dispatch_request[i].rs2_s = rat_rs2[i];
-            end
 
-            for(int i = 0; i < SS; i++) begin
+
                 // ROB Setup
                 rs_rob_entry[i].rob.rob_id = rob_id_next[i];
                 rs_rob_entry[i].rob.commit = 1'b0;
                 rs_rob_entry[i].rs_entry.rs1_source = dispatch_reg_data[i].rs1_v.ROB_ID;
                 rs_rob_entry[i].rs_entry.rs2_source = dispatch_reg_data[i].rs2_v.ROB_ID;
+                rs_rob_entry[i].rs_entry.full = 1'b0; // Mark as effectively empty
 
                 if(~inst[i].execute_operand1[0]) begin
                     rs_rob_entry[i].rs_entry.input1_met = ~dispatch_reg_data[i].rs1_v.dependency; 
@@ -146,10 +146,8 @@ module dispatcher
                 // We get the phys. eg. to read from by the RAT
                 dispatch_request[i].rs1_s = 'x; 
                 dispatch_request[i].rs2_s = 'x;
-            end
 
-            // Setup entries going to reservation station
-            for(int i = 0; i < SS; i++) begin 
+                // Setup entries going to reservation station
                 // ROB Setup
                 rs_rob_entry[i].rob.rob_id = 'x;
                 rs_rob_entry[i].rob.commit = 'x;
@@ -157,6 +155,7 @@ module dispatcher
                 rs_rob_entry[i].rs_entry.input2_met = 'x;
                 rs_rob_entry[i].rs_entry.rs1_source = 'x;
                 rs_rob_entry[i].rs_entry.rs2_source = 'x;
+                rs_rob_entry[i].rs_entry.full = 'x;
                 
                 // RVFI setup
                 rs_rob_entry[i].rvfi.valid = 'x; // SOUMIL IS SLOW
@@ -188,5 +187,4 @@ module dispatcher
         end
     end
     
-    endmodule : dispatcher
-    
+endmodule : dispatcher
