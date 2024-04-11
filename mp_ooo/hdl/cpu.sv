@@ -13,6 +13,7 @@ import rv32i_types::*;
     input   logic           clk,
     input   logic           rst,
 
+    /*
     output  logic   [31:0]  imem_addr,
     output  logic   [3:0]   imem_rmask,
     input   logic   [31:0]  imem_rdata,
@@ -24,9 +25,9 @@ import rv32i_types::*;
     input   logic   [31:0]  dmem_rdata,
     output  logic   [31:0]  dmem_wdata,
     input   logic           dmem_resp
+    */
 
     // Single memory port connection when caches are integrated into design (CP3 and after)
-    /*
     output logic   [31:0]      bmem_addr,
     output logic               bmem_read,
     output logic               bmem_write,
@@ -36,8 +37,10 @@ import rv32i_types::*;
     input logic   [31:0]      bmem_raddr,
     input logic   [63:0]      bmem_rdata,
     input logic               bmem_rvalid
-    */
 );
+
+///////////////////// CACHE /////////////////////
+// Instantiate caches here
 
 ///////////////////// INSTRUCTION QUEUE /////////////////////
 
