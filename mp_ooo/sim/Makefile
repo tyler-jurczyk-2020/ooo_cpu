@@ -8,7 +8,7 @@ HDRS     := $(shell find $(PWD)/../hvl -name '*.svh')
 SRCS := $(PKG_SRCS) $(HDL_SRCS) $(HVL_SRCS)
 
 export VCS_ARCH_OVERRIDE=linux
-VCS_FLAGS= -full64 -lca -sverilog +lint=all,noNS -timescale=1ns/1ns -debug_acc+all -kdb -fsdb -suppress=LCA_FEATURES_ENABLED
+VCS_FLAGS= -full64 -lca -sverilog +lint=all,noNS -timescale=1ns/1ns -debug_acc+all -kdb -fsdb -suppress=LCA_FEATURES_ENABLED -suppress=UII-L
 
 sim/top_tb: $(SRCS) $(HDRS)
 	mkdir -p sim

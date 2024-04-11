@@ -62,7 +62,7 @@ always_ff @(posedge clk) begin
             head <= '0;
             tail <= '0;
             for(int unsigned i = 32; i < 32 + unsigned'(DEPTH); i++)
-                entries[i-32] <= ($clog2(DEPTH)-1)'(i);
+                entries[i-32] <= ($bits(QUEUE_TYPE))'(i);
         end
     end
     else begin

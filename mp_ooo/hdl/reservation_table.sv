@@ -81,7 +81,7 @@ module reservation_table
             for(int j = 0; j < reservation_table_size; j++) begin
                 for(int i = 0; i < REQUEST; i++) begin
                     if(reservation_table[j].rs_entry.full && reservation_table[j].rs_entry.input1_met && reservation_table[j].rs_entry.input2_met) begin
-                        if(FU_Ready) begin
+                        if(FU_Ready[i]) begin
                             reservation_table[j].rs_entry.full <= '0;
                             inst_for_fu[i].inst_info <= reservation_table[j]; 
                             inst_for_fu[i].start_calculate <= '1; 
