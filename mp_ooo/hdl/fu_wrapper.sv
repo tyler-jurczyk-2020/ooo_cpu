@@ -1,7 +1,7 @@
 module fu_wrapper
     import rv32i_types::*;
     (
-        input logic clk, rst,
+        input logic clk, // rst,
         // get entry from reservation station
         input fu_input_t to_be_calculated, 
 
@@ -29,6 +29,9 @@ module fu_wrapper
     logic [31:0] cmp_input_a; 
     logic [31:0] cmp_input_b; 
 
+    logic [31:0] alu_res;
+    logic cmp_res;
+
     // Need to properly extend to superscalar
     always_comb begin
         unique case (to_be_calculated.inst_info.inst.execute_operand1)
@@ -53,27 +56,24 @@ module fu_wrapper
             cmp_input_b = fu_reg_data.rs2_v.register_value;
     end
 
-    logic [31:0] alu_output; 
-    logic cmp_output; 
-
     alu calculator(.aluop(to_be_calculated.inst_info.inst.alu_operation), 
                     .a(alu_input_a),
                     .b(alu_input_b),
-                    .f(alu_output));
+                    .f(alu_res));
     cmp comparator(.cmpop(to_be_calculated.inst_info.inst.cmp_operation), 
                     .a(cmp_input_a),
                     .b(cmp_input_b),
-                    .br_en(cmp_output));
+                    .br_en(cmp_res));
 
     // Select register to push out
-    always_comb begin
-            // Always drive alu out since it only takes one clock cycle
-            alu_output.inst_info = to_be_calculated.inst_info;
-            alu_output.register_value = alu_output;
-            alu_output.ready_for_writeback = 1'b1;
-            alu_output.inst_info.rvfi.rd_wdata = alu_output;
-            alu_output.inst_info.rvfi.rs1_rdata = fu_reg_data.rs1_v.register_value;
-            alu_output.inst_info.rvfi.rs2_rdata = fu_reg_data.rs2_v.register_value;
+    always_ff @(posedge clk) begin
+            alu_output.inst_info <= to_be_calculated.inst_info;
+            alu_output.register_value <= alu_res;
+            alu_output.ready_for_writeback <= 1'b1;
+            alu_output.inst_info.rvfi.rd_wdata <= alu_res;
+            alu_output.inst_info.rvfi.rs1_rdata <= fu_reg_data.rs1_v.register_value;
+            alu_output.inst_info.rvfi.rs2_rdata <= fu_reg_data.rs2_v.register_value;
     end
         
 endmodule : fu_wrapper
+

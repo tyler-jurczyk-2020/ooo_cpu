@@ -52,6 +52,12 @@ instruction_info_reg_t decoded_inst;
 // says that a instruction is reoutputady for the buffer
 logic valid_inst_flag;
 
+// logic dummy read
+logic [31:0] d_dmem_rdata;
+logic d_dmem_resp;
+assign d_dmem_rdata = dmem_rdata;
+assign d_dmem_resp = dmem_resp;
+
 // Dummy assign 
 assign dmem_addr = '0;
 assign dmem_wdata = '0;
@@ -127,7 +133,6 @@ always_comb begin
         valid_inst_flag = 1'b0;
 end
 
-// Not correct, temporary
 cdb_t cdb;
 fu_output_t alu_output [N_ALU], mul_output [N_MUL];
 // Merge cdb 
@@ -231,6 +236,7 @@ dispatcher #(.SS(SS), .PR_ENTRIES(PR_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) dispatcher
 ///////////////////// Rename/Dispatch: RAT + RRAT /////////////////////
 // MODULE INPUTS DECLARATION 
 logic pop_from_rob;
+logic push_to_free_list;
 logic [5:0] retire_to_free_list [SS];
 super_dispatch_t rob_entries_to_commit [SS];
 // MODULE OUTPUT DECLARATION
@@ -246,7 +252,8 @@ retired_rat #(.SS(SS)) retire_ratatoullie(
     .clk(clk), .rst(rst),
     .retire_we(pop_from_rob),
     .free_list_entry(retire_to_free_list),
-    .rob_info(rob_entries_to_commit)
+    .rob_info(rob_entries_to_commit),
+    .push_to_free_list(push_to_free_list)
 );
 
 // Cycle 0: 
@@ -272,7 +279,7 @@ always_comb begin
 end
 
 circular_queue #(.SS(SS), .SEL_IN(SS), .SEL_OUT(SS), .QUEUE_TYPE(logic [5:0]), .INIT_TYPE(FREE_LIST), .DEPTH(64))
-      free_list(.clk(clk), .rst(rst),
+      free_list(.clk(clk), .rst(rst), .in(retire_to_free_list), .push(push_to_free_list), .pop(pop_inst_q),
       .reg_in(d_free_reg_in), .reg_select_in(d_free_reg_sel), .reg_select_out(d_free_reg_sel),      
       .out_bitmask(d_bitmask), .in_bitmask(d_bitmask),
       // outputs
@@ -337,9 +344,8 @@ reservation_table #(.SS(SS), .REQUEST(N_ALU), .TABLE_TYPE(ALU_T), .reservation_t
 
 generate
 for(genvar i = 0; i < N_ALU; i++) begin : fu_alus
-    fu_wrapper #(.SS(SS), .reservation_table_size(reservation_table_size)) 
-        fuck_u(
-            .clk(clk),.rst(rst),
+    fu_wrapper fuck_u(
+            .clk(clk), //.rst(rst),
             .to_be_calculated(inst_for_fu_alu[i]),
             .alu_output(alu_output[i]),
             .fu_reg_data(alu_reg_data[i])
@@ -383,8 +389,7 @@ reservation_table #(.SS(SS), .REQUEST(N_MUL), .reservation_table_size(reservatio
 
 generate
 for(genvar i = 0; i < N_MUL; i++) begin : fu_muls
-    fu_wrapper_mult #(.SS(SS)) 
-        fuck_mu(
+    fu_wrapper_mult fuck_mu(
             .clk(clk),.rst(rst),
             .to_be_multiplied(inst_for_fu_mult[i]),
             .mul_output(mul_output[i]),

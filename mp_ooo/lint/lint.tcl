@@ -5,6 +5,7 @@ set_option top cpu
 set_option language_mode verilog
 set_option enableSV09 yes
 set_option enable_save_restore no
+set_option mthresh 8192
 
 current_goal Design_Read -top cpu
 

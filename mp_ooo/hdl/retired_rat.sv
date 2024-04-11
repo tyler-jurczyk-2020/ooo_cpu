@@ -20,14 +20,14 @@ import rv32i_types::*;
 logic [5:0] data [32]; // array of rats in the retired rat state
 
 // NOT CORRECT FOR SS > 1 !!!
-assign push_to_free_list = retire_we && rob_info[0].inst.rd_s;
+assign push_to_free_list = retire_we && (rob_info[0].inst.rd_s != 5'b0);
 
 always_ff @(posedge clk) begin
     for(int i = 0; i < SS; i++) begin
         if (rst) begin
             // reset all the mfing entries
             for(int i = 0; i < 32; i++) 
-                data[i] = i[5:0];
+                data[i] <= 6'(i);
         end
         else if(retire_we && rob_info[i].inst.rd_s != 5'b0) begin
             // update retired rat based on instr's reg mapping

@@ -62,19 +62,19 @@ module rob
         end
 
         //MUL
-        for(int i = N_ALU; i < N_ALU + N_MUL; i++) begin
-            out_bitmask[i] = 1'b1;
+        for(int i = 0; i < N_MUL; i++) begin
+            out_bitmask[N_ALU + i] = 1'b1;
             if(cdb.mul_out[i].ready_for_writeback) begin
-                rob_id_reg_select[i] = cdb.mul_out[i].inst_info.rob.rob_id[2:0]; // Need to fix
-                rob_entry_in[i] = cdb.mul_out[i].inst_info;
-                rob_entry_in[i].rob.commit = 1'b1;
-                bitmask[i] = 1'b1; 
+                rob_id_reg_select[N_ALU + i] = cdb.mul_out[i].inst_info.rob.rob_id[2:0]; // Need to fix
+                rob_entry_in[N_ALU + i] = cdb.mul_out[i].inst_info;
+                rob_entry_in[N_ALU + i].rob.commit = 1'b1;
+                bitmask[N_ALU + i] = 1'b1; 
             end
             // to fix lint warnings
             else begin
-                rob_id_reg_select[i] = 'x;
-                rob_entry_in[i] = 'x;
-                bitmask[i] = 1'b0;
+                rob_id_reg_select[N_ALU + i] = 'x;
+                rob_entry_in[N_ALU + i] = 'x;
+                bitmask[N_ALU + i] = 1'b0;
             end
         end
     end
@@ -86,8 +86,8 @@ module rob
             // setting up to read the first SS entries in the rob
             //inspect_queue[i].rob.commit = cdb[i].inst_info.reservation_entry.rob.commit;
             pop_from_rob &= inspect_queue[i].rob.commit && !rob_empty; //pop from queue if instr at the head is ready to commit
-            rob_id_next[i] = head + i[$clog2(ROB_DEPTH)-1:0];
-            rob_id_out[i] = tail + i[$clog2(ROB_DEPTH)-1:0];
+            rob_id_next[i] = head + ($clog2(ROB_DEPTH)-1)'(i);
+            rob_id_out[i] = tail + ($clog2(ROB_DEPTH)-1)'(i);
 
             // Check each ss slot if an instruction has been dispatched
             if (avail_inst)begin     
@@ -95,14 +95,13 @@ module rob
                 rob_request[i].rd_en = 1'b1; 
                 rob_request[i].rd_s = dispatch_info[i].rat.rd; // Need to get PR not ISA reg
                 rob_request[i].rd_v.ROB_ID = rob_id_next[i];
+                rob_request[i].rd_v.dependency = 'x;
+                rob_request[i].rd_v.register_value = 'x;
             end
             else begin
+                rob_request[i].rd_s = 'x;
                 rob_request[i].rd_en = 1'b0;
-                for(int i = 0; i < SS; i++) begin
-                    rob_request[i].rd_s = 'x;
-                    rob_request[i].rd_en = 1'b0;
-                    rob_request[i].rd_v = 'x; 
-                end
+                rob_request[i].rd_v = 'x; 
             end
         end
     end

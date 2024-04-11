@@ -82,7 +82,7 @@ module id_stage
 
                 // using M extension for multiplication:
                 if (funct7 == 7'b0000001)begin
-                    unique case (funct7)
+                    unique case (funct3)
                         3'b000, 3'b001: begin// mulh: signed * signed
                             instruction_info.mul_type = 2'b01; // signed multiplication
                             
@@ -93,6 +93,7 @@ module id_stage
                         3'b011: begin// mulhu: unsigned * unsigned
                             instruction_info.mul_type = 2'b00; // unsigned multiplication
                         end
+                        default : instruction_info.mul_type = 'x;
                     endcase
                     instruction_info.is_mul = 1'b1; // this instr is multiplying
                     instruction_info.alu_en = '0;
