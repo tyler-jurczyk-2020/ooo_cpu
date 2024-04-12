@@ -13,11 +13,11 @@ module top_tb;
     int timeout = 10000; // in cycles, change according to your needs
 
     // Explicit dual port connections when caches are not integrated into design yet (Before CP3)
-    /*
+    
     mem_itf mem_itf_i(.*);
     mem_itf mem_itf_d(.*);
-    magic_dual_port mem(.itf_i(mem_itf_i), .itf_d(mem_itf_d));
-    */
+    // magic_dual_port mem(.itf_i(mem_itf_i), .itf_d(mem_itf_d));
+    
 
     // Single memory port connection when caches are integrated into design (CP3 and after)
     banked_mem_itf bmem_itf(.*);

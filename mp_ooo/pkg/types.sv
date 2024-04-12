@@ -151,7 +151,7 @@ package rv32i_types;
        // Hardcoded ROB depth so it compiles
        // ROB entries to refer to for dependency
     } rob_t;
-    
+
     typedef struct packed {
        logic input1_met; 
        logic input2_met; 
@@ -177,7 +177,7 @@ package rv32i_types;
         ALU_T,
         MUL_T
     } reservation_table_type_t;
-            
+
     typedef struct packed {
         logic [31:0] register_value; 
        // Hardcoded ROB depth so it compiles
@@ -220,11 +220,9 @@ package rv32i_types;
         logic [31:0] b; 
         logic start; 
     } multiply_FUs_t; 
-
 endpackage
 
 package cache_types;
-
     typedef enum bit [1:0] {
         idle_s,
         compare_tag_s,
@@ -239,5 +237,4 @@ package cache_types;
         D = 3'b011,
         F = 3'b111
     } way_t;
-
 endpackage

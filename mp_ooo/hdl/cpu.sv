@@ -9,23 +9,8 @@ import rv32i_types::*;
     parameter DIM_SEL = 1
 )
 (
-    // Explicit dual port connections when caches are not integrated into design yet (Before CP3)
     input   logic           clk,
     input   logic           rst,
-
-    /*
-    output  logic   [31:0]  imem_addr,
-    output  logic   [3:0]   imem_rmask,
-    input   logic   [31:0]  imem_rdata,
-    input   logic           imem_resp,
-
-    output  logic   [31:0]  dmem_addr,
-    output  logic   [3:0]   dmem_rmask,
-    output  logic   [3:0]   dmem_wmask,
-    input   logic   [31:0]  dmem_rdata,
-    output  logic   [31:0]  dmem_wdata,
-    input   logic           dmem_resp
-    */
 
     // Single memory port connection when caches are integrated into design (CP3 and after)
     output logic   [31:0]      bmem_addr,
@@ -39,21 +24,68 @@ import rv32i_types::*;
     input logic               bmem_rvalid
 );
 
+// imem interface signals
+logic   [31:0]  imem_addr;
+logic           imem_rmask;
+logic   [255:0]  imem_rdata;
+logic           imem_resp;
+// dmem interface signals
+logic   [31:0]  dmem_addr;
+logic           dmem_rmask;
+logic   [3:0]   dmem_wmask;
+logic   [31:0]  dmem_rdata;
+logic   [31:0]  dmem_wdata;
+logic           dmem_resp;
+
 ///////////////////// CACHE /////////////////////
 // Instantiate caches here
+sdram_mem_itf bmem_itf
+(
+    .clk(clk),
+    .rst(rst),
+
+    .addr(bmem_addr),
+    .read(bmem_read),
+    .write(bmem_write),
+    .wdata(bmem_wdata),
+    .ready(bmem_ready),
+    .raddr(bmem_raddr),
+    .rdata(bmem_rdata),
+    .rvalid(bmem_rvalid)
+);
+
+inst_mem_itf imem_itf
+(
+    .clk(clk),
+    .rst(rst),
+
+    .addr(imem_addr),
+    .rmask(imem_rmask),
+    .rdata(imem_rdata),
+    .resp(imem_resp)
+);
+
+data_mem_itf dmem_itf
+(
+    .clk(clk),
+    .rst(rst),
+
+    .addr(dmem_addr),
+    .rmask(dmem_rmask),
+    .wmask(dmem_wmask),
+    .rdata(dmem_rdata),
+    .wdata(dmem_wdata),
+    .resp(dmem_resp)
+);
+
+cache_arbiter ca(.bmem_itf(bmem_itf), .imem_itf(imem_itf), .dmem_itf(dmem_itf));
 
 ///////////////////// INSTRUCTION QUEUE /////////////////////
-
 logic inst_queue_full;
 // says that two instructions are ready for the instruction queue
-logic valid_buffer_flag;
 fetch_output_reg_t if_id_reg, if_id_reg_next;
-// two valid instructions for SS
-instruction_info_reg_t valid_inst[SS];
-// singular decoded inst output from decode stage
-instruction_info_reg_t decoded_inst;
-// says that a instruction is reoutputady for the buffer
-logic valid_inst_flag;
+// Parsed out decoded cacheline
+instruction_info_reg_t decoded_inst [8];
 
 // logic dummy read
 logic [31:0] d_dmem_rdata;
@@ -61,12 +93,12 @@ logic d_dmem_resp;
 assign d_dmem_rdata = dmem_rdata;
 assign d_dmem_resp = dmem_resp;
 
-// Dummy assign 
+// Dummy assign
 assign dmem_addr = '0;
 assign dmem_wdata = '0;
 
 // Dummy instruction assigns
-logic [SS-1:0] d_bitmask; 
+logic [SS-1:0] d_bitmask;
 logic [$clog2(DEPTH)-1:0] d_reg_sel [SS];
 instruction_info_reg_t d_reg_in [SS];
 always_comb begin
@@ -77,28 +109,32 @@ always_comb begin
     end
 end
 
-// Instruction Queue:
+logic [31:0] pc_reg;
+// Decoding 8 instructions
+generate
+    for(genvar i = 0; i < 8; i++) begin : parallel_decode
+        id_stage id_stage_i (
+            .pc_curr(pc_reg + 4*i),
+            .imem_rdata(imem_itf.rdata[32*i+:32]),
+            .instruction_info(decoded_inst[i])
+        );
+    end
+endgenerate
+
+// Instruction Queue(8 decoded instructions):
 instruction_info_reg_t instruction [SS];
 logic inst_q_empty, pop_inst_q;
-circular_queue #(.SS(SS), .SEL_IN(SS), .SEL_OUT(SS), .DEPTH(DEPTH)) instruction_queue
-                (.clk(clk), .rst(rst), // Defaults to instruction queue type
-                 .full(inst_queue_full), .in(valid_inst),
+circular_queue #(.SS(SS), .IN_WIDTH(8), .SEL_IN(SS), .SEL_OUT(SS), .DEPTH(DEPTH)) instruction_queue
+                (.clk(clk), .rst(rst),
+                 .full(inst_queue_full), .in(decoded_inst),
                  .out(instruction),
-                 .push(valid_buffer_flag), .pop(pop_inst_q), .empty(inst_q_empty),
-                 .out_bitmask(d_bitmask), .in_bitmask(d_bitmask), .reg_select_in(d_reg_sel), .reg_select_out(d_reg_sel), .reg_in(d_reg_in));
-                // planning on passing dummy shit or 0 into reg_select shit 
+                 .push(), .pop(pop_inst_q), .empty(inst_q_empty),
+                 .out_bitmask(d_bitmask), .in_bitmask(d_bitmask),
+                 .reg_select_in(d_reg_sel),.reg_select_out(d_reg_sel),.reg_in(d_reg_in)
+                );
+                // planning on passing dummy shit or 0 into reg_select shit
 
 ///////////////////// INSTRUCTION FETCH (SIMILAR TO MP2) /////////////////////
-logic reset_hack;
-
-always_ff @(posedge clk) begin
-    if(rst)
-        reset_hack <= 1'b1;
-    else if((imem_resp && ~inst_queue_full) || reset_hack)
-        if_id_reg <= if_id_reg_next;
-    else
-        reset_hack <= 1'b0;
-end
 
 fetch_stage fetch_stage_i (
     .clk(clk),
@@ -106,35 +142,14 @@ fetch_stage fetch_stage_i (
     .predict_branch('0), // Change this later
     .stall_inst(inst_queue_full), 
     .imem_resp(imem_resp), 
-    .reset_hack(reset_hack),
     .branch_pc('0), // Change thveribleis later
-    .fetch_output(if_id_reg_next)    
-);
-
-id_stage id_stage_i (
-    .fetch_output(if_id_reg),
-    // this is all ur fault J soumil u r slow
-    // watch the fucking lectures u actual cocksucker imma touch u imma still touch u 
-    .imem_rdata(imem_rdata),
-    .instruction_info(decoded_inst)
-);
-
-two_inst_buff #(.SS(SS)) buff (
-    .clk(clk), 
-    .rst(rst), 
-    .valid(valid_inst_flag), 
-    .decoded_inst(decoded_inst), 
-    .valid_inst(valid_inst), 
-    .valid_out(valid_buffer_flag)
+    .pc_reg(pc_reg)
 );
 
 
-always_comb begin
-    if(imem_resp && ~inst_queue_full)
-        valid_inst_flag = 1'b1;
-    else
-        valid_inst_flag = 1'b0;
-end
+        // this is all ur fault J 
+        // P.S. soumil u r slow
+
 
 cdb_t cdb;
 fu_output_t alu_output [N_ALU], mul_output [N_MUL];
@@ -169,7 +184,7 @@ physical_reg_response_t alu_reg_data [N_ALU], mul_reg_data [N_MUL];
 phys_reg_file #(.SS(SS), .TABLE_ENTRIES(TABLE_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) reg_file (
                 .clk(clk), .rst(rst), .regf_we('1), 
                 .cdb(cdb),
-                .rob_request(rob_request),          
+                .rob_request(rob_request),
                 .dispatch_request(dispatch_request), .dispatch_reg_data(dispatch_reg_data), 
                 .alu_request(alu_request), .alu_reg_data(alu_reg_data),
                 .mul_request(mul_request), .mul_reg_data(mul_reg_data)
@@ -312,7 +327,7 @@ rob #(.SS(SS), .ROB_DEPTH(ROB_DEPTH)) rb(.clk(clk), .rst(rst),
 // MODULE INPUTS DECLARATION 
 
 // MODULE OUTPUT DECLARATION
-                           
+
 fu_input_t inst_for_fu_alu [N_ALU]; 
 logic alu_table_full; 
 logic FU_ready_alu [N_ALU];
@@ -323,9 +338,7 @@ always_comb begin
 end
 
 
-// MODULE INSTANTIATION       
-
-            
+// MODULE INSTANTIATION
 reservation_table #(.SS(SS), .REQUEST(N_ALU), .TABLE_TYPE(ALU_T), .reservation_table_size(reservation_table_size), 
        .ROB_DEPTH(ROB_DEPTH)) alu_table(.clk(clk), .rst(rst),
                                         .dispatched(rs_rob_entry), // Dispatched shit
@@ -363,14 +376,11 @@ endgenerate
 logic FU_ready [N_MUL];
 
 // MODULE OUTPUT DECLARATION
-                           
 fu_input_t inst_for_fu_mult [N_MUL]; 
 logic mult_table_full; 
 
 
-// MODULE INSTANTIATION       
-
-            
+// MODULE INSTANTIATION
 reservation_table #(.SS(SS), .REQUEST(N_MUL), .reservation_table_size(reservation_table_size), 
         .ROB_DEPTH(ROB_DEPTH), .TABLE_TYPE(MUL_T)) mult_table(.clk(clk), .rst(rst),
                                                             .dispatched(rs_rob_entry), // Dispatched shit
@@ -403,7 +413,7 @@ end
 endgenerate
 
 // Temporary:
-assign dmem_rmask = 4'b0;
+assign dmem_rmask = 1'b0;
 assign dmem_wmask = 4'b0;
 
 // //RVFI Signals

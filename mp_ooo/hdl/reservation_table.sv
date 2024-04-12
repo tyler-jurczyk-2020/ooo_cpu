@@ -58,7 +58,7 @@ module reservation_table
                             reservation_table[j].rs_entry.full <= '1; 
                             // MUST break because otherwise the entry will be put in to every available spot in the table
                             // Go next dispatched instruction
-                            break; 
+                            break;
                         end
                     end
                 end
@@ -108,11 +108,10 @@ always_comb begin
                 end
             end
         end
-    
         // Table full
         table_full = '0; 
         if(32'(counter) >= unsigned'(ROB_DEPTH-SS)) begin // Probably need to fix width
-            table_full = '1; 
+            table_full = '1;
         end
     end
     

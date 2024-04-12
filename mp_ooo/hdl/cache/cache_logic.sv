@@ -3,7 +3,8 @@ import cache_types::*;
 #(
     parameter               WAYS       = 4,
     parameter               TAG_SIZE   = 24,
-    parameter               CACHE_LINE_SIZE = 256
+    parameter               CACHE_LINE_SIZE = 256,
+    parameter               READ_SIZE = 32
 )
 (
     input logic clk, rst, mem_resp,
@@ -14,7 +15,8 @@ import cache_types::*;
     input logic [TAG_SIZE-1:0] ways_tags [WAYS],
     input logic [CACHE_LINE_SIZE-1:0] ways_lines [WAYS],
     input state_t state,
-    input logic [3:0] rmask, wmask,
+    input logic rmask,
+    input logic [3:0] wmask,
     input logic [2:0] plru_bits,
     input logic [4:0] offset,
 
@@ -32,7 +34,7 @@ import cache_types::*;
     output logic [TAG_SIZE-1:0] set_ways_tags [WAYS],
     output logic [31:0] wb_mask,
     // Cpu driving signals
-    output logic [31:0] cpu_data,
+    output logic [READ_SIZE-1:0] cpu_data,
     output logic cpu_resp,
     // Drive address computation
     output logic [31:0] set_way,
@@ -61,7 +63,7 @@ always_comb begin
         if(wmask != 4'b0)
             cpu_data = 'x;
         else
-            cpu_data = ways_lines[way_hit][8*offset+:32];
+            cpu_data = ways_lines[way_hit][8*offset+:READ_SIZE];
         cpu_resp = 1'b1;
         update_plru = 1'b1;
     end

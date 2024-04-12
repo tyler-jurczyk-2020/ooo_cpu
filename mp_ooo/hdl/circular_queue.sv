@@ -4,13 +4,14 @@ import rv32i_types::*;
     type QUEUE_TYPE = instruction_info_reg_t,
     parameter initialization_t INIT_TYPE = ZERO,
     parameter SS = 2,
+    parameter IN_WIDTH = SS, 
     parameter SEL_IN = 2,
     parameter SEL_OUT = 2,
     parameter DEPTH = 4
 )(
     input logic clk, rst, 
     input logic push, pop,
-    input QUEUE_TYPE in [SS], // Values pushed in
+    input QUEUE_TYPE in [IN_WIDTH], // Values pushed in
     input QUEUE_TYPE reg_in [SEL_IN], // Values used to modify entries
     
     input logic [$clog2(DEPTH)-1:0] reg_select_in [SEL_IN], reg_select_out [SEL_OUT],
@@ -27,7 +28,7 @@ import rv32i_types::*;
 
 QUEUE_TYPE entries [DEPTH];
 logic [$clog2(DEPTH):0] head, tail, head_next, tail_next, head_spec; // One bit to differentiate between full/empty
-logic [31:0] sext_head, sext_tail, sext_amount;
+logic [31:0] sext_head, sext_tail, sext_amount, sext_amount_in;
 
 assign head_out = head[$clog2(DEPTH)-1:0];
 assign tail_out = tail[$clog2(DEPTH)-1:0];
@@ -39,6 +40,7 @@ assign empty = (head == tail);
 assign sext_head = {{(32-$clog2(DEPTH)-1){1'b0}}, head[$clog2(DEPTH)-1:0]}; // Excludes top bit so queue is indexed properly
 assign sext_tail = {{(32-$clog2(DEPTH)-1){1'b0}}, tail[$clog2(DEPTH)-1:0]};
 assign sext_amount = (2'h1 << (SS - 1));
+assign sext_amount_in = 32'h8; 
 
 assign head_next = head + {{($clog2(DEPTH)-1){1'b0}}, (2'h1 << (SS - 1))};
 assign tail_next = tail + {{($clog2(DEPTH)-1){1'b0}}, (2'h1 << (SS - 1))};
@@ -69,7 +71,7 @@ always_ff @(posedge clk) begin
         if(push) begin
             head <= head_next;
             for(int unsigned i = 0; i < DEPTH; i++) begin
-                if(i < sext_head + sext_amount && i >= sext_head)
+                if(i < sext_head + sext_amount_in && i >= sext_head)
                     entries[i] <= in[i - sext_head];
             end
         end

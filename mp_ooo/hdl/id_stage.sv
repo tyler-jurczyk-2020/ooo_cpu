@@ -1,9 +1,9 @@
 module id_stage
     import rv32i_types::*;
     (   
-        input fetch_output_reg_t fetch_output, 
 
-        input [31:0] imem_rdata,
+        input logic [31:0] imem_rdata,
+        input logic [31:0] pc_curr,
 
         output instruction_info_reg_t instruction_info
     );
@@ -68,11 +68,14 @@ module id_stage
         instruction_info.cmp_operation = funct3;
         instruction_info.inst = imem_rdata;
 
-        instruction_info.pc_curr = fetch_output.fetch_pc_curr; 
-        instruction_info.pc_next = fetch_output.fetch_pc_next; 
+        instruction_info.pc_curr = pc_curr; 
+    // Not considering branches for now
+        instruction_info.pc_next = pc_curr + 4; 
 
         instruction_info.is_mul = 1'b0;
         instruction_info.mul_type = 'x;
+
+
 
 
         unique case (opcode) 
@@ -85,7 +88,6 @@ module id_stage
                     unique case (funct3)
                         3'b000, 3'b001: begin// mulh: signed * signed
                             instruction_info.mul_type = 2'b01; // signed multiplication
-                            
                         end
                         3'b010: begin// mulhsu: signed * unsigned
                             instruction_info.mul_type = 2'b10; // mixed un/signed multiplication

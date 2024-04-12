@@ -19,7 +19,7 @@ module dispatcher
         input logic rob_full,
 
         // inst input from the inst queue
-        input instruction_info_reg_t inst [SS], 
+        input instruction_info_reg_t inst [SS],
 
         // Acquire RAT Mapping
         output logic [4:0] isa_rs1 [SS], 

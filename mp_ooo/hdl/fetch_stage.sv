@@ -8,15 +8,21 @@ module fetch_stage
         // If for any reason we have to stall feeding the instruction queue
         input logic stall_inst,
         input logic imem_resp, 
-        // Cheap reset hack
-        input logic reset_hack,
         // Our new PC if we have to branch 
-        input logic [31:0] branch_pc, 
+        input logic [31:0] branch_pc,
         // PC to fetch
-        output fetch_output_reg_t fetch_output
+        output logic [31:0] pc_reg
     );
+    
+    logic reset_hack;
 
-    logic [31:0] pc_reg; 
+    always_ff @(posedge clk) begin
+        if(rst)
+            reset_hack <= 1'b1;
+        else
+            reset_hack <= 1'b0;
+    end
+
 
     always_ff @ (posedge clk) begin
         if(rst) begin
@@ -35,7 +41,4 @@ module fetch_stage
         end
     end
 
-    assign fetch_output.fetch_pc_curr = pc_reg; 
-    assign fetch_output.fetch_pc_next = pc_reg + 32'd4; 
-    
     endmodule : fetch_stage
