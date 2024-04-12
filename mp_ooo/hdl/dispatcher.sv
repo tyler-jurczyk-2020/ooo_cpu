@@ -67,7 +67,7 @@ module dispatcher
     assign pop_inst_q = ~rs_full && ~inst_q_empty && ~rob_full; 
     
     always_comb begin
-        if(pop_inst_q) begin
+        if(avail_inst) begin
             // need to build rat signals, rvfi signals
 
             for(int i = 0; i < SS; i++) begin

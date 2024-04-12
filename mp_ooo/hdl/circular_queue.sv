@@ -28,7 +28,7 @@ import rv32i_types::*;
 
 QUEUE_TYPE entries [DEPTH];
 logic [$clog2(DEPTH):0] head, tail, head_next, tail_next, head_spec; // One bit to differentiate between full/empty
-logic [31:0] sext_head, sext_tail, sext_amount, sext_amount_in;
+logic [31:0] sext_head, sext_tail, sext_amount, sext_amount_in, sext_amount_out;
 
 assign head_out = head[$clog2(DEPTH)-1:0];
 assign tail_out = tail[$clog2(DEPTH)-1:0];
@@ -40,10 +40,10 @@ assign empty = (head == tail);
 assign sext_head = {{(32-$clog2(DEPTH)-1){1'b0}}, head[$clog2(DEPTH)-1:0]}; // Excludes top bit so queue is indexed properly
 assign sext_tail = {{(32-$clog2(DEPTH)-1){1'b0}}, tail[$clog2(DEPTH)-1:0]};
 assign sext_amount = (2'h1 << (SS - 1));
-assign sext_amount_in = 32'h8; 
+assign sext_amount_in = 32'(IN_WIDTH);
 
-assign head_next = head + {{($clog2(DEPTH)-1){1'b0}}, (2'h1 << (SS - 1))};
-assign tail_next = tail + {{($clog2(DEPTH)-1){1'b0}}, (2'h1 << (SS - 1))};
+assign head_next = head + {sext_amount_in[$clog2(DEPTH):0]};
+assign tail_next = tail + {sext_amount[$clog2(DEPTH):0]};
 
 always_comb begin
     if(~push)

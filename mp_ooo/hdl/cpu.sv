@@ -84,7 +84,7 @@ assign dmem_wdata = '0;
 
 // Dummy instruction assigns
 logic [SS-1:0] d_bitmask;
-logic [$clog2(DEPTH)-1:0] d_reg_sel [SS];
+logic [$clog2(16)-1:0] d_reg_sel [SS];
 instruction_info_reg_t d_reg_in [SS];
 always_comb begin
     d_bitmask = '0;
@@ -110,7 +110,7 @@ endgenerate
 // Instruction Queue(8 decoded instructions):
 instruction_info_reg_t instruction [SS];
 logic inst_q_empty, pop_inst_q;
-circular_queue #(.SS(SS), .IN_WIDTH(8), .SEL_IN(SS), .SEL_OUT(SS), .DEPTH(DEPTH)) instruction_queue
+circular_queue #(.SS(SS), .IN_WIDTH(8), .SEL_IN(SS), .SEL_OUT(SS), .DEPTH(16)) instruction_queue
                 (.clk(clk), .rst(rst),
                  .full(inst_queue_full), .in(decoded_inst),
                  .out(instruction),
