@@ -1,4 +1,5 @@
 read_file -type verilog $env(PKG_SRCS) $env(HDL_SRCS)
+read_file -type gateslibdb $env(SRAM_LIB)
 read_file -type awl lint.awl
 
 set_option top cpu

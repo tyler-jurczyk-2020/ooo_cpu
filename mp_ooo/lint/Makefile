@@ -3,6 +3,7 @@ SHELL=/bin/bash -o pipefail
 
 export PKG_SRCS = $(PWD)/../pkg/types.sv
 export HDL_SRCS = $(shell find $(PWD)/../hdl -name '*.sv')
+export SRAM_LIB = $(shell find $(PWD)/../sram/output/ -name "*.db")
 
 .PHONY: lint
 lint: clean

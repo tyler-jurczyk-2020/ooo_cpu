@@ -26,15 +26,11 @@ import rv32i_types::*;
 // imem interface signals
 logic   [31:0]  imem_addr;
 logic           imem_rmask;
-logic   [255:0]  imem_rdata;
-logic           imem_resp;
 // dmem interface signals
 logic   [31:0]  dmem_addr;
 logic           dmem_rmask;
 logic   [3:0]   dmem_wmask;
-logic   [31:0]  dmem_rdata;
 logic   [31:0]  dmem_wdata;
-logic           dmem_resp;
 
 ///////////////////// CACHE /////////////////////
 // Instantiate caches here
@@ -59,9 +55,7 @@ inst_mem_itf imem_itf
     .rst(rst),
 
     .addr(imem_addr),
-    .rmask(imem_rmask),
-    .rdata(imem_rdata),
-    .resp(imem_resp)
+    .rmask(imem_rmask)
 );
 
 data_mem_itf dmem_itf
@@ -72,9 +66,7 @@ data_mem_itf dmem_itf
     .addr(dmem_addr),
     .rmask(dmem_rmask),
     .wmask(dmem_wmask),
-    .rdata(dmem_rdata),
-    .wdata(dmem_wdata),
-    .resp(dmem_resp)
+    .wdata(dmem_wdata)
 );
 
 cache_arbiter ca(.clk(clk), .rst(rst), .bmem_itf(bmem_itf), .imem_itf(imem_itf), .dmem_itf(dmem_itf));
@@ -85,12 +77,6 @@ logic inst_queue_full;
 fetch_output_reg_t if_id_reg, if_id_reg_next;
 // Parsed out decoded cacheline
 instruction_info_reg_t decoded_inst [8];
-
-// logic dummy read
-logic [31:0] d_dmem_rdata;
-logic d_dmem_resp;
-assign d_dmem_rdata = dmem_rdata;
-assign d_dmem_resp = dmem_resp;
 
 // Dummy assign
 assign dmem_addr = '0;
@@ -114,7 +100,7 @@ logic [31:0] pc_reg;
 generate
     for(genvar i = 0; i < 8; i++) begin : parallel_decode
         id_stage id_stage_i (
-            .pc_curr(pc_reg + 4*i),
+            .pc_curr(pc_reg + unsigned'(4*i)),
             .imem_rdata(imem_itf.rdata[32*i+:32]),
             .instruction_info(decoded_inst[i])
         );
@@ -128,7 +114,7 @@ circular_queue #(.SS(SS), .IN_WIDTH(8), .SEL_IN(SS), .SEL_OUT(SS), .DEPTH(DEPTH)
                 (.clk(clk), .rst(rst),
                  .full(inst_queue_full), .in(decoded_inst),
                  .out(instruction),
-                 .push(), .pop(pop_inst_q), .empty(inst_q_empty),
+                 .push(imem_itf.resp), .pop(pop_inst_q), .empty(inst_q_empty),
                  .out_bitmask(d_bitmask), .in_bitmask(d_bitmask),
                  .reg_select_in(d_reg_sel),.reg_select_out(d_reg_sel),.reg_in(d_reg_in)
                 );
@@ -141,7 +127,7 @@ fetch_stage fetch_stage_i (
     .rst(rst),
     .predict_branch('0), // Change this later
     .stall_inst(inst_queue_full), 
-    .imem_resp(imem_resp), 
+    .imem_resp(imem_itf.resp), 
     .branch_pc('0), // Change thveribleis later
     .pc_reg(pc_reg),
     .imem_rmask(imem_rmask),

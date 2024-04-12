@@ -120,7 +120,7 @@ always_ff @(posedge clk) begin
             break;
         end
         else if(address_table[i][33] && address_table[i][31:0] == bmem_itf.raddr && counter == 3'h3) begin
-            address_table[i][33] = 1'b0;
+            address_table[i][33] <= 1'b0;
             break;
         end
     end
@@ -159,6 +159,7 @@ end
 always_comb begin
     // Data on the previous cycle that wasn't serviced
     if(latch_data_bmem) begin
+        bmem_itf.addr = data_bmem_addr;
         // reading & writing data
         if(data_bmem_read) begin
             bmem_itf.read = data_bmem_read;
@@ -167,6 +168,11 @@ always_comb begin
         else if(data_bmem_write) begin
             bmem_itf.read = '0;
             bmem_itf.write = data_bmem_write;
+        end
+        // Should never hit this
+        else begin
+            bmem_itf.read = 'x;
+            bmem_itf.write = 'x;
         end
     end
     // Otherwise always service instruction request first
@@ -186,6 +192,11 @@ always_comb begin
         else if(data_bmem_write) begin
             bmem_itf.read = '0;
             bmem_itf.write = data_bmem_write;
+        end
+        // Should never hit this
+        else begin
+            bmem_itf.read = 'x;
+            bmem_itf.write = 'x;
         end
     end
     // When we have nothing to do
