@@ -24,52 +24,44 @@ import rv32i_types::*;
 );
 
 // imem interface signals
-logic   [31:0]  imem_addr;
-logic           imem_rmask;
+logic   [31:0]   imem_addr;
+logic            imem_rmask;
+logic    [255:0] imem_rdata;
+logic            imem_resp;
+
 // dmem interface signals
 logic   [31:0]  dmem_addr;
 logic           dmem_rmask;
 logic   [3:0]   dmem_wmask;
+logic   [31:0]  dmem_rdata;
 logic   [31:0]  dmem_wdata;
+logic           dmem_resp;
 
 ///////////////////// CACHE /////////////////////
 // Instantiate caches here
-sdram_mem_itf bmem_itf
-(
-    .clk(clk),
-    .rst(rst),
 
-    .addr(bmem_addr),
-    .read(bmem_read),
-    .write(bmem_write),
-    .wdata(bmem_wdata),
-    .ready(bmem_ready),
-    .raddr(bmem_raddr),
-    .rdata(bmem_rdata),
-    .rvalid(bmem_rvalid)
+cache_arbiter ca(.clk(clk), .rst(rst),
+                .bmem_itf_addr(bmem_addr),
+                .bmem_itf_read(bmem_read) ,
+                .bmem_itf_write(bmem_write),
+                .bmem_itf_wdata(bmem_wdata),
+                .bmem_itf_ready(bmem_ready),
+                .bmem_itf_raddr(bmem_raddr),
+                .bmem_itf_rdata(bmem_rdata),
+                .bmem_itf_rvalid(bmem_rvalid),
+
+                .imem_itf_addr(imem_addr),
+                .imem_itf_rmask(imem_rmask),
+                .imem_itf_rdata(imem_rdata),
+                .imem_itf_resp(imem_resp),
+                
+                .dmem_itf_addr(dmem_addr),
+                .dmem_itf_rmask(dmem_rmask),
+                .dmem_itf_wmask(dmem_wmask),
+                .dmem_itf_wdata(dmem_wdata),
+                .dmem_itf_rdata(dmem_rdata),
+                .dmem_itf_resp(dmem_resp)
 );
-
-inst_mem_itf imem_itf
-(
-    .clk(clk),
-    .rst(rst),
-
-    .addr(imem_addr),
-    .rmask(imem_rmask)
-);
-
-data_mem_itf dmem_itf
-(
-    .clk(clk),
-    .rst(rst),
-
-    .addr(dmem_addr),
-    .rmask(dmem_rmask),
-    .wmask(dmem_wmask),
-    .wdata(dmem_wdata)
-);
-
-cache_arbiter ca(.clk(clk), .rst(rst), .bmem_itf(bmem_itf), .imem_itf(imem_itf), .dmem_itf(dmem_itf));
 
 ///////////////////// INSTRUCTION QUEUE /////////////////////
 logic inst_queue_full;
@@ -97,11 +89,13 @@ end
 logic [31:0] pc_reg;
 
 // Decoding 8 instructions
+
+
 generate
     for(genvar i = 0; i < 8; i++) begin : parallel_decode
         id_stage id_stage_i (
             .pc_curr(pc_reg + unsigned'(4*i)),
-            .imem_rdata(imem_itf.rdata[32*i+:32]),
+            .imem_rdata(imem_rdata[32*i+:32]),
             .instruction_info(decoded_inst[i])
         );
     end
@@ -114,7 +108,7 @@ circular_queue #(.SS(SS), .IN_WIDTH(8), .SEL_IN(SS), .SEL_OUT(SS), .DEPTH(16)) i
                 (.clk(clk), .rst(rst),
                  .full(inst_queue_full), .in(decoded_inst),
                  .out(instruction),
-                 .push(imem_itf.resp), .pop(pop_inst_q), .empty(inst_q_empty),
+                 .push(imem_resp), .pop(pop_inst_q), .empty(inst_q_empty),
                  .out_bitmask(d_bitmask), .in_bitmask(d_bitmask),
                  .reg_select_in(d_reg_sel),.reg_select_out(d_reg_sel),.reg_in(d_reg_in)
                 );
@@ -127,7 +121,7 @@ fetch_stage fetch_stage_i (
     .rst(rst),
     .predict_branch('0), // Change this later
     .stall_inst(inst_queue_full), 
-    .imem_resp(imem_itf.resp), 
+    .imem_resp(imem_resp), 
     .branch_pc('0), // Change thveribleis later
     .pc_reg(pc_reg),
     .imem_rmask(imem_rmask),

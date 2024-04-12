@@ -1,9 +1,32 @@
 module cache_arbiter
 (
     input logic clk, rst,
-    sdram_mem_itf bmem_itf,
-    inst_mem_itf imem_itf,
-    data_mem_itf dmem_itf
+    
+    // Banked memory
+    output  logic   [31:0]  bmem_itf_addr,
+    output  logic           bmem_itf_read,
+    output  logic           bmem_itf_write,
+    output  logic   [63:0]  bmem_itf_wdata,
+    input   logic           bmem_itf_ready,
+
+    input   logic   [63:0]  bmem_itf_rdata,
+    input   logic   [31:0]  bmem_itf_raddr,
+    input   logic           bmem_itf_rvalid,
+
+    // Data Memory
+    input  logic    [31:0]   dmem_itf_addr,
+    input  logic             dmem_itf_rmask,
+    input  logic    [3:0]    dmem_itf_wmask,
+    output logic    [31:0]   dmem_itf_rdata,
+    input  logic    [31:0]   dmem_itf_wdata,
+    output logic             dmem_itf_resp,
+
+    // Instruction Memory
+    input  logic    [31:0]   imem_itf_addr,
+    input  logic             imem_itf_rmask,
+    output logic    [255:0]  imem_itf_rdata,
+    output logic             imem_itf_resp
+
 );
 
 // banked mem model for instructions
@@ -27,12 +50,12 @@ cache #(.READ_SIZE(256)) inst_cache
     .clk(clk),
     .rst(rst),
 
-    .ufp_addr(imem_itf.addr),
-    .ufp_rmask(imem_itf.rmask),
+    .ufp_addr(imem_itf_addr),
+    .ufp_rmask(imem_itf_rmask),
     .ufp_wmask('0),
-    .ufp_rdata(imem_itf.rdata),
+    .ufp_rdata(imem_itf_rdata),
     .ufp_wdata('x),
-    .ufp_resp(imem_itf.resp),
+    .ufp_resp(imem_itf_resp),
 
     .dfp_addr(instr_bmem_addr),
     .dfp_read(instr_bmem_read),
@@ -47,12 +70,12 @@ cache data_cache
     .clk(clk),
     .rst(rst),
 
-    .ufp_addr(dmem_itf.addr),
-    .ufp_rmask(dmem_itf.rmask),
-    .ufp_wmask(dmem_itf.wmask),
-    .ufp_rdata(dmem_itf.rdata),
-    .ufp_wdata(dmem_itf.wdata),
-    .ufp_resp(dmem_itf.resp),
+    .ufp_addr(dmem_itf_addr),
+    .ufp_rmask(dmem_itf_rmask),
+    .ufp_wmask(dmem_itf_wmask),
+    .ufp_rdata(dmem_itf_rdata),
+    .ufp_wdata(dmem_itf_wdata),
+    .ufp_resp(dmem_itf_resp),
 
     .dfp_addr(data_bmem_addr),
     .dfp_read(data_bmem_read),
@@ -62,6 +85,9 @@ cache data_cache
     .dfp_resp(data_bmem_rvalid)
 );
 
+// Dummy assign
+logic d_bmem_ready;
+assign d_bmem_ready = bmem_itf_ready;
 
 logic [63:0] dword_buffer [3]; // No need to buffer fourth entry since we can forward it immediately
 logic [2:0] counter;
@@ -69,9 +95,9 @@ logic [2:0] counter;
 always_ff @(posedge clk)begin
     if(rst)
         counter <= '0;
-    else if(bmem_itf.rvalid && counter < 3'h3) begin
+    else if(bmem_itf_rvalid && counter < 3'h3) begin
         counter <= counter + 1'd1;
-        dword_buffer[counter] <= bmem_itf.rdata;
+        dword_buffer[counter] <= bmem_itf_rdata;
     end
     else
         counter <= '0;
@@ -108,7 +134,7 @@ always_ff @(posedge clk) begin
         if(rst)begin
             address_table[i] <= '0;
         end
-        else if(~address_table[i][33] && bmem_itf.read && counter == 3'h0) begin
+        else if(~address_table[i][33] && bmem_itf_read && counter == 3'h0) begin
             if(latch_data_bmem)begin
                address_table[i] <= {1'b1, 1'b1, data_bmem_addr};
             end
@@ -119,7 +145,7 @@ always_ff @(posedge clk) begin
                 address_table[i] <= {1'b1, 1'b1, data_bmem_addr};
             break;
         end
-        else if(address_table[i][33] && address_table[i][31:0] == bmem_itf.raddr && counter == 3'h3) begin
+        else if(address_table[i][33] && address_table[i][31:0] == bmem_itf_raddr && counter == 3'h3) begin
             address_table[i][33] <= 1'b0;
             break;
         end
@@ -129,11 +155,11 @@ end
 // Send out data to correct cache once we receive it back
 always_comb begin
     for(int i = 0; i < 16; i++) begin
-        if(address_table[i][33] && address_table[i][31:0] == bmem_itf.raddr
+        if(address_table[i][33] && address_table[i][31:0] == bmem_itf_raddr
            && counter == 3'h3) begin
                 // Goes to data cache
                 if(address_table[i][32]) begin
-                    data_bmem_rdata = {bmem_itf.rdata, dword_buffer[2], dword_buffer[1], dword_buffer[0]};
+                    data_bmem_rdata = {bmem_itf_rdata, dword_buffer[2], dword_buffer[1], dword_buffer[0]};
                     data_bmem_rvalid = 1'b1;
                     instr_bmem_rdata = 'x;
                     instr_bmem_rvalid = 1'b0;
@@ -142,7 +168,7 @@ always_comb begin
                 else begin
                     data_bmem_rdata = 'x;
                     data_bmem_rvalid = 1'b0;
-                    instr_bmem_rdata = {bmem_itf.rdata, dword_buffer[2], dword_buffer[1], dword_buffer[0]};
+                    instr_bmem_rdata = {bmem_itf_rdata, dword_buffer[2], dword_buffer[1], dword_buffer[0]};
                     instr_bmem_rvalid = 1'b1;
                 end
                 break;
@@ -159,51 +185,59 @@ end
 always_comb begin
     // Data on the previous cycle that wasn't serviced
     if(latch_data_bmem) begin
-        bmem_itf.addr = data_bmem_addr;
+        bmem_itf_addr = data_bmem_addr;
         // reading & writing data
         if(data_bmem_read) begin
-            bmem_itf.read = data_bmem_read;
-            bmem_itf.write = '0;
+            bmem_itf_wdata = 'x;
+            bmem_itf_read = data_bmem_read;
+            bmem_itf_write = '0;
         end
         else if(data_bmem_write) begin
-            bmem_itf.read = '0;
-            bmem_itf.write = data_bmem_write;
+            bmem_itf_wdata = '1; // Need to actually set write data
+            bmem_itf_read = '0;
+            bmem_itf_write = data_bmem_write;
         end
         // Should never hit this
         else begin
-            bmem_itf.read = 'x;
-            bmem_itf.write = 'x;
+            bmem_itf_wdata = 'x;
+            bmem_itf_read = 'x;
+            bmem_itf_write = 'x;
         end
     end
     // Otherwise always service instruction request first
     else if(inst_request) begin
-        bmem_itf.addr = instr_bmem_addr;
-        bmem_itf.read = instr_bmem_read;
-        bmem_itf.write = '0;
+        bmem_itf_wdata = 'x;
+        bmem_itf_addr = instr_bmem_addr;
+        bmem_itf_read = instr_bmem_read;
+        bmem_itf_write = '0;
     end
     // Otherwise service data request
     else if(data_request) begin
-        bmem_itf.addr = data_bmem_addr;
+        bmem_itf_addr = data_bmem_addr;
         // reading & writing data
         if(data_bmem_read) begin
-            bmem_itf.read = data_bmem_read;
-            bmem_itf.write = '0;
+            bmem_itf_wdata = 'x;
+            bmem_itf_read = data_bmem_read;
+            bmem_itf_write = '0;
         end
         else if(data_bmem_write) begin
-            bmem_itf.read = '0;
-            bmem_itf.write = data_bmem_write;
+            bmem_itf_wdata = '1; // Need to actually set write data
+            bmem_itf_read = '0;
+            bmem_itf_write = data_bmem_write;
         end
         // Should never hit this
         else begin
-            bmem_itf.read = 'x;
-            bmem_itf.write = 'x;
+            bmem_itf_wdata = 'x;
+            bmem_itf_read = 'x;
+            bmem_itf_write = 'x;
         end
     end
     // When we have nothing to do
     else begin
-        bmem_itf.addr = 'x;
-        bmem_itf.read = '0;
-        bmem_itf.write = '0;
+        bmem_itf_wdata = 'x;
+        bmem_itf_addr = 'x;
+        bmem_itf_read = '0;
+        bmem_itf_write = '0;
     end
 end
 
