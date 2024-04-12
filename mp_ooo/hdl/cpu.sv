@@ -5,8 +5,7 @@ import rv32i_types::*;
     parameter PR_ENTRIES = 64,
     parameter reservation_table_size = 4,
     parameter DEPTH = 4,
-    parameter ROB_DEPTH = 8,
-    parameter DIM_SEL = 1
+    parameter ROB_DEPTH = 8
 )
 (
     input   logic           clk,
@@ -78,7 +77,7 @@ data_mem_itf dmem_itf
     .resp(dmem_resp)
 );
 
-cache_arbiter ca(.bmem_itf(bmem_itf), .imem_itf(imem_itf), .dmem_itf(dmem_itf));
+cache_arbiter ca(.clk(clk), .rst(rst), .bmem_itf(bmem_itf), .imem_itf(imem_itf), .dmem_itf(dmem_itf));
 
 ///////////////////// INSTRUCTION QUEUE /////////////////////
 logic inst_queue_full;
@@ -110,6 +109,7 @@ always_comb begin
 end
 
 logic [31:0] pc_reg;
+
 // Decoding 8 instructions
 generate
     for(genvar i = 0; i < 8; i++) begin : parallel_decode
@@ -143,7 +143,9 @@ fetch_stage fetch_stage_i (
     .stall_inst(inst_queue_full), 
     .imem_resp(imem_resp), 
     .branch_pc('0), // Change thveribleis later
-    .pc_reg(pc_reg)
+    .pc_reg(pc_reg),
+    .imem_rmask(imem_rmask),
+    .imem_addr(imem_addr)
 );
 
 
@@ -162,9 +164,6 @@ always_comb begin
         cdb.mul_out[i] = mul_output[i];
     end
 end
-
-assign imem_rmask = '1;
-assign imem_addr = if_id_reg_next.fetch_pc_curr;
 
 // Cycle 0: 
 ///////////////////// Rename/Dispatch: Physical Register File /////////////////////

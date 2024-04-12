@@ -11,8 +11,13 @@ module fetch_stage
         // Our new PC if we have to branch 
         input logic [31:0] branch_pc,
         // PC to fetch
-        output logic [31:0] pc_reg
+        output logic [31:0] pc_reg,
+        output logic imem_rmask,
+        output logic [31:0] imem_addr
     );
+
+    assign imem_rmask = 1'b1;
+    assign imem_addr = pc_reg;
     
     logic reset_hack;
 
@@ -29,10 +34,10 @@ module fetch_stage
             pc_reg <= 32'h60000000;
         end
         // if you are not stalling
-        else if((~stall_inst && imem_resp) || reset_hack) begin
+        else if((~stall_inst && imem_resp)) begin
             // if you are not branching
             if(~predict_branch) begin
-                pc_reg <= pc_reg + 32'd4; 
+                pc_reg <= pc_reg + 32'h20; 
             end
             // If you are branching
             else begin

@@ -15,11 +15,15 @@ import cache_types::*;
 );
 
 logic mem_resp_reg;
+logic pulse_read;
 
 always_ff @(posedge clk) begin
-    if(rst)
+    if(rst) begin
         mem_resp_reg <= 1'b0;
+        pulse_read <= 1'b0;
+    end
     else begin
+        pulse_read <= active;
         if(!mem_write)
             mem_resp_reg <= mem_resp;
     end
@@ -27,7 +31,7 @@ end
 
 always_comb begin
     // Send read request
-    if(active && !mem_resp_reg)
+    if(active && !mem_resp_reg && ~pulse_read)
         mem_read = 1'b1;
     else
         mem_read = 1'b0;

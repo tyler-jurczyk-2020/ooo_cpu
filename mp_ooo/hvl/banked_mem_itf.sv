@@ -65,21 +65,4 @@ interface banked_mem_itf(
     );
 
 
-    modport mem_inv (
-        input           clk,
-        input           rst,
-
-        output           addr,
-        output           read,
-        output           write,
-        output          wdata,
-        input          ready,
-
-        input          rdata,
-        input          raddr,
-        input          rvalid,
-
-        output          error
-    );
-
 endinterface

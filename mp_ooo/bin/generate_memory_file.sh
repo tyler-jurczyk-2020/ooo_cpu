@@ -9,7 +9,7 @@ ARCH=rv32im
 #   Burst Memory = 64 bits per address -> 8 byte ADDRESSABILITY
 #   Simple Memory = 256 bits per address -> 32 byte ADDRESSABILITY
 #   Banked Memory = 256 bits per address -> 32 byte ADDRESSABILITY
-ADDRESSABILITY=4
+ADDRESSABILITY=32
 
 # some other settings
 SH_LOCATION=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )

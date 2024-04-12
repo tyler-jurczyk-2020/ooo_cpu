@@ -11,7 +11,6 @@ logic   [31:0]      instr_bmem_addr;
 logic               instr_bmem_read;
 logic               instr_bmem_write;
 logic   [255:0]      instr_bmem_wdata;
-logic   [31:0]      instr_bmem_raddr;
 logic   [255:0]      instr_bmem_rdata;
 logic               instr_bmem_rvalid;
 
@@ -20,7 +19,6 @@ logic   [31:0]      data_bmem_addr;
 logic               data_bmem_read;
 logic               data_bmem_write;
 logic   [255:0]      data_bmem_wdata;
-logic   [31:0]      data_bmem_raddr;
 logic   [255:0]      data_bmem_rdata;
 logic               data_bmem_rvalid;
 
@@ -65,13 +63,13 @@ cache data_cache
 );
 
 
-logic [63:0] dword_buffer [4];
+logic [63:0] dword_buffer [3]; // No need to buffer fourth entry since we can forward it immediately
 logic [2:0] counter;
 
 always_ff @(posedge clk)begin
     if(rst)
         counter <= '0;
-    else if(bmem_itf.rvalid) begin
+    else if(bmem_itf.rvalid && counter < 3'h3) begin
         counter <= counter + 1'd1;
         dword_buffer[counter] <= bmem_itf.rdata;
     end
@@ -100,6 +98,7 @@ always_ff @(posedge clk)begin
     end
 end
 
+// Implement address table once cache can take more than one request
 // MSB is valid, next MSB is 0 if instruction or 1 if data
 logic [33:0] address_table [16];
 
@@ -109,7 +108,7 @@ always_ff @(posedge clk) begin
         if(rst)begin
             address_table[i] <= '0;
         end
-        else if(~address_table[i][33] && bmem_itf.rvalid && counter == 3'h0) begin
+        else if(~address_table[i][33] && bmem_itf.read && counter == 3'h0) begin
             if(latch_data_bmem)begin
                address_table[i] <= {1'b1, 1'b1, data_bmem_addr};
             end
@@ -118,9 +117,11 @@ always_ff @(posedge clk) begin
             end
             else if(data_request)
                 address_table[i] <= {1'b1, 1'b1, data_bmem_addr};
-
-            if(address_table[i][31:0] == bmem_itf.addr && counter == 3'h3)
-                address_table[i][33] = 1'b0;
+            break;
+        end
+        else if(address_table[i][33] && address_table[i][31:0] == bmem_itf.raddr && counter == 3'h3) begin
+            address_table[i][33] = 1'b0;
+            break;
         end
     end
 end
@@ -128,11 +129,11 @@ end
 // Send out data to correct cache once we receive it back
 always_comb begin
     for(int i = 0; i < 16; i++) begin
-        if(address_table[i][33] && address_table[i][31:0] == bmem_itf.addr
+        if(address_table[i][33] && address_table[i][31:0] == bmem_itf.raddr
            && counter == 3'h3) begin
                 // Goes to data cache
                 if(address_table[i][32]) begin
-                    data_bmem_rdata = {dword_buffer[3], dword_buffer[2], dword_buffer[1], dword_buffer[0]};
+                    data_bmem_rdata = {bmem_itf.rdata, dword_buffer[2], dword_buffer[1], dword_buffer[0]};
                     data_bmem_rvalid = 1'b1;
                     instr_bmem_rdata = 'x;
                     instr_bmem_rvalid = 1'b0;
@@ -141,9 +142,10 @@ always_comb begin
                 else begin
                     data_bmem_rdata = 'x;
                     data_bmem_rvalid = 1'b0;
-                    instr_bmem_rdata = {dword_buffer[3], dword_buffer[2], dword_buffer[1], dword_buffer[0]};
+                    instr_bmem_rdata = {bmem_itf.rdata, dword_buffer[2], dword_buffer[1], dword_buffer[0]};
                     instr_bmem_rvalid = 1'b1;
                 end
+                break;
            end
         else begin
             data_bmem_rdata = 'x;
