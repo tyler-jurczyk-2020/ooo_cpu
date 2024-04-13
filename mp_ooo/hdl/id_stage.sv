@@ -4,8 +4,7 @@ module id_stage
 
         input logic [31:0] imem_rdata,
         input logic [31:0] pc_curr,
-
-        output instruction_info_reg_t instruction_info
+        output instruction_info_reg_t instruction_info,
     );
     
     logic   [2:0]   funct3;
@@ -69,23 +68,22 @@ module id_stage
         instruction_info.inst = imem_rdata;
 
         instruction_info.pc_curr = pc_curr; 
-        // Not considering branches for now
-        instruction_info.pc_next = pc_curr + 4; 
 
         instruction_info.is_mul = 1'b0;
         instruction_info.mul_type = 'x;
 
-        // calculating branch target 
-        // logic [31:0] b_imm;    // Branch immediate extracted from the instruction
-        // logic [31:0] branch_target;
-
-        // // b_imm is extracted from the instruction and is the raw bits from the instruction
-        // assign b_imm = {{20{imem_rdata[31]}}, imem_rdata[7], imem_rdata[30:25], imem_rdata[11:8], 1'b0};
-
-        // // Calculate branch target
-        // assign branch_target = pc_curr + $signed(b_imm);
-
-
+        // set pc_next to branch target ---------> Soumil is Asleep and i put a bug in his waterbottle 
+        logic [31:0] b_imm, branch_target;
+        assign b_imm = {{20{imem_rdata[31]}}, imem_rdata[7], imem_rdata[30:25], imem_rdata[11:8], 1'b0};
+        
+        always_comb begin
+            // branch
+            if(predict_branch)
+                instruction_info.pc_next = pc_curr + $signed(b_imm);
+            // not branch incr pc 
+            else
+                instruction_info.pc_next = pc_curr + 4; 
+        end
 
         unique case (opcode) 
             op_b_reg : begin 

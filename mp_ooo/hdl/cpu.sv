@@ -104,7 +104,7 @@ generate
         id_stage id_stage_i (
             .pc_curr(unpacked_pc[i]),
             .imem_rdata(unpacked_imem_rdata[i]),
-            .instruction_info(decoded_inst[i])
+            .instruction_info(decoded_inst[i]),
         );
     end
 endgenerate
@@ -112,7 +112,7 @@ endgenerate
 // Instruction Queue(8 decoded instructions):
 instruction_info_reg_t instruction [SS];
 logic inst_q_empty, pop_inst_q;
-circular_queue #(.SS(SS), .IN_WIDTH(8), .SEL_IN(SS), .SEL_OUT(SS), .DEPTH(16)) instruction_queue
+circular_queue #(.flush('0), .SS(SS), .IN_WIDTH(8), .SEL_IN(SS), .SEL_OUT(SS), .DEPTH(16)) instruction_queue
                 (.clk(clk), .rst(rst),
                  .full(inst_queue_full), .in(decoded_inst),
                  .out(instruction),
@@ -123,24 +123,22 @@ circular_queue #(.SS(SS), .IN_WIDTH(8), .SEL_IN(SS), .SEL_OUT(SS), .DEPTH(16)) i
                 // planning on passing dummy shit or 0 into reg_select shit
 
 ///////////////////// INSTRUCTION FETCH (SIMILAR TO MP2) /////////////////////
-logic [31:0] branch_pc;
-logic predict_branch;
-
+super_dispatch_t rs_rob_entry [SS]; 
 fetch_stage fetch_stage_i (
     .clk(clk),
     .rst(rst),
     .predict_branch('0), // Change this later
     .stall_inst(inst_queue_full), 
     .imem_resp(imem_resp), 
-    .branch_pc('0), // Change thveribleis later
+    .rob_branch_target(rs_rob_entry), // passing branch target from rob
     .pc_reg(pc_reg),
     .imem_rmask(imem_rmask),
     .imem_addr(imem_addr)
 );
 
 
-        // this is all ur fault J 
-        // P.S. soumil u r slow
+    // this is all ur fault J 
+    // P.S. soumil u r slow
 
 
 cdb_t cdb;
@@ -207,7 +205,6 @@ logic [$clog2(ROB_DEPTH)-1:0] rob_id_next [SS]; // INPUTS
 logic avail_inst; 
 
 // MODULE OUTPUT DECLARATION
-super_dispatch_t rs_rob_entry [SS]; 
 
 
 // MODULE INSTANTIATION
@@ -269,12 +266,6 @@ retired_rat #(.SS(SS)) retire_ratatoullie(
 // MODULE OUTPUT DECLARATION
 
 // MODULE INSTANTIATION
-
-// logic dummy_free_reg_in, dummy_free_reg_select_in, dummy_free_reg_select_out;
-// logic dummy_free_empty, dummy_free_full, dummy_free_head_out, dummy_free_tail_out;
-// logic dummy_free_reg_out;
-
-
 // Dummy free list assigns
 logic [$clog2(64)-1:0] d_free_reg_sel [SS];
 logic [5:0] d_free_reg_in [SS];
@@ -285,7 +276,8 @@ always_comb begin
     end
 end
 
-circular_queue #(.SS(SS), .SEL_IN(SS), .SEL_OUT(SS), .QUEUE_TYPE(logic [5:0]), .INIT_TYPE(FREE_LIST), .DEPTH(64))
+// free list 
+circular_queue #(.flush('0), .SS(SS), .SEL_IN(SS), .SEL_OUT(SS), .QUEUE_TYPE(logic [5:0]), .INIT_TYPE(FREE_LIST), .DEPTH(64))
       free_list(.clk(clk), .rst(rst), .in(retire_to_free_list), .push(push_to_free_list), .pop(pop_inst_q),
       .reg_in(d_free_reg_in), .reg_select_in(d_free_reg_sel), .reg_select_out(d_free_reg_sel),      
       .out_bitmask(d_bitmask), .in_bitmask(d_bitmask),

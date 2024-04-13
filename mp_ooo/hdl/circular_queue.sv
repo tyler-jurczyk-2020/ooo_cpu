@@ -14,6 +14,9 @@ import rv32i_types::*;
     input QUEUE_TYPE in [IN_WIDTH], // Values pushed in
     input QUEUE_TYPE reg_in [SEL_IN], // Values used to modify entries
     
+    // flush signal
+    input logic flush,
+
     input logic [$clog2(DEPTH)-1:0] reg_select_in [SEL_IN], reg_select_out [SEL_OUT],
     input logic [SEL_IN-1:0] in_bitmask,
     input logic [SEL_OUT-1:0] out_bitmask,
@@ -53,7 +56,7 @@ always_comb begin
 end
 
 always_ff @(posedge clk) begin
-    if(rst) begin
+    if(rst || flush) begin
         if(INIT_TYPE == ZERO) begin
             head <= '0;
             tail <= '0;

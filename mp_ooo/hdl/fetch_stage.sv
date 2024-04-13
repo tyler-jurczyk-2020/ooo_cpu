@@ -9,7 +9,7 @@ module fetch_stage
         input logic stall_inst,
         input logic imem_resp, 
         // Our new PC if we have to branch 
-        input logic [31:0] branch_pc,
+        input super_dispatch_t rs_rob_entry,
         // PC to fetch
         output logic [31:0] pc_reg,
         output logic imem_rmask,
@@ -35,14 +35,13 @@ module fetch_stage
         end
         // if you are not stalling
         else if((~stall_inst && imem_resp)) begin
-            // if you are not branching
-            if(~predict_branch) begin
+            // not branching
+            if(~predict_branch)
                 pc_reg <= pc_reg + 32'h20; 
-            end
-            // If you are branching
-            else begin
-                pc_reg <= branch_pc; 
-            end
+            
+            // branching
+            else 
+                pc_reg <= rs_rob_entry.inst.pc_next;
         end
     end
 
