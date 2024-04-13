@@ -4,7 +4,8 @@ import cache_types::*;
     parameter               WAYS       = 4,
     parameter               TAG_SIZE   = 24,
     parameter               CACHE_LINE_SIZE = 256,
-    parameter               READ_SIZE = 32
+    parameter               READ_SIZE = 32,
+    parameter               OFFSET = 5
 )(
     input   logic           clk,
     input   logic           rst,
@@ -72,7 +73,7 @@ import cache_types::*;
 
     control control_unit(.*, .mem_resp(dfp_resp), .write(dfp_write));
     cache_logic #(.READ_SIZE(READ_SIZE)) cache_logic(.*, .wmask(ufp_wmask), .rmask(ufp_rmask), .mem_read(dfp_read), .mem_write(dfp_write),
-                .mem_line(dfp_rdata), .mem_line_wb(dfp_wdata), .mem_resp(dfp_resp), .cpu_data(ufp_rdata), .cpu_wdata(ufp_wdata), .cpu_resp(ufp_resp), .offset(ufp_addr[4:0]));
+                .mem_line(dfp_rdata), .mem_line_wb(dfp_wdata), .mem_resp(dfp_resp), .cpu_data(ufp_rdata), .cpu_wdata(ufp_wdata), .cpu_resp(ufp_resp), .offset({ufp_addr[4:(5-OFFSET)], {5-OFFSET{1'b0}}}));
 
     ff_array #(.WIDTH(3)) plru_array(
         .clk0       (clk),

@@ -26,11 +26,11 @@ module fu_wrapper
 
     logic [31:0] alu_input_a; 
     logic [31:0] alu_input_b; 
-    logic [31:0] cmp_input_a; 
-    logic [31:0] cmp_input_b; 
+    // logic [31:0] cmp_input_a; 
+    // logic [31:0] cmp_input_b; 
 
     logic [31:0] alu_res;
-    logic cmp_res;
+    // logic cmp_res;
 
     // Need to properly extend to superscalar
     always_comb begin
@@ -48,6 +48,7 @@ module fu_wrapper
         endcase
     end
 
+    /*
     always_comb begin
         cmp_input_a = alu_input_a;
         cmp_input_b = alu_input_b;
@@ -55,15 +56,18 @@ module fu_wrapper
             cmp_input_a = fu_reg_data.rs1_v.register_value;
             cmp_input_b = fu_reg_data.rs2_v.register_value;
     end
+    */
 
     alu calculator(.aluop(to_be_calculated.inst_info.inst.alu_operation), 
                     .a(alu_input_a),
                     .b(alu_input_b),
                     .f(alu_res));
+    /*
     cmp comparator(.cmpop(to_be_calculated.inst_info.inst.cmp_operation), 
                     .a(cmp_input_a),
                     .b(cmp_input_b),
                     .br_en(cmp_res));
+    */
 
     // Select register to push out
     always_ff @(posedge clk) begin

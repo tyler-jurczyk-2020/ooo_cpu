@@ -37,7 +37,7 @@ module fetch_stage
         else if((~stall_inst && imem_resp)) begin
             // not branching
             if(~predict_branch)
-                pc_reg <= pc_reg + 32'h20; 
+                pc_reg <= pc_reg + 32'h4; 
             
             // branching
             else 

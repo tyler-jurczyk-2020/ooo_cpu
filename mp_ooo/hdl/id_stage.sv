@@ -58,13 +58,13 @@ module id_stage
         // B-Type: CMP R1 & R2, ALU PC + bmm (Yes, Yes) (Yes, Yes)
         // J-type: neither PC + 4, PC + jmm (No, No) (Yes, Yes)
 
-        instruction_info.alu_en = '1; 
-        instruction_info.cmp_en = '1;  
+        // instruction_info.alu_en = '1; 
+        // instruction_info.cmp_en = '1;  
         instruction_info.is_branch = '0;  
         instruction_info.is_jump = '0;
         instruction_info.is_mul = '0;
         instruction_info.alu_operation = alu_add; 
-        instruction_info.cmp_operation = funct3;
+        // instruction_info.cmp_operation = funct3;
         instruction_info.inst = imem_rdata;
 
         instruction_info.pc_curr = pc_curr; 
@@ -105,19 +105,19 @@ module id_stage
                         default : instruction_info.mul_type = 'x;
                     endcase
                     instruction_info.is_mul = 1'b1; // this instr is multiplying
-                    instruction_info.alu_en = '0;
-                    instruction_info.cmp_en = '0;
+                    // instruction_info.alu_en = '0;
+                    // instruction_info.cmp_en = '0;
                     instruction_info.alu_operation = '0;
                 end
                 else begin
                     unique case (funct3)  
                         slt: begin
-                            instruction_info.cmp_operation = blt;
-                            instruction_info.alu_en = 1'b0;
+                            // instruction_info.cmp_operation = blt;
+                            // instruction_info.alu_en = 1'b0;
                         end
                         sltu: begin
-                            instruction_info.cmp_operation = bltu;
-                            instruction_info.alu_en = 1'b0;
+                            // instruction_info.cmp_operation = bltu;
+                            // instruction_info.alu_en = 1'b0;
                         end
                         sr: begin
                             if (funct7[5]) begin
@@ -125,7 +125,7 @@ module id_stage
                             end else begin
                                 instruction_info.alu_operation = alu_srl;
                             end
-                            instruction_info.cmp_operation = funct3; 
+                            // instruction_info.cmp_operation = funct3; 
                         end
                         add: begin
                             if (funct7[5]) begin
@@ -133,11 +133,11 @@ module id_stage
                             end else begin
                                 instruction_info.alu_operation = alu_add;
                             end
-                            instruction_info.cmp_operation = funct3; 
+                            // instruction_info.cmp_operation = funct3; 
                         end
                         default : begin
                             instruction_info.alu_operation = funct3; 
-                            instruction_info.cmp_operation = funct3; 
+                            // instruction_info.cmp_operation = funct3; 
                         end
                     endcase
                 end
@@ -151,12 +151,12 @@ module id_stage
                 instruction_info.rs2_s = '0;
                 unique case (funct3)
                     slt: begin
-                        instruction_info.cmp_operation = blt;
-                        instruction_info.alu_en = 1'b0;
+                        // instruction_info.cmp_operation = blt;
+                        // instruction_info.alu_en = 1'b0;
                     end
                     sltu: begin
-                        instruction_info.cmp_operation = bltu;
-                        instruction_info.alu_en = 1'b0;
+                        // instruction_info.cmp_operation = bltu;
+                        // instruction_info.alu_en = 1'b0;
                     end
                     sr: begin
                         if (funct7[5]) begin
@@ -164,11 +164,11 @@ module id_stage
                         end else begin
                             instruction_info.alu_operation = alu_srl;
                         end
-                        instruction_info.cmp_operation = funct3; 
+                        // instruction_info.cmp_operation = funct3; 
                     end
                     default : begin
                         instruction_info.alu_operation = funct3; 
-                        instruction_info.cmp_operation = funct3; 
+                        // instruction_info.cmp_operation = funct3; 
                     end
                 endcase
             end
@@ -177,7 +177,7 @@ module id_stage
                 instruction_info.execute_operand2 = 2'b11; 
                 instruction_info.immediate = u_imm;
                 instruction_info.alu_operation = alu_add; 
-                instruction_info.cmp_operation = '0; 
+                // instruction_info.cmp_operation = '0; 
             end
             op_b_br : begin
                 instruction_info.execute_operand1 = 2'b00; 
@@ -190,26 +190,26 @@ module id_stage
                 instruction_info.execute_operand2 = 2'b11; 
                 instruction_info.immediate = j_imm; 
                 instruction_info.is_jump = '1;   
-                instruction_info.cmp_en = '0;  
+                // instruction_info.cmp_en = '0;  
             end
             op_b_jalr : begin
                 instruction_info.execute_operand1 = 2'b11; 
                 instruction_info.execute_operand2 = 2'b11; 
                 instruction_info.immediate = j_imm; 
                 instruction_info.is_jump = '1;   
-                instruction_info.cmp_en = '0;  
+                // instruction_info.cmp_en = '0;  
             end 
             op_b_load : begin
                 instruction_info.execute_operand1 = 2'b00; 
                 instruction_info.execute_operand2 = 2'b11; 
                 instruction_info.immediate = i_imm; 
-                instruction_info.cmp_en = '0;  
+                // instruction_info.cmp_en = '0;  
             end
             op_b_store : begin
                 instruction_info.execute_operand1 = 2'b00; 
                 instruction_info.execute_operand2 = 2'b11; 
                 instruction_info.immediate = s_imm; 
-                instruction_info.cmp_en = '1;  
+                // instruction_info.cmp_en = '1;  
             end
 
             default : ; 

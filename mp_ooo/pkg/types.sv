@@ -6,6 +6,7 @@
 package rv32i_types;
 
     localparam TABLE_ENTRIES = 64;
+    localparam ROB_D = 8;
     localparam N_MUL = 1;
     localparam N_ALU = 1;
 
@@ -78,12 +79,12 @@ package rv32i_types;
             logic   [31:0]  immediate; 
             
             logic [2:0] alu_operation;
-            logic [2:0] cmp_operation;
+            // logic [2:0] cmp_operation;
             // type of multiplication operation
             logic [1:0] mul_type;
             
-            logic alu_en;
-            logic cmp_en;
+            // logic alu_en;
+            // logic cmp_en;
 
             logic is_branch;
             logic is_jump;
@@ -146,7 +147,7 @@ package rv32i_types;
     } rvfi_t;
         
     typedef struct packed {
-       logic [7:0] rob_id;
+       logic [$clog2(ROB_D)-1:0] rob_id;
        logic commit;
        // Hardcoded ROB depth so it compiles
        // ROB entries to refer to for dependency
@@ -155,8 +156,8 @@ package rv32i_types;
     typedef struct packed {
        logic input1_met; 
        logic input2_met; 
-       logic [7:0] rs1_source; 
-       logic [7:0] rs2_source; 
+       logic [$clog2(ROB_D)-1:0] rs1_source; 
+       logic [$clog2(ROB_D)-1:0] rs2_source; 
        logic full; 
     } reservation_entry_t; 
 
@@ -181,7 +182,7 @@ package rv32i_types;
     typedef struct packed {
         logic [31:0] register_value; 
        // Hardcoded ROB depth so it compiles
-        logic [7:0] ROB_ID; 
+        logic [$clog2(ROB_D)-1:0] ROB_ID; 
         logic dependency; 
     } physical_reg_data_t; 
 
