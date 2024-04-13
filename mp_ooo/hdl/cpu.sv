@@ -89,13 +89,21 @@ end
 logic [31:0] pc_reg;
 
 // Decoding 8 instructions
+logic [31:0] unpacked_imem_rdata [8];
+logic [31:0] unpacked_pc [8];
 
+always_comb begin
+    for(int i = 0; i < 8; i++) begin
+        unpacked_imem_rdata[i] = imem_rdata[32*i+:32];
+        unpacked_pc[i] = pc_reg + unsigned'(4*i);
+    end
+end
 
 generate
     for(genvar i = 0; i < 8; i++) begin : parallel_decode
         id_stage id_stage_i (
-            .pc_curr(pc_reg + unsigned'(4*i)),
-            .imem_rdata(imem_rdata[32*i+:32]),
+            .pc_curr(unpacked_pc[i]),
+            .imem_rdata(unpacked_imem_rdata[i]),
             .instruction_info(decoded_inst[i])
         );
     end
@@ -115,6 +123,8 @@ circular_queue #(.SS(SS), .IN_WIDTH(8), .SEL_IN(SS), .SEL_OUT(SS), .DEPTH(16)) i
                 // planning on passing dummy shit or 0 into reg_select shit
 
 ///////////////////// INSTRUCTION FETCH (SIMILAR TO MP2) /////////////////////
+logic [31:0] branch_pc;
+logic predict_branch;
 
 fetch_stage fetch_stage_i (
     .clk(clk),
