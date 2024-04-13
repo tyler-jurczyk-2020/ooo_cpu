@@ -85,10 +85,6 @@ cache data_cache
     .dfp_resp(data_bmem_rvalid)
 );
 
-// Dummy assign
-logic d_bmem_ready;
-assign d_bmem_ready = bmem_itf_ready;
-
 logic [63:0] dword_buffer [3]; // No need to buffer fourth entry since we can forward it immediately
 logic [2:0] counter;
 
@@ -182,9 +178,10 @@ always_comb begin
     end
 end
 
+// Send out request to bmem
 always_comb begin
     // Data on the previous cycle that wasn't serviced
-    if(latch_data_bmem) begin
+    if(latch_data_bmem && bmem_itf_ready) begin
         bmem_itf_addr = data_bmem_addr;
         // reading & writing data
         if(data_bmem_read) begin
@@ -205,14 +202,14 @@ always_comb begin
         end
     end
     // Otherwise always service instruction request first
-    else if(inst_request) begin
+    else if(inst_request && bmem_itf_ready) begin
         bmem_itf_wdata = 'x;
         bmem_itf_addr = instr_bmem_addr;
         bmem_itf_read = instr_bmem_read;
         bmem_itf_write = '0;
     end
     // Otherwise service data request
-    else if(data_request) begin
+    else if(data_request && bmem_itf_ready) begin
         bmem_itf_addr = data_bmem_addr;
         // reading & writing data
         if(data_bmem_read) begin
