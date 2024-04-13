@@ -112,8 +112,8 @@ endgenerate
 // Instruction Queue(8 decoded instructions):
 instruction_info_reg_t instruction [SS];
 logic inst_q_empty, pop_inst_q;
-circular_queue #(.flush('0), .SS(SS), .IN_WIDTH(8), .SEL_IN(SS), .SEL_OUT(SS), .DEPTH(16)) instruction_queue
-                (.clk(clk), .rst(rst),
+circular_queue #( .SS(SS), .IN_WIDTH(8), .SEL_IN(SS), .SEL_OUT(SS), .DEPTH(16)) instruction_queue
+                (.clk(clk), .rst(rst || flush),
                  .full(inst_queue_full), .in(decoded_inst),
                  .out(instruction),
                  .push(imem_resp), .pop(pop_inst_q), .empty(inst_q_empty),
@@ -277,8 +277,8 @@ always_comb begin
 end
 
 // free list 
-circular_queue #(.flush('0), .SS(SS), .SEL_IN(SS), .SEL_OUT(SS), .QUEUE_TYPE(logic [5:0]), .INIT_TYPE(FREE_LIST), .DEPTH(64))
-      free_list(.clk(clk), .rst(rst), .in(retire_to_free_list), .push(push_to_free_list), .pop(pop_inst_q),
+circular_queue #( .SS(SS), .SEL_IN(SS), .SEL_OUT(SS), .QUEUE_TYPE(logic [5:0]), .INIT_TYPE(FREE_LIST), .DEPTH(64))
+      free_list(.clk(clk), .rst(rst || flush), .in(retire_to_free_list), .push(push_to_free_list), .pop(pop_inst_q),
       .reg_in(d_free_reg_in), .reg_select_in(d_free_reg_sel), .reg_select_out(d_free_reg_sel),      
       .out_bitmask(d_bitmask), .in_bitmask(d_bitmask),
       // outputs
@@ -294,7 +294,7 @@ circular_queue #(.flush('0), .SS(SS), .SEL_IN(SS), .SEL_OUT(SS), .QUEUE_TYPE(log
 // MODULE OUTPUT DECLARATION
 
 // MODULE INSTANTIATION
-rob #(.SS(SS), .ROB_DEPTH(ROB_DEPTH)) rb(.clk(clk), .rst(rst), 
+rob #(.SS(SS), .ROB_DEPTH(ROB_DEPTH)) rb(.clk(clk), .rst(rst || flush), 
                                          .avail_inst(avail_inst), .dispatch_info(rs_rob_entry), 
                                          .cdb(cdb),
                                          .rob_request(rob_request), .rob_id_next(rob_id_next), 
