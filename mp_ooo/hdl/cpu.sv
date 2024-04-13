@@ -302,7 +302,7 @@ circular_queue #(.SS(SS), .SEL_IN(SS), .SEL_OUT(SS), .QUEUE_TYPE(logic [5:0]), .
 // MODULE OUTPUT DECLARATION
 
 // MODULE INSTANTIATION
-rob #(.SS(SS), .ROB_DEPTH(ROB_DEPTH)) rb(.clk(clk), .rst(rst), 
+rob #(.SS(SS)) rb(.clk(clk), .rst(rst), 
                                          .avail_inst(avail_inst), .dispatch_info(rs_rob_entry), 
                                          .cdb(cdb),
                                          .rob_request(rob_request), .rob_id_next(rob_id_next), 

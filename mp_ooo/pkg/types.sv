@@ -78,12 +78,12 @@ package rv32i_types;
             logic   [31:0]  immediate; 
             
             logic [2:0] alu_operation;
-            logic [2:0] cmp_operation;
+            // logic [2:0] cmp_operation;
             // type of multiplication operation
             logic [1:0] mul_type;
             
-            logic alu_en;
-            logic cmp_en;
+            // logic alu_en;
+            // logic cmp_en;
 
             logic is_branch;
             logic is_jump;
