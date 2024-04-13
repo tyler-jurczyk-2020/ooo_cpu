@@ -159,7 +159,7 @@ end
 // Cycle 0: 
 ///////////////////// Rename/Dispatch: Physical Register File /////////////////////
 // MODULE INPUTS DECLARATION 
-physical_reg_request_t dispatch_request[SS] , rob_request[SS];
+physical_reg_request_t dispatch_request[SS];
 physical_reg_request_t alu_request [N_ALU] , mul_request [N_MUL];
 
 
@@ -174,7 +174,6 @@ physical_reg_response_t alu_reg_data [N_ALU], mul_reg_data [N_MUL];
 phys_reg_file #(.SS(SS), .TABLE_ENTRIES(TABLE_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) reg_file (
                 .clk(clk), .rst(rst), .regf_we('1), 
                 .cdb(cdb),
-                .rob_request(rob_request),
                 .dispatch_request(dispatch_request), .dispatch_reg_data(dispatch_reg_data), 
                 .alu_request(alu_request), .alu_reg_data(alu_reg_data),
                 .mul_request(mul_request), .mul_reg_data(mul_reg_data)
@@ -306,7 +305,7 @@ circular_queue #(.SS(SS), .SEL_IN(SS), .SEL_OUT(SS), .QUEUE_TYPE(logic [5:0]), .
 rob #(.SS(SS)) rb(.clk(clk), .rst(rst), 
                                          .avail_inst(avail_inst), .dispatch_info(rs_rob_entry), 
                                          .cdb(cdb),
-                                         .rob_request(rob_request), .rob_id_next(rob_id_next), 
+                                         .rob_id_next(rob_id_next), 
                                          .rob_entries_to_commit(rob_entries_to_commit),
                                          .rob_full(rob_full),
                                          .pop_from_rob(pop_from_rob)

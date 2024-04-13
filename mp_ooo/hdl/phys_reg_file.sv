@@ -25,9 +25,6 @@ import rv32i_types::*;
     // cdb/Reservation exchange
     input cdb_t cdb, 
     
-    // ROB IO
-    input physical_reg_request_t rob_request [SS],
-
     // Dispatch IO
     input physical_reg_request_t dispatch_request [SS],
     output physical_reg_response_t dispatch_reg_data [SS],
@@ -52,9 +49,9 @@ import rv32i_types::*;
             // ROB
             for (int i = 0; i < SS; i++) begin
             // for the given source register, is it NOT R0?
-                if(rob_request[i].rd_en) begin
-                    data[rob_request[i].rd_s].ROB_ID <= rob_request[i].rd_v.ROB_ID; 
-                    data[rob_request[i].rd_s].dependency <= '1; 
+                if(dispatch_request[i].rd_en) begin
+                    data[dispatch_request[i].rd_s].ROB_ID <= dispatch_request[i].rd_v.ROB_ID; 
+                    data[dispatch_request[i].rd_s].dependency <= '1; 
                 end
             end
 

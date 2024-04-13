@@ -13,8 +13,6 @@ module rob
         // commit signal sent in by the functional unit
         input cdb_t cdb,
     ////// OUTPUTS:
-        // ROB line of comm to physical register file
-        output physical_reg_request_t rob_request [SS],
         // rob id are sent out
         output logic [$clog2(ROB_DEPTH)-1:0] rob_id_next [SS],
         // updated RVFI order
@@ -88,21 +86,6 @@ module rob
             pop_from_rob &= inspect_queue[i].rob.commit && !rob_empty; //pop from queue if instr at the head is ready to commit
             rob_id_next[i] = head + ($clog2(ROB_DEPTH)-1)'(i);
             rob_id_out[i] = tail + ($clog2(ROB_DEPTH)-1)'(i);
-
-            // Check each ss slot if an instruction has been dispatched
-            if (avail_inst)begin     
-                // Regfile should be updated w/ new phys reg mapping
-                rob_request[i].rd_en = 1'b1; 
-                rob_request[i].rd_s = dispatch_info[i].rat.rd; // Need to get PR not ISA reg
-                rob_request[i].rd_v.ROB_ID = rob_id_next[i];
-                rob_request[i].rd_v.dependency = 'x;
-                rob_request[i].rd_v.register_value = 'x;
-            end
-            else begin
-                rob_request[i].rd_s = 'x;
-                rob_request[i].rd_en = 1'b0;
-                rob_request[i].rd_v = 'x; 
-            end
         end
     end
   
