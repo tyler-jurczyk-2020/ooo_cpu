@@ -26,7 +26,7 @@ import rv32i_types::*;
 // imem interface signals
 logic   [31:0]   imem_addr;
 logic            imem_rmask;
-logic    [255:0] imem_rdata;
+logic    [(32*SS)-1:0] imem_rdata;
 logic            imem_resp;
 
 // dmem interface signals
@@ -40,7 +40,8 @@ logic           dmem_resp;
 ///////////////////// CACHE /////////////////////
 // Instantiate caches here
 
-cache_arbiter ca(.clk(clk), .rst(rst),
+cache_arbiter #(.SS(SS)) 
+                ca(.clk(clk), .rst(rst),
                 .bmem_itf_addr(bmem_addr),
                 .bmem_itf_read(bmem_read) ,
                 .bmem_itf_write(bmem_write),
@@ -68,7 +69,7 @@ logic inst_queue_full;
 // says that two instructions are ready for the instruction queue
 fetch_output_reg_t if_id_reg, if_id_reg_next;
 // Parsed out decoded cacheline
-instruction_info_reg_t decoded_inst [8];
+instruction_info_reg_t decoded_inst [SS];
 
 // Dummy assign
 assign dmem_addr = '0;
@@ -76,7 +77,7 @@ assign dmem_wdata = '0;
 
 // Dummy instruction assigns
 logic [SS-1:0] d_bitmask;
-logic [$clog2(16)-1:0] d_reg_sel [SS];
+logic [$clog2(ROB_DEPTH)-1:0] d_reg_sel [SS];
 instruction_info_reg_t d_reg_in [SS];
 always_comb begin
     d_bitmask = '0;
@@ -89,18 +90,18 @@ end
 logic [31:0] pc_reg;
 
 // Decoding 8 instructions
-logic [31:0] unpacked_imem_rdata [8];
-logic [31:0] unpacked_pc [8];
+logic [31:0] unpacked_imem_rdata [SS];
+logic [31:0] unpacked_pc [SS];
 
 always_comb begin
-    for(int i = 0; i < 8; i++) begin
+    for(int i = 0; i < SS; i++) begin
         unpacked_imem_rdata[i] = imem_rdata[32*i+:32];
         unpacked_pc[i] = pc_reg + unsigned'(4*i);
     end
 end
 
 generate
-    for(genvar i = 0; i < 8; i++) begin : parallel_decode
+    for(genvar i = 0; i < SS; i++) begin : parallel_decode
         id_stage id_stage_i (
             .pc_curr(unpacked_pc[i]),
             .imem_rdata(unpacked_imem_rdata[i]),
@@ -112,7 +113,7 @@ endgenerate
 // Instruction Queue(8 decoded instructions):
 instruction_info_reg_t instruction [SS];
 logic inst_q_empty, pop_inst_q;
-circular_queue #(.SS(SS), .IN_WIDTH(8), .SEL_IN(SS), .SEL_OUT(SS), .DEPTH(16)) instruction_queue
+circular_queue #(.SS(SS), .IN_WIDTH(SS), .SEL_IN(SS), .SEL_OUT(SS), .DEPTH(ROB_DEPTH)) instruction_queue
                 (.clk(clk), .rst(rst),
                  .full(inst_queue_full), .in(decoded_inst),
                  .out(instruction),

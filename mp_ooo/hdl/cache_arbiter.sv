@@ -1,4 +1,8 @@
 module cache_arbiter
+
+#(
+    parameter SS = 2
+)
 (
     input logic clk, rst,
     
@@ -24,7 +28,7 @@ module cache_arbiter
     // Instruction Memory
     input  logic    [31:0]   imem_itf_addr,
     input  logic             imem_itf_rmask,
-    output logic    [255:0]  imem_itf_rdata,
+    output logic    [(32*SS)-1:0]  imem_itf_rdata,
     output logic             imem_itf_resp
 
 );
@@ -45,7 +49,7 @@ logic   [255:0]      data_bmem_wdata;
 logic   [255:0]      data_bmem_rdata;
 logic               data_bmem_rvalid;
 
-cache #(.READ_SIZE(256)) inst_cache
+cache #(.READ_SIZE(32*SS), .OFFSET(3)) inst_cache
 (
     .clk(clk),
     .rst(rst),
