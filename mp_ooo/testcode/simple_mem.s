@@ -14,6 +14,8 @@ _start:
     lh x4, 4(x1)
     la x4, data + 4
     lb x5, 8(x4)
+    lhu x6, 10(x4)
+    lbu x6, 11(x4)
    
 halt:                 
     slti x0, x0,-256

@@ -120,14 +120,6 @@ always_ff @(posedge clk) begin
         state <= next_state;
 end
 
-// Masked read data returned from memory appropriately
-// Still need to handle signed and unsigned correctly
-logic [31:0] dmem_rdata_masked;
-always_comb begin
-    for(int i = 0; i < 4; i++) begin
-        dmem_rdata_masked[8*i+:8] = dmem_rdata[8*i+:8] & {8{load_out[load_tail].inst.rmask[i]}}; 
-    end
-end
 
 // Next state logic
 always_comb begin
@@ -209,6 +201,10 @@ logic [31:0] cdb_rs1_register_value_reg, load_out_immediate_reg;
 logic [31:0] cdb_rs2_register_value_reg, store_out_immediate_reg;
 logic [3:0] store_out_wmask_reg;
 
+// Masked read data returned from memory appropriately
+logic [31:0] dmem_rdata_masked, dmem_rdata_out, dmem_addr_latched;
+assign dmem_addr_latched = cdb_rs1_register_value_reg + load_out_immediate_reg;
+
 always_ff @(posedge clk) begin
     if(rst) begin
         dmem_rdata_masked_reg <= '0;
@@ -223,7 +219,7 @@ always_ff @(posedge clk) begin
     end
     else begin
         if(dmem_resp) begin
-            dmem_rdata_masked_reg <= dmem_rdata_masked;
+            dmem_rdata_masked_reg <= dmem_rdata_out;
             dmem_rdata_reg <= dmem_rdata;
         end
 
@@ -239,6 +235,29 @@ always_ff @(posedge clk) begin
         end
     end
 end
+
+always_comb begin
+    if(~load_out[load_tail].inst.is_signed)
+        dmem_rdata_out = dmem_rdata_masked >> 8*dmem_addr_latched[1:0];
+    else
+        dmem_rdata_out = dmem_rdata_masked >>> 8*dmem_addr_latched[1:0];
+    for(int i = 0; i < 4; i++) begin
+        // Differentiate between signed and unsigned
+        if(~load_out[load_tail].inst.is_signed)
+            dmem_rdata_masked[8*i+:8] = dmem_rdata[8*i+:8] & {8{load_out[load_tail].inst.rmask[i]}}; 
+        else begin
+            if(load_out[load_tail].inst.rmask[i])
+                dmem_rdata_masked[8*i+:8] = dmem_rdata[8*i+:8]; 
+            else begin
+                if(i > 0)
+                    dmem_rdata_masked[8*i+:8] = {8{dmem_rdata_masked[(8*i)-1]}}; 
+                else
+                    dmem_rdata_masked[8*i+:8] = 8'b0;
+            end
+        end
+    end
+end
+
 
 always_comb begin
     // Send out to data cache based on state of controller
@@ -312,7 +331,7 @@ always_comb begin
         cdb_out.inst_info = load_queue_out[0];
         cdb_out.register_value = dmem_rdata_masked_reg;
         cdb_out.ready_for_writeback = 1'b1;
-        cdb_out.inst_info.rvfi.rd_wdata = dmem_rdata_masked_reg;
+        cdb_out.inst_info.rvfi.rd_wdata = dmem_rdata_out;
         cdb_out.inst_info.rvfi.rs1_rdata = cdb_rs1_register_value_reg;
         cdb_out.inst_info.rvfi.rs2_rdata = '0;
         cdb_out.inst_info.rvfi.mem_rdata = dmem_rdata_reg;
