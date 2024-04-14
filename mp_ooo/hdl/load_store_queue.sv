@@ -197,19 +197,46 @@ always_comb begin
     end
 end
 
+logic move_to_load, move_to_store;
+assign move_to_load = (pop_load_ready && (state == wait_s_load_p || (state == wait_s_store_p && ~pop_store_ready)));
+assign move_to_store = (pop_store_ready && (state == wait_s_store_p || (state == wait_s_load_p && ~pop_load_ready)));
 
-logic [31:0] dmem_rdata_masked_reg, dmem_rdata_reg, rs1_register_value_reg;
+// Latches for response
+logic [31:0] dmem_rdata_masked_reg, dmem_rdata_reg;
+// Latches for sending out to dram (load)
+logic [31:0] cdb_rs1_register_value_reg, load_out_immediate_reg;
+// Latches for sending out to dram (store)
+logic [31:0] cdb_rs2_register_value_reg, store_out_immediate_reg;
+logic [3:0] store_out_wmask_reg;
 
 always_ff @(posedge clk) begin
     if(rst) begin
         dmem_rdata_masked_reg <= '0;
         dmem_rdata_reg <= '0;
-        rs1_register_value_reg <= '0;
+
+        cdb_rs1_register_value_reg <= '0;
+        load_out_immediate_reg <= '0;
+
+        cdb_rs2_register_value_reg <= '0;
+        store_out_immediate_reg <= '0;
+        store_out_wmask_reg <= '0;
     end
-    else if(dmem_resp) begin
-        dmem_rdata_masked_reg <= dmem_rdata_masked;
-        dmem_rdata_reg <= dmem_rdata;
-        rs1_register_value_reg <= lsq_reg_data.rs1_v.register_value;
+    else begin
+        if(dmem_resp) begin
+            dmem_rdata_masked_reg <= dmem_rdata_masked;
+            dmem_rdata_reg <= dmem_rdata;
+        end
+
+        if(move_to_load) begin
+            cdb_rs1_register_value_reg <= lsq_reg_data.rs1_v.register_value;
+            load_out_immediate_reg <= load_out[load_tail].inst.immediate;
+        end
+
+        if(move_to_store) begin
+            cdb_rs2_register_value_reg <= lsq_reg_data.rs2_v.register_value;
+            store_out_immediate_reg <= store_out[store_tail].inst.immediate;
+            store_out_wmask_reg <= store_out[store_tail].inst.wmask;
+        end
     end
 end
 
@@ -223,16 +250,16 @@ always_comb begin
         dmem_wdata = 'x;
     end
     request_load_s : begin
-        dmem_addr = lsq_reg_data.rs1_v.register_value + load_out[load_tail].inst.immediate;
+        dmem_addr = cdb_rs1_register_value_reg + load_out_immediate_reg;
         dmem_rmask = 1'b1;
         dmem_wmask = 4'b0;
         dmem_wdata = 'x;
     end
     request_store_s : begin
-        dmem_addr = store_out[store_tail].inst.immediate;
+        dmem_addr = store_out_immediate_reg; // NOT CORRECT!!
         dmem_rmask = 1'b0;
-        dmem_wmask = store_out[store_tail].inst.wmask;
-        dmem_wdata = lsq_reg_data.rs2_v.register_value;
+        dmem_wmask = store_out_wmask_reg;
+        dmem_wdata = cdb_rs2_register_value_reg;
     end
     default : begin
         dmem_addr = 'x;
@@ -242,10 +269,21 @@ always_comb begin
     end
     endcase
 
+    if(state == request_load_s && dmem_resp) begin
+        pop_load = 1'b1;
+        pop_store = 1'b0;
+    end
+    else if (state == request_store_s && dmem_resp) begin
+        pop_load = 1'b0;
+        pop_store = 1'b1;
+    end
+    else begin
+        pop_load = 1'b0;
+        pop_store = 1'b0;
+    end
 
     // Send out regfile requests
-    if(state == request_load_s) begin
-        pop_store = 1'b0;
+    if(move_to_load) begin
         lsq_request.rs1_s = load_out[load_tail].rat.rs1;
         lsq_request.rs2_s = 'x;
         lsq_request.rd_s = 'x;
@@ -254,16 +292,8 @@ always_comb begin
         cdb_out.inst_info = 'x;
         cdb_out.register_value = 'x;
         cdb_out.ready_for_writeback = 1'b0;
-        if(dmem_resp) begin
-            pop_load = 1'b1;
-        end
-        else begin
-            pop_load = 1'b0;
-        end
     end
-    else if(state == request_store_s) begin
-        pop_load = 1'b0;
-        pop_store = 1'b1;
+    else if(move_to_store) begin
         lsq_request.rs1_s = store_out[store_tail].rat.rs1;
         lsq_request.rs2_s = store_out[store_tail].rat.rs2;
         lsq_request.rd_s = 'x;
@@ -274,8 +304,6 @@ always_comb begin
         cdb_out.ready_for_writeback = 1'b0;
     end
     else if(state == latch_load_s) begin
-        pop_load = 1'b0;
-        pop_store = 1'b0;
         lsq_request.rs1_s = 'x;
         lsq_request.rs2_s = 'x;
         lsq_request.rd_s = 'x;
@@ -285,14 +313,12 @@ always_comb begin
         cdb_out.register_value = dmem_rdata_masked_reg;
         cdb_out.ready_for_writeback = 1'b1;
         cdb_out.inst_info.rvfi.rd_wdata = dmem_rdata_masked_reg;
-        cdb_out.inst_info.rvfi.rs1_rdata = rs1_register_value_reg;
+        cdb_out.inst_info.rvfi.rs1_rdata = cdb_rs1_register_value_reg;
         cdb_out.inst_info.rvfi.rs2_rdata = '0;
         cdb_out.inst_info.rvfi.mem_rdata = dmem_rdata_reg;
-        cdb_out.inst_info.rvfi.mem_addr = rs1_register_value_reg + load_queue_out[0].inst.immediate;
+        cdb_out.inst_info.rvfi.mem_addr = cdb_rs1_register_value_reg + load_queue_out[0].inst.immediate;
     end
     else begin
-        pop_load = 1'b0;
-        pop_store = 1'b0;
         lsq_request.rs1_s = 'x;
         lsq_request.rs2_s = 'x;
         lsq_request.rd_s = 'x;
