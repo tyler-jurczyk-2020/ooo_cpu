@@ -65,11 +65,13 @@ cache_arbiter #(.SS(SS))
 );
 
 ///////////////////// INSTRUCTION QUEUE /////////////////////
-logic inst_queue_full;
+logic inst_queue_full, flush;
 // says that two instructions are ready for the instruction queue
 fetch_output_reg_t if_id_reg, if_id_reg_next;
 // Parsed out decoded cacheline
 instruction_info_reg_t decoded_inst [SS];
+
+// logic [31:0] pc_next [SS]; 
 
 // Dummy assign
 assign dmem_addr = '0;
@@ -103,9 +105,11 @@ end
 generate
     for(genvar i = 0; i < SS; i++) begin : parallel_decode
         id_stage id_stage_i (
+            .predict_branch('0),
             .pc_curr(unpacked_pc[i]),
             .imem_rdata(unpacked_imem_rdata[i]),
-            .instruction_info(decoded_inst[i]),
+            .instruction_info(decoded_inst[i])
+            // .pc_next(pc_next[i])
         );
     end
 endgenerate
@@ -116,25 +120,28 @@ logic inst_q_empty, pop_inst_q;
 circular_queue #(.SS(SS), .IN_WIDTH(SS), .SEL_IN(SS), .SEL_OUT(SS), .DEPTH(ROB_DEPTH)) instruction_queue
                 (.clk(clk), .rst(rst || flush),
                  .full(inst_queue_full), .in(decoded_inst),
-                 .out(instruction),
+                 .out(instruction), .flush(flush),
                  .push(imem_resp), .pop(pop_inst_q), .empty(inst_q_empty),
                  .out_bitmask(d_bitmask), .in_bitmask(d_bitmask),
-                 .reg_select_in(d_reg_sel),.reg_select_out(d_reg_sel),.reg_in(d_reg_in)
-                );
+                 .reg_select_in(d_reg_sel),.reg_select_out(d_reg_sel),.reg_in(d_reg_in), .backup_freelist()
+                
+                 );
                 // planning on passing dummy shit or 0 into reg_select shit
 
 ///////////////////// INSTRUCTION FETCH (SIMILAR TO MP2) /////////////////////
-super_dispatch_t rs_rob_entry [SS]; 
-fetch_stage fetch_stage_i (
+super_dispatch_t rs_rob_entry [SS], rob_entries_to_commit [SS];
+
+fetch_stage #(.SS(SS)) fetch_stage_i (
     .clk(clk),
     .rst(rst),
     .predict_branch('0), // Change this later
     .stall_inst(inst_queue_full), 
     .imem_resp(imem_resp), 
-    .rob_branch_target(rs_rob_entry), // passing branch target from rob
+    .rob_entries_to_commit(rob_entries_to_commit), // passing branch target from rob
     .pc_reg(pc_reg),
     .imem_rmask(imem_rmask),
-    .imem_addr(imem_addr)
+    .imem_addr(imem_addr), 
+    .decoded_inst(decoded_inst)
 );
 
 
@@ -143,11 +150,11 @@ fetch_stage fetch_stage_i (
 
 
 cdb_t cdb;
-fu_output_t alu_output [N_ALU], mul_output [N_MUL];
+fu_output_t alu_cmp_output [N_ALU], mul_output [N_MUL];
 // Merge cdb 
 always_comb begin
     for(int i = 0; i < N_ALU; i++) begin
-        cdb.alu_out[i] = alu_output[i];
+        cdb.alu_out[i] = alu_cmp_output[i];
     end
     for(int i = 0; i < N_MUL; i++) begin
         cdb.mul_out[i] = mul_output[i];
@@ -242,14 +249,18 @@ dispatcher #(.SS(SS), .PR_ENTRIES(PR_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) dispatcher
 logic pop_from_rob;
 logic push_to_free_list;
 logic [5:0] retire_to_free_list [SS];
-super_dispatch_t rob_entries_to_commit [SS];
+
+logic [5:0] backup_retired_rat [32];
+
 // MODULE OUTPUT DECLARATION
 
 // MODULE INSTANTIATION
 rat #(.SS(SS)) rt(.clk(clk), .rst(rst), .regf_we(avail_inst), // Need to connect write enable to pop_inst_q?
      .rat_rd(rat_rd),
      .isa_rd(isa_rd), .isa_rs1(isa_rs1), .isa_rs2(isa_rs2),
-     .rat_rs1(rat_rs1) , .rat_rs2(rat_rs2)
+     .rat_rs1(rat_rs1) , .rat_rs2(rat_rs2),
+     .flush(flush),
+     .retired_rat_backup(backup_retired_rat)
      );
 
 retired_rat #(.SS(SS)) retire_ratatoullie(
@@ -257,8 +268,10 @@ retired_rat #(.SS(SS)) retire_ratatoullie(
     .retire_we(pop_from_rob),
     .free_list_entry(retire_to_free_list),
     .rob_info(rob_entries_to_commit),
-    .push_to_free_list(push_to_free_list)
-);
+    .push_to_free_list(push_to_free_list),
+    .backup_retired_rat(backup_retired_rat)
+    );
+
 
 // Cycle 0: 
 ///////////////////// Rename/Dispatch: Free Lists /////////////////////
@@ -267,7 +280,7 @@ retired_rat #(.SS(SS)) retire_ratatoullie(
 
 // MODULE INSTANTIATION
 // Dummy free list assigns
-logic [$clog2(64)-1:0] d_free_reg_sel [SS];
+logic [$clog2(32)-1:0] d_free_reg_sel [SS];
 logic [5:0] d_free_reg_in [SS];
 always_comb begin
     for(int i = 0; i < SS; i++) begin
@@ -276,15 +289,18 @@ always_comb begin
     end
 end
 
+logic [5:0] backup_freelist [32];
 // free list 
-circular_queue #( .SS(SS), .SEL_IN(SS), .SEL_OUT(SS), .QUEUE_TYPE(logic [5:0]), .INIT_TYPE(FREE_LIST), .DEPTH(64))
-      free_list(.clk(clk), .rst(rst || flush), .in(retire_to_free_list), .push(push_to_free_list), .pop(pop_inst_q),
+circular_queue #( .SS(SS), .SEL_IN(SS), .SEL_OUT(SS), .QUEUE_TYPE(logic [5:0]), .INIT_TYPE(FREE_LIST), .DEPTH(32))
+      free_list(.clk(clk), .rst(rst), .in(retire_to_free_list), .push(push_to_free_list), .pop(pop_inst_q),
+      .flush(flush),
       .reg_in(d_free_reg_in), .reg_select_in(d_free_reg_sel), .reg_select_out(d_free_reg_sel),      
       .out_bitmask(d_bitmask), .in_bitmask(d_bitmask),
       // outputs
-      .empty(), .full(), .head_out(), .tail_out(),  
+      .empty(), .full(), 
+      .head_out(), .tail_out(),  
       .out(free_rat_rds), 
-      .reg_out()
+      .reg_out(), .backup_freelist(backup_freelist)
     );
     
 // Cycle 0: 
@@ -294,9 +310,10 @@ circular_queue #( .SS(SS), .SEL_IN(SS), .SEL_OUT(SS), .QUEUE_TYPE(logic [5:0]), 
 // MODULE OUTPUT DECLARATION
 
 // MODULE INSTANTIATION
-rob #(.SS(SS), .ROB_DEPTH(ROB_DEPTH)) rb(.clk(clk), .rst(rst || flush), 
+rob #(.SS(SS), .ROB_DEPTH(ROB_DEPTH)) rb(.clk(clk), .rst(rst), 
                                          .avail_inst(avail_inst), .dispatch_info(rs_rob_entry), 
                                          .cdb(cdb),
+                                         .flush(flush),
                                          .rob_id_next(rob_id_next), 
                                          .rob_entries_to_commit(rob_entries_to_commit),
                                          .rob_full(rob_full),
@@ -321,7 +338,7 @@ end
 
 // MODULE INSTANTIATION
 reservation_table #(.SS(SS), .REQUEST(N_ALU), .TABLE_TYPE(ALU_T), .reservation_table_size(reservation_table_size), 
-       .ROB_DEPTH(ROB_DEPTH)) alu_table(.clk(clk), .rst(rst),
+       .ROB_DEPTH(ROB_DEPTH)) alu_table(.clk(clk), .rst(rst || flush),
                                         .dispatched(rs_rob_entry), // Dispatched shit
                                         .avail_inst(avail_inst), // Thing
                                         .cdb_rob_ids(cdb.mul_out), // CDB 
@@ -344,7 +361,7 @@ for(genvar i = 0; i < N_ALU; i++) begin : fu_alus
     fu_wrapper fuck_u(
             .clk(clk), //.rst(rst),
             .to_be_calculated(inst_for_fu_alu[i]),
-            .alu_output(alu_output[i]),
+            .alu_cmp_output(alu_cmp_output[i]),
             .fu_reg_data(alu_reg_data[i])
         ); 
 end
@@ -384,7 +401,7 @@ reservation_table #(.SS(SS), .REQUEST(N_MUL), .reservation_table_size(reservatio
 generate
 for(genvar i = 0; i < N_MUL; i++) begin : fu_muls
     fu_wrapper_mult fuck_mu(
-            .clk(clk),.rst(rst),
+            .clk(clk),.rst(rst || flush),
             .to_be_multiplied(inst_for_fu_mult[i]),
             .mul_output(mul_output[i]),
             .FU_ready(FU_ready[i]),

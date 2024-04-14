@@ -4,7 +4,7 @@ module fu_wrapper_mult
         input logic clk, rst,
         // get entry from reservation station
         input fu_input_t to_be_multiplied, 
-
+        
         // Handshaking logic to state whether a multiplier is available
         output logic FU_ready, 
 
@@ -77,6 +77,7 @@ module fu_wrapper_mult
                             .done(mult_status));
 
     always_comb begin
+        mul_output = '0;
         if(mult_status) begin
             mul_output.inst_info = to_be_multiplied.inst_info;
             mul_output.register_value = mult_output;
@@ -85,8 +86,5 @@ module fu_wrapper_mult
             mul_output.inst_info.rvfi.rs1_rdata = multiplication.a;
             mul_output.inst_info.rvfi.rs2_rdata = multiplication.b;
         end
-        // Fix to make lint work
-        else 
-            mul_output = '0;
     end
 endmodule : fu_wrapper_mult

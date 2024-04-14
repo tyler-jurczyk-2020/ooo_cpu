@@ -79,12 +79,15 @@ package rv32i_types;
             logic   [31:0]  immediate; 
             
             logic [2:0] alu_operation;
-            // logic [2:0] cmp_operation;
+            logic [2:0] cmp_operation;
             // type of multiplication operation
             logic [1:0] mul_type;
+
+            // Hold whether we had branched or not
+            logic predict_branch; 
             
-            // logic alu_en;
-            // logic cmp_en;
+            logic alu_en;
+            logic cmp_en;
 
             logic is_branch;
             logic is_jump;
@@ -111,7 +114,7 @@ package rv32i_types;
 
     } instruction_info_reg_t;
 
-    // Add more things here . . .
+    // Add more things here . . .  <--- nah 
     typedef struct packed {
         logic [31:0] fetch_pc_curr;  //rvfi pc_rdata
         // For rvfi purposes (fetch_pc_curr + 4)
@@ -149,6 +152,8 @@ package rv32i_types;
     typedef struct packed {
        logic [$clog2(ROB_D)-1:0] rob_id;
        logic commit;
+       logic mispredict; 
+       logic branch_enable; 
        // Hardcoded ROB depth so it compiles
        // ROB entries to refer to for dependency
     } rob_t;
@@ -208,12 +213,18 @@ package rv32i_types;
         super_dispatch_t inst_info; 
         logic [31:0] register_value; 
         logic ready_for_writeback; 
+        logic branch_result; 
     } fu_output_t; 
 
     typedef struct {
         fu_output_t alu_out [N_ALU];
         fu_output_t mul_out [N_MUL];
     } cdb_t;
+
+    // typedef struct {
+    //     super_dispatch_t instruction; 
+    //     logic valid_commit; 
+    // } commited_t; 
 
     typedef struct packed {
         logic [1:0] mul_type; 

@@ -5,7 +5,7 @@ module fu_wrapper
         // get entry from reservation station
         input fu_input_t to_be_calculated, 
 
-        output fu_output_t alu_output,
+        output fu_output_t alu_cmp_output,
         input physical_reg_response_t fu_reg_data
 
     );
@@ -26,11 +26,11 @@ module fu_wrapper
 
     logic [31:0] alu_input_a; 
     logic [31:0] alu_input_b; 
-    // logic [31:0] cmp_input_a; 
-    // logic [31:0] cmp_input_b; 
+    logic [31:0] cmp_input_a; 
+    logic [31:0] cmp_input_b; 
 
     logic [31:0] alu_res;
-    // logic cmp_res;
+    logic cmp_res;
 
     // Need to properly extend to superscalar
     always_comb begin
@@ -48,35 +48,52 @@ module fu_wrapper
         endcase
     end
 
-    /*
+    
     always_comb begin
         cmp_input_a = alu_input_a;
         cmp_input_b = alu_input_b;
-        // if(to_be_calculated.inst_info.inst.is_branch) begin
+
+        if(to_be_calculated.inst_info.inst.is_branch) begin
             cmp_input_a = fu_reg_data.rs1_v.register_value;
             cmp_input_b = fu_reg_data.rs2_v.register_value;
+        end
     end
-    */
+        
+    
 
     alu calculator(.aluop(to_be_calculated.inst_info.inst.alu_operation), 
                     .a(alu_input_a),
                     .b(alu_input_b),
                     .f(alu_res));
-    /*
+    
     cmp comparator(.cmpop(to_be_calculated.inst_info.inst.cmp_operation), 
                     .a(cmp_input_a),
                     .b(cmp_input_b),
                     .br_en(cmp_res));
-    */
+    
 
     // Select register to push out
     always_ff @(posedge clk) begin
-            alu_output.inst_info <= to_be_calculated.inst_info;
-            alu_output.register_value <= alu_res;
-            alu_output.ready_for_writeback <= 1'b1;
-            alu_output.inst_info.rvfi.rd_wdata <= alu_res;
-            alu_output.inst_info.rvfi.rs1_rdata <= fu_reg_data.rs1_v.register_value;
-            alu_output.inst_info.rvfi.rs2_rdata <= fu_reg_data.rs2_v.register_value;
+        alu_cmp_output.inst_info <= to_be_calculated.inst_info;
+
+        if(to_be_calculated.inst_info.inst.is_branch) begin
+            alu_cmp_output.inst_info.rvfi.rd_wdata  <= '0;
+            alu_cmp_output.register_value <= {31'd0, cmp_res};
+        end
+        else if(~to_be_calculated.inst_info.inst.alu_en) begin
+            alu_cmp_output.inst_info.rvfi.rd_wdata  <= {31'd0, cmp_res};
+            alu_cmp_output.register_value <= {31'd0, cmp_res};
+        end 
+        else begin
+            alu_cmp_output.inst_info.rvfi.rd_wdata <= alu_res;
+            alu_cmp_output.register_value <= alu_res;
+        end
+        
+        alu_cmp_output.ready_for_writeback <= 1'b1;
+        alu_cmp_output.branch_result <= cmp_res; 
+        
+        alu_cmp_output.inst_info.rvfi.rs1_rdata <= fu_reg_data.rs1_v.register_value;
+        alu_cmp_output.inst_info.rvfi.rs2_rdata <= fu_reg_data.rs2_v.register_value;
     end
         
 endmodule : fu_wrapper

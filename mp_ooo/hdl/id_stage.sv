@@ -4,7 +4,10 @@ module id_stage
 
         input logic [31:0] imem_rdata,
         input logic [31:0] pc_curr,
-        output instruction_info_reg_t instruction_info,
+        input logic predict_branch,
+
+        output instruction_info_reg_t instruction_info
+        // output [31:0] pc_next
     );
     
     logic   [2:0]   funct3;
@@ -18,6 +21,7 @@ module id_stage
     logic   [4:0]   rs1_s;
     logic   [4:0]   rs2_s;
     logic   [4:0]   rd_s;   
+    logic [31:0] branch_target;
 
     assign funct3 = imem_rdata[14:12];
     assign funct7 = imem_rdata[31:25];
@@ -58,32 +62,36 @@ module id_stage
         // B-Type: CMP R1 & R2, ALU PC + bmm (Yes, Yes) (Yes, Yes)
         // J-type: neither PC + 4, PC + jmm (No, No) (Yes, Yes)
 
-        // instruction_info.alu_en = '1; 
-        // instruction_info.cmp_en = '1;  
+        instruction_info.alu_en = '1; 
+        instruction_info.cmp_en = '1;  
         instruction_info.is_branch = '0;  
         instruction_info.is_jump = '0;
         instruction_info.is_mul = '0;
         instruction_info.alu_operation = alu_add; 
-        // instruction_info.cmp_operation = funct3;
+        instruction_info.cmp_operation = funct3;
         instruction_info.inst = imem_rdata;
 
         instruction_info.pc_curr = pc_curr; 
 
         instruction_info.is_mul = 1'b0;
         instruction_info.mul_type = 'x;
+        
+        // For Branches
+        // Connect to Future Branch Predictor
+        instruction_info.predict_branch = predict_branch;  
+
 
         // set pc_next to branch target ---------> Soumil is Asleep and i put a bug in his waterbottle 
-        logic [31:0] b_imm, branch_target;
-        assign b_imm = {{20{imem_rdata[31]}}, imem_rdata[7], imem_rdata[30:25], imem_rdata[11:8], 1'b0};
-        
-        always_comb begin
-            // branch
-            if(predict_branch)
-                instruction_info.pc_next = pc_curr + $signed(b_imm);
-            // not branch incr pc 
-            else
-                instruction_info.pc_next = pc_curr + 4; 
-        end
+   
+
+        // branch
+        if(predict_branch)
+            instruction_info.pc_next = pc_curr + b_imm;
+        // not branch incr pc 
+        else
+            instruction_info.pc_next = pc_curr + 4; 
+
+        //pc_next = instruction_info.pc_next;
 
         unique case (opcode) 
             op_b_reg : begin 
@@ -105,19 +113,19 @@ module id_stage
                         default : instruction_info.mul_type = 'x;
                     endcase
                     instruction_info.is_mul = 1'b1; // this instr is multiplying
-                    // instruction_info.alu_en = '0;
-                    // instruction_info.cmp_en = '0;
+                    instruction_info.alu_en = '0;
+                    instruction_info.cmp_en = '0;
                     instruction_info.alu_operation = '0;
                 end
                 else begin
                     unique case (funct3)  
                         slt: begin
-                            // instruction_info.cmp_operation = blt;
-                            // instruction_info.alu_en = 1'b0;
+                            instruction_info.cmp_operation = blt;
+                            instruction_info.alu_en = 1'b0;
                         end
                         sltu: begin
-                            // instruction_info.cmp_operation = bltu;
-                            // instruction_info.alu_en = 1'b0;
+                            instruction_info.cmp_operation = bltu;
+                            instruction_info.alu_en = 1'b0;
                         end
                         sr: begin
                             if (funct7[5]) begin
@@ -125,7 +133,7 @@ module id_stage
                             end else begin
                                 instruction_info.alu_operation = alu_srl;
                             end
-                            // instruction_info.cmp_operation = funct3; 
+                            instruction_info.cmp_operation = funct3; 
                         end
                         add: begin
                             if (funct7[5]) begin
@@ -133,11 +141,11 @@ module id_stage
                             end else begin
                                 instruction_info.alu_operation = alu_add;
                             end
-                            // instruction_info.cmp_operation = funct3; 
+                            instruction_info.cmp_operation = funct3; 
                         end
                         default : begin
                             instruction_info.alu_operation = funct3; 
-                            // instruction_info.cmp_operation = funct3; 
+                            instruction_info.cmp_operation = funct3; 
                         end
                     endcase
                 end
@@ -151,12 +159,12 @@ module id_stage
                 instruction_info.rs2_s = '0;
                 unique case (funct3)
                     slt: begin
-                        // instruction_info.cmp_operation = blt;
-                        // instruction_info.alu_en = 1'b0;
+                        instruction_info.cmp_operation = blt;
+                        instruction_info.alu_en = 1'b0;
                     end
                     sltu: begin
-                        // instruction_info.cmp_operation = bltu;
-                        // instruction_info.alu_en = 1'b0;
+                        instruction_info.cmp_operation = bltu;
+                        instruction_info.alu_en = 1'b0;
                     end
                     sr: begin
                         if (funct7[5]) begin
@@ -164,11 +172,11 @@ module id_stage
                         end else begin
                             instruction_info.alu_operation = alu_srl;
                         end
-                        // instruction_info.cmp_operation = funct3; 
+                        instruction_info.cmp_operation = funct3; 
                     end
                     default : begin
                         instruction_info.alu_operation = funct3; 
-                        // instruction_info.cmp_operation = funct3; 
+                        instruction_info.cmp_operation = funct3; 
                     end
                 endcase
             end
@@ -177,46 +185,49 @@ module id_stage
                 instruction_info.execute_operand2 = 2'b11; 
                 instruction_info.immediate = u_imm;
                 instruction_info.alu_operation = alu_add; 
-                // instruction_info.cmp_operation = '0; 
+                instruction_info.cmp_operation = '0; 
             end
             op_b_br : begin
                 instruction_info.execute_operand1 = 2'b00; 
                 instruction_info.execute_operand2 = 2'b00; 
                 instruction_info.immediate = b_imm; 
                 instruction_info.is_branch = '1;   
+                instruction_info.rd_s = '0; 
             end
             op_b_jal : begin
                 instruction_info.execute_operand1 = 2'b11; 
                 instruction_info.execute_operand2 = 2'b11; 
                 instruction_info.immediate = j_imm; 
                 instruction_info.is_jump = '1;   
-                // instruction_info.cmp_en = '0;  
+                instruction_info.cmp_en = '0;  
             end
             op_b_jalr : begin
                 instruction_info.execute_operand1 = 2'b11; 
                 instruction_info.execute_operand2 = 2'b11; 
                 instruction_info.immediate = j_imm; 
                 instruction_info.is_jump = '1;   
-                // instruction_info.cmp_en = '0;  
+                instruction_info.cmp_en = '0;  
             end 
             op_b_load : begin
                 instruction_info.execute_operand1 = 2'b00; 
                 instruction_info.execute_operand2 = 2'b11; 
                 instruction_info.immediate = i_imm; 
-                // instruction_info.cmp_en = '0;  
+                instruction_info.cmp_en = '0;  
             end
             op_b_store : begin
                 instruction_info.execute_operand1 = 2'b00; 
                 instruction_info.execute_operand2 = 2'b11; 
                 instruction_info.immediate = s_imm; 
-                // instruction_info.cmp_en = '1;  
+                instruction_info.cmp_en = '1;  
             end
 
             default : ; 
         endcase            
     end
+    
 
     
     
     
     endmodule : id_stage
+    

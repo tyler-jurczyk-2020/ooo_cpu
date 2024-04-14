@@ -7,7 +7,8 @@ import rv32i_types::*;
     input   logic           clk,
     input   logic           rst,
     input   logic           regf_we,
-
+    input   logic           flush,
+    input   logic [5:0]     retired_rat_backup[32],
     // Physical register
     input   logic   [5:0]  rat_rd [SS],
     input   logic   [4:0]  isa_rd [SS], isa_rs1 [SS], isa_rs2 [SS],
@@ -17,13 +18,18 @@ import rv32i_types::*;
 // MSB is valid bit
 logic   [5:0] data [32];
 
+
 always_ff @(posedge clk) begin
     if (rst) begin
         for (int unsigned i = 0; i < 32; i++) begin
             data[i] <= 6'(i);
         end
     end
-
+    
+    else if (flush) begin
+        data <= retired_rat_backup;
+    end
+    
     else if (regf_we) begin
         for (int i = 0; i < SS; i++) begin
             if(isa_rd[i] != 5'd0)

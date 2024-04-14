@@ -11,13 +11,15 @@ import rv32i_types::*;
     input logic retire_we, 
     // writing random shit rn
     input super_dispatch_t rob_info [SS],
-
 ////// OUTPUTS:
     output logic [5:0] free_list_entry [SS],
-    output logic push_to_free_list
-);
+    output logic push_to_free_list,
+    output logic [5:0] backup_retired_rat [32]
+    );
 
 logic [5:0] data [32]; // array of rats in the retired rat state
+
+assign backup_retired_rat = data;
 
 // NOT CORRECT FOR SS > 1 !!!
 assign push_to_free_list = retire_we && (rob_info[0].inst.rd_s != 5'b0);

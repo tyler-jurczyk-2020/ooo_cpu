@@ -91,6 +91,8 @@ module dispatcher
                 // ROB Setup
                 rs_rob_entry[i].rob.rob_id = rob_id_next[i];
                 rs_rob_entry[i].rob.commit = 1'b0;
+                rs_rob_entry[i].rob.branch_enable = 'x;
+                rs_rob_entry[i].rob.mispredict = 'x;
                 rs_rob_entry[i].rs_entry.rs1_source = dispatch_reg_data[i].rs1_v.ROB_ID;
                 rs_rob_entry[i].rs_entry.rs2_source = dispatch_reg_data[i].rs2_v.ROB_ID;
                 rs_rob_entry[i].rs_entry.full = 1'b0; // Mark as effectively empty
@@ -108,6 +110,7 @@ module dispatcher
                 else begin
                     rs_rob_entry[i].rs_entry.input2_met = '1; 
                 end
+
 
                 // RVFI Setup
                 rs_rob_entry[i].rvfi.valid = inst[i].valid;
@@ -128,7 +131,7 @@ module dispatcher
                 rs_rob_entry[i].rvfi.mem_wmask = 4'b0;
                 rs_rob_entry[i].rvfi.mem_rdata = 'x;
                 rs_rob_entry[i].rvfi.mem_wdata = 'x;
-
+                
                 //inst setup
                 rs_rob_entry[i].inst = inst[i];
 
@@ -166,7 +169,8 @@ module dispatcher
                 rs_rob_entry[i].rs_entry.rs1_source = 'x;
                 rs_rob_entry[i].rs_entry.rs2_source = 'x;
                 rs_rob_entry[i].rs_entry.full = 'x;
-                
+                rs_rob_entry[i].rob.branch_enable = 'x;
+                rs_rob_entry[i].rob.mispredict = 'x;
                 // RVFI setup
                 rs_rob_entry[i].rvfi.valid = 'x; // SOUMIL IS SLOW
                 rs_rob_entry[i].rvfi.order = 'x; // SOUMIL IS SLOW // Need to put actual order here

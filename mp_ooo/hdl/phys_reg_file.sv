@@ -5,7 +5,7 @@ import rv32i_types::*;
 #(
     parameter SS = 2, // Superscalar
     parameter TABLE_ENTRIES = 64,
-    parameter ROB_DEPTH = 7
+    parameter ROB_DEPTH = 8
 )
 (
     input   logic           clk,

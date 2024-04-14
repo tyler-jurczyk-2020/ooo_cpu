@@ -1,5 +1,6 @@
 module fetch_stage
     import rv32i_types::*;
+    #(parameter SS = 2)
     (   
         input logic clk, 
         input logic rst,
@@ -9,7 +10,8 @@ module fetch_stage
         input logic stall_inst,
         input logic imem_resp, 
         // Our new PC if we have to branch 
-        input super_dispatch_t rs_rob_entry,
+        input super_dispatch_t rob_entries_to_commit[SS],
+        input instruction_info_reg_t decoded_inst [SS], 
         // PC to fetch
         output logic [31:0] pc_reg,
         output logic imem_rmask,
@@ -28,21 +30,62 @@ module fetch_stage
             reset_hack <= 1'b0;
     end
 
+    logic [31:0] new_pc;
 
+    logic branch; 
+    logic take_branch; 
     always_ff @ (posedge clk) begin
         if(rst) begin
             pc_reg <= 32'h60000000;
         end
-        // if you are not stalling
+        // if the instructon queue is NOT stalling b/c inst. queue & res. table are NOT full, and we're not waiting on instruction memory
         else if((~stall_inst && imem_resp)) begin
-            // not branching
-            if(~predict_branch)
-                pc_reg <= pc_reg + 32'h4; 
-            
-            // branching
-            else 
-                pc_reg <= rs_rob_entry.inst.pc_next;
+            // If our committed ROB is a branch and we are supposed to branch, then update to the new PC
+            // else, pc goes up by 4
+
+            // JANK 
+            for(int i = 0; i < SS; i++) begin
+                // if an input from the rob_entries_to_commit says to branch somewhere, start fetching from there
+                // else, if the branch predictor says to branch, start fetching from the pc_next provided by decode
+                // else, start fetching from pc + 4
+                
+                pc_reg <= pc_reg + 4;
+                if(rob_entries_to_commit[i].rob.branch_enable && rob_entries_to_commit[i].rob.commit) begin
+                    pc_reg <= rob_entries_to_commit[i].inst.pc_next; 
+                    branch <= '1; 
+                    break;
+                end
+                
+                
+                // if(rob_entries_to_commit[i].)begin
+                //     pc_reg <= rob_entries_to_commit[i].inst.pc_curr;
+                // end
+                // else if(rob_entries_to_commit[i].rob.branch_enable) begin
+                //     pc_reg <= rob_entries_to_commit[i].inst.pc_next; 
+                // end
+                // else begin
+                //     pc_reg <= pc_reg + 4; 
+                // end
+
+            end
+
+            if(~branch) begin
+                for(int i = 0; i < SS; i++) begin
+                    if(decoded_inst[i].is_branch && predict_branch) begin
+                        pc_reg <= decoded_inst[i].pc_next; 
+                        take_branch <= '1; 
+                    end
+                end
+            end
+
+            if(~take_branch) begin
+                pc_reg <= pc_reg + 32'd4; 
+            end
+
         end
+
+
     end
 
+// U-DADDY
     endmodule : fetch_stage
