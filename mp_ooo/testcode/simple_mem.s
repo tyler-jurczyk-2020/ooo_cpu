@@ -12,6 +12,7 @@ _start:
 
     lw x3, 0(x1)
     lh x4, 4(x1)
+    la x4, data + 4
     lb x5, 8(x4)
    
 halt:                 

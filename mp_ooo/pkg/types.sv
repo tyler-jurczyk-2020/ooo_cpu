@@ -170,6 +170,7 @@ package rv32i_types;
     typedef struct packed {
        logic [$clog2(LD_ST)-1:0] pointer;     
        logic cross_dep_met;
+       logic valid;
     } cross_tail_t;
 
     typedef struct packed {

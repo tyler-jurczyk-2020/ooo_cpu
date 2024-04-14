@@ -31,20 +31,23 @@ module rob
 
     logic [$clog2(ROB_DEPTH)-1:0] rob_id_out[SS];
     
-    logic [$clog2(ROB_DEPTH)-1:0] rob_id_reg_select [N_ALU + N_MUL];
-    super_dispatch_t rob_entry_in [N_ALU + N_MUL];
-    logic [(N_ALU + N_MUL)-1:0] bitmask;
+    logic [$clog2(ROB_DEPTH)-1:0] rob_id_reg_select [N_ALU + N_MUL + 1];
+    super_dispatch_t rob_entry_in [N_ALU + N_MUL + 1];
+    logic [(N_ALU + N_MUL + 1)-1:0] bitmask;
     logic [SS-1:0] out_bitmask;
     // ROB receives data from cdb and updates commit flag in circular queue
-    circular_queue #(.SS(SS), .SEL_IN(N_ALU + N_MUL), .SEL_OUT(SS), .QUEUE_TYPE(super_dispatch_t), .DEPTH(ROB_DEPTH)) rob_dut(.clk(clk), .rst(rst), .in(dispatch_info), .push(avail_inst), .pop(pop_from_rob), 
+    circular_queue #(.SS(SS), .SEL_IN(N_ALU + N_MUL + 1), .SEL_OUT(SS), .QUEUE_TYPE(super_dispatch_t), .DEPTH(ROB_DEPTH)) rob_dut(.clk(clk), .rst(rst), .in(dispatch_info), .push(avail_inst), .pop(pop_from_rob), 
     .reg_select_out(rob_id_out), 
     .reg_out(inspect_queue), .reg_select_in(rob_id_reg_select), .reg_in(rob_entry_in), .in_bitmask(bitmask), .out_bitmask(out_bitmask),// One hot bitmask
     .head_out(head), .tail_out(tail), .full(rob_full), .empty(rob_empty));
 
     always_comb begin
+        // Outmask
+        for(int i = 0; i < SS; i++) begin
+            out_bitmask[i] = 1'b1;
+        end
         // ALU
         for(int i = 0; i < N_ALU; i++)begin
-            out_bitmask[i] = 1'b1;
             if(cdb.alu_out[i].ready_for_writeback) begin
                 rob_id_reg_select[i] = cdb.alu_out[i].inst_info.rob.rob_id[2:0]; // Need to fix
                 rob_entry_in[i] = cdb.alu_out[i].inst_info;
@@ -61,7 +64,6 @@ module rob
 
         //MUL
         for(int i = 0; i < N_MUL; i++) begin
-            out_bitmask[N_ALU + i] = 1'b1;
             if(cdb.mul_out[i].ready_for_writeback) begin
                 rob_id_reg_select[N_ALU + i] = cdb.mul_out[i].inst_info.rob.rob_id[2:0]; // Need to fix
                 rob_entry_in[N_ALU + i] = cdb.mul_out[i].inst_info;
@@ -74,6 +76,18 @@ module rob
                 rob_entry_in[N_ALU + i] = 'x;
                 bitmask[N_ALU + i] = 1'b0;
             end
+        end
+        // LSQ
+        if(cdb.lsq_out.ready_for_writeback) begin
+            rob_id_reg_select[N_ALU + N_MUL] = cdb.lsq_out.inst_info.rob.rob_id[2:0]; // Need to fix
+            rob_entry_in[N_ALU + N_MUL] = cdb.lsq_out.inst_info;
+            rob_entry_in[N_ALU + N_MUL].rob.commit = 1'b1;
+            bitmask[N_ALU + N_MUL] = 1'b1; 
+        end
+        else begin
+            rob_id_reg_select[N_ALU + N_MUL] = 'x;
+            rob_entry_in[N_ALU + N_MUL] = 'x;
+            bitmask[N_ALU + N_MUL] = 1'b0;
         end
     end
 

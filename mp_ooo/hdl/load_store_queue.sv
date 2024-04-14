@@ -38,7 +38,7 @@ logic load_full, store_full;
 logic [$clog2(LD_ST_DEPTH)-1:0] reg_select_queue [LD_ST_DEPTH];
 always_comb begin
     for(int i = 0; i < LD_ST_DEPTH; i++) begin
-        reg_select_queue[i] = '0;
+        reg_select_queue[i] = ($clog2(LD_ST_DEPTH))'(i);
     end
 end
 
@@ -63,11 +63,13 @@ always_comb begin
     for(int i = 0; i < SS; i++) begin
         load_queue_in[i] = dispatch_entry[i];
         load_queue_in[i].cross_tail.pointer = store_tail;
-        load_queue_in[i].cross_tail.cross_dep_met = 1'b0;
+        load_queue_in[i].cross_tail.cross_dep_met = 1'b1; // Cross dep is 1 for now bc imma lazy bastard
+        load_queue_in[i].cross_tail.valid = 1'b1;
 
         store_queue_in[i] = dispatch_entry[i];
         store_queue_in[i].cross_tail.pointer = load_tail;
-        store_queue_in[i].cross_tail.cross_dep_met = 1'b0;
+        store_queue_in[i].cross_tail.cross_dep_met = 1'b1; // Cross dep is 1 for now bc imma lazy bastard
+        store_queue_in[i].cross_tail.valid = 1'b1;
     end
 end
 
@@ -75,7 +77,7 @@ circular_queue #(.QUEUE_TYPE(super_dispatch_t), .SS(SS), .SEL_IN(LD_ST_DEPTH), .
                  .DEPTH(LD_ST_DEPTH)) 
 load_queue(
     .clk(clk), .rst(rst || flush),
-    .in(dispatch_entry),
+    .in(load_queue_in),
     .tail_out(load_tail),
     // Always need to access all entries
     .reg_select_in(reg_select_queue),
@@ -93,7 +95,7 @@ circular_queue #(.QUEUE_TYPE(super_dispatch_t), .SS(SS), .SEL_IN(LD_ST_DEPTH), .
                  .DEPTH(LD_ST_DEPTH))
 store_queue(
     .clk(clk), .rst(rst || flush),
-    .in(dispatch_entry),
+    .in(store_queue_in),
     .tail_out(store_tail),
     // Always need to access all entries
     .reg_select_in(reg_select_queue),
@@ -114,6 +116,15 @@ always_ff @(posedge clk) begin
         state <= wait_s_load_p;
     else
         state <= next_state;
+end
+
+// Masked read data returned from memory appropriately
+// Still need to handle signed and unsigned correctly
+logic [31:0] dmem_rdata_masked;
+always_comb begin
+    for(int i = 0; i < 4; i++) begin
+        dmem_rdata_masked[8*i+:8] = dmem_rdata[8*i+:8] & {8{load_out[load_tail].inst.rmask[i]}}; 
+    end
 end
 
 // Next state logic
@@ -149,76 +160,80 @@ end
 // Modify entries up receiving updates from cdb
 always_comb begin
     for(int i = 0; i < LD_ST_DEPTH; i++) begin
+        load_in[i] = load_out[i];
+        load_in_bit[i] = 1'b0;
+        store_in[i] = store_out[i];
+        store_in_bit[i] = 1'b0;
         for(int j = 0; j < N_ALU; j++) begin
             for(int k = 0; k < N_MUL; k++) begin
                 // Loads - RS1
-                if(load_out[i].rat.rs1 == cdb_in.alu_out[j].inst_info.rat.rd) begin
-                    load_in[i].rs_entry.input1_met = 1'b1;
-                    load_in_bit[i] = 1'b1;
+                if(cdb_in.alu_out[j].ready_for_writeback && load_out[i].rat.rs1 == cdb_in.alu_out[j].inst_info.rat.rd) begin
+                    load_in[i].rs_entry.input1_met |= 1'b1;
+                    load_in_bit[i] |= 1'b1;
                 end
-                else if(load_out[i].rat.rs1 == cdb_in.lsq_out.inst_info.rat.rd) begin
-                    load_in[i].rs_entry.input1_met = 1'b1;
-                    load_in_bit[i] = 1'b1;
+                else if(cdb_in.mul_out[k].ready_for_writeback && load_out[i].rat.rs1 == cdb_in.mul_out[k].inst_info.rat.rd) begin
+                    load_in[i].rs_entry.input1_met |= 1'b1;
+                    load_in_bit[i] |= 1'b1;
                 end
-                else if(load_out[i].rat.rs1 == cdb_in.mul_out[j].inst_info.rat.rd) begin
-                    load_in[i].rs_entry.input1_met = 1'b1;
-                    load_in_bit[i] = 1'b1;
+                else if(cdb_in.lsq_out.ready_for_writeback && load_out[i].rat.rs1 == cdb_in.lsq_out.inst_info.rat.rd) begin
+                    load_in[i].rs_entry.input1_met |= 1'b1;
+                    load_in_bit[i] |= 1'b1;
                 end
                 else begin
-                    load_in[i].rs_entry.input1_met = 'x;
-                    load_in_bit[i] = 1'b0;
+                    load_in[i].rs_entry.input1_met |= 1'b0;
+                    load_in_bit[i] |= 1'b0;
                 end
 
-                if(load_out[i].rat.rs2 == cdb_in.alu_out[j].inst_info.rat.rd) begin
-                    load_in[i].rs_entry.input2_met = 1'b1;
-                    load_in_bit[i] = 1'b1;
+                if(cdb_in.alu_out[j].ready_for_writeback && load_out[i].rat.rs2 == cdb_in.alu_out[j].inst_info.rat.rd) begin
+                    load_in[i].rs_entry.input2_met |= 1'b1;
+                    load_in_bit[i] |= 1'b1;
                 end
-                else if(load_out[i].rat.rs2 == cdb_in.mul_out[j].inst_info.rat.rd) begin
-                    load_in[i].rs_entry.input2_met = 1'b1;
-                    load_in_bit[i] = 1'b1;
+                else if(cdb_in.mul_out[k].ready_for_writeback && load_out[i].rat.rs2 == cdb_in.mul_out[k].inst_info.rat.rd) begin
+                    load_in[i].rs_entry.input2_met |= 1'b1;
+                    load_in_bit[i] |= 1'b1;
                 end
-                else if(load_out[i].rat.rs2 == cdb_in.lsq_out.inst_info.rat.rd) begin
-                    load_in[i].rs_entry.input2_met = 1'b1;
-                    load_in_bit[i] = 1'b1;
+                else if(cdb_in.lsq_out.ready_for_writeback && load_out[i].rat.rs2 == cdb_in.lsq_out.inst_info.rat.rd) begin
+                    load_in[i].rs_entry.input2_met |= 1'b1;
+                    load_in_bit[i] |= 1'b1;
                 end
                 else begin
-                    load_in[i].rs_entry.input2_met = 'x;
-                    load_in_bit[i] = 1'b0;
+                    load_in[i].rs_entry.input2_met |= 1'b0;
+                    load_in_bit[i] |= 1'b0;
                 end
 
                 // Stores
-                if(store_out[i].rat.rs1 == cdb_in.alu_out[j].inst_info.rat.rd) begin
-                    store_in[i].rs_entry.input1_met = 1'b1;
-                    store_in_bit[i] = 1'b1;
+                if(cdb_in.alu_out[j].ready_for_writeback && store_out[i].rat.rs1 == cdb_in.alu_out[j].inst_info.rat.rd) begin
+                    store_in[i].rs_entry.input1_met |= 1'b1;
+                    store_in_bit[i] |= 1'b1;
                 end
-                else if(store_out[i].rat.rs1 == cdb_in.mul_out[j].inst_info.rat.rd) begin
-                    store_in[i].rs_entry.input1_met = 1'b1;
-                    store_in_bit[i] = 1'b1;
+                else if(cdb_in.mul_out[k].ready_for_writeback && store_out[i].rat.rs1 == cdb_in.mul_out[k].inst_info.rat.rd) begin
+                    store_in[i].rs_entry.input1_met |= 1'b1;
+                    store_in_bit[i] |= 1'b1;
                 end
-                else if(store_out[i].rat.rs1 == cdb_in.lsq_out.inst_info.rat.rd) begin
-                    store_in[i].rs_entry.input1_met = 1'b1;
-                    store_in_bit[i] = 1'b1;
+                else if(cdb_in.lsq_out.ready_for_writeback && store_out[i].rat.rs1 == cdb_in.lsq_out.inst_info.rat.rd) begin
+                    store_in[i].rs_entry.input1_met |= 1'b1;
+                    store_in_bit[i] |= 1'b1;
                 end
                 else begin
-                    store_in[i].rs_entry.input1_met = 'x;
-                    store_in_bit[i] = 1'b0;
+                    store_in[i].rs_entry.input1_met |= 1'b0;
+                    store_in_bit[i] |= 1'b0;
                 end
 
-                if(store_out[i].rat.rs2 == cdb_in.alu_out[j].inst_info.rat.rd) begin
-                    store_in[i].rs_entry.input2_met = 1'b1;
-                    store_in_bit[i] = 1'b1;
+                if(cdb_in.alu_out[j].ready_for_writeback && store_out[i].rat.rs2 == cdb_in.alu_out[j].inst_info.rat.rd) begin
+                    store_in[i].rs_entry.input2_met |= 1'b1;
+                    store_in_bit[i] |= 1'b1;
                 end
-                else if(store_out[i].rat.rs2 == cdb_in.mul_out[j].inst_info.rat.rd) begin
-                    store_in[i].rs_entry.input2_met = 1'b1;
-                    store_in_bit[i] = 1'b1;
+                else if(cdb_in.mul_out[k].ready_for_writeback && store_out[i].rat.rs2 == cdb_in.mul_out[k].inst_info.rat.rd) begin
+                    store_in[i].rs_entry.input2_met |= 1'b1;
+                    store_in_bit[i] |= 1'b1;
                 end
-                else if(store_out[i].rat.rs2 == cdb_in.lsq_out.inst_info.rat.rd) begin
-                    store_in[i].rs_entry.input2_met = 1'b1;
-                    store_in_bit[i] = 1'b1;
+                else if(cdb_in.lsq_out.ready_for_writeback && store_out[i].rat.rs2 == cdb_in.lsq_out.inst_info.rat.rd) begin
+                    store_in[i].rs_entry.input2_met |= 1'b1;
+                    store_in_bit[i] |= 1'b1;
                 end
                 else begin
-                    store_in[i].rs_entry.input2_met = 'x;
-                    store_in_bit[i] = 1'b0;
+                    store_in[i].rs_entry.input2_met |= 1'b0;
+                    store_in_bit[i] |= 1'b0;
                 end
             end
         end
@@ -235,7 +250,7 @@ always_comb begin
         dmem_wdata = 'x;
     end
     request_load_s : begin
-        dmem_addr = load_out[load_tail].inst.immediate;
+        dmem_addr = lsq_reg_data.rs1_v.register_value + load_out[load_tail].inst.immediate;
         dmem_rmask = 1'b1;
         dmem_wmask = 4'b0;
         dmem_wdata = 'x;
@@ -264,9 +279,14 @@ always_comb begin
         lsq_request.rd_v = 'x;
         if(dmem_resp) begin
             pop_load = 1'b1;
-            cdb_out.inst_info = load_out[load_tail].inst;
-            cdb_out.register_value = dmem_rdata;
+            cdb_out.inst_info = load_out[load_tail];
+            cdb_out.register_value = dmem_rdata_masked;
             cdb_out.ready_for_writeback = 1'b1;
+            cdb_out.inst_info.rvfi.rd_wdata = dmem_rdata_masked;
+            cdb_out.inst_info.rvfi.rs1_rdata = lsq_reg_data.rs1_v.register_value;
+            cdb_out.inst_info.rvfi.rs2_rdata = '0;
+            cdb_out.inst_info.rvfi.mem_rdata = dmem_rdata;
+            cdb_out.inst_info.rvfi.mem_addr = lsq_reg_data.rs1_v.register_value + load_out[load_tail].inst.immediate;
         end
         else begin
             pop_load = 1'b0;

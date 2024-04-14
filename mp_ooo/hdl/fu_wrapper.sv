@@ -73,7 +73,7 @@ module fu_wrapper
     always_ff @(posedge clk) begin
             alu_output.inst_info <= to_be_calculated.inst_info;
             alu_output.register_value <= alu_res;
-            alu_output.ready_for_writeback <= 1'b1;
+            alu_output.ready_for_writeback <= to_be_calculated.start_calculate;
             alu_output.inst_info.rvfi.rd_wdata <= alu_res;
             alu_output.inst_info.rvfi.rs1_rdata <= fu_reg_data.rs1_v.register_value;
             alu_output.inst_info.rvfi.rs2_rdata <= fu_reg_data.rs2_v.register_value;
