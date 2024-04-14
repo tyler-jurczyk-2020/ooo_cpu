@@ -33,74 +33,40 @@ module rob
 
     logic [$clog2(ROB_DEPTH)-1:0] rob_id_out[SS];
     
-    logic [$clog2(ROB_DEPTH)-1:0] rob_id_reg_select [N_ALU + N_MUL];
-    super_dispatch_t rob_entry_in [N_ALU + N_MUL];
-    logic [(N_ALU + N_MUL)-1:0] bitmask;
-    logic [SS-1:0] out_bitmask;
+    logic [$clog2(ROB_DEPTH)-1:0] rob_id_reg_select [CDB];
+    super_dispatch_t rob_entry_in [CDB];
+    logic [(CDB)-1:0] bitmask;
     // ROB receives data from cdb and updates commit flag in circular queue
-    circular_queue #(.SS(SS), .SEL_IN(N_ALU + N_MUL), .SEL_OUT(SS), .QUEUE_TYPE(super_dispatch_t), .DEPTH(ROB_DEPTH)) rob_dut(.clk(clk), .rst(rst || flush), 
-    .in(dispatch_info), .push(avail_inst), .pop(pop_from_rob), 
-    .reg_select_out(rob_id_out), .flush(flush),
-    .reg_out(inspect_queue), .reg_select_in(rob_id_reg_select), .reg_in(rob_entry_in), .in_bitmask(bitmask), .out_bitmask(out_bitmask),// One hot bitmask
-    .head_out(head), .tail_out(tail), .full(rob_full), .empty(rob_empty),
-    .backup_freelist());
-
-
-    // 1. determine whether we need to branch (need to figure out whether to inform fetcher to    
-    // fetch something else and whether to signal global flusher)      
-
-    // if there is a difference in whether we predicted branch and whether to take a branch, you have to flush
-    // (XOR)
+    circular_queue #(.SS(SS), .SEL_IN(CDB), .SEL_OUT(SS), .QUEUE_TYPE(super_dispatch_t), .DEPTH(ROB_DEPTH)) rob_dut(.clk(clk), .rst(rst), .flush(flush), .in(dispatch_info), .push(avail_inst), .pop(pop_from_rob), 
+    .reg_select_out(rob_id_out), 
+    .reg_out(inspect_queue), .reg_select_in(rob_id_reg_select), .reg_in(rob_entry_in), .in_bitmask(bitmask), .out_bitmask('1),// One hot bitmask
+    .head_out(head), .tail_out(tail), .full(rob_full), .empty(rob_empty), .backup_freelist());
 
     always_comb begin
-        // ALU
-        for(int i = 0; i < N_ALU; i++) begin
-            out_bitmask[i] = 1'b1;
+        for(int i = 0; i < CDB; i++) begin
+            rob_id_reg_select[i] = 'x;
+            rob_entry_in[i] = 'x;
+            bitmask[i] = 1'b0;
+            if(cdb[i].ready_for_writeback) begin
+                rob_id_reg_select[i] = cdb[i].inst_info.rob.rob_id[2:0]; // Need to fix
+                rob_entry_in[i] = cdb[i].inst_info;
+                rob_entry_in[i].rob.commit = 1'b1;
+                bitmask[i] = 1'b1; 
 
-
-            if(cdb.alu_out[i].ready_for_writeback) begin
-                rob_id_reg_select[i] = cdb.alu_out[i].inst_info.rob.rob_id[2:0]; // Need to fix
-                rob_entry_in[i] = cdb.alu_out[i].inst_info;
-                rob_entry_in[i].rob.fu_value = cdb.alu_out[i].register_value; 
-                if(cdb.alu_out[i].inst_info.inst.is_branch && cdb.alu_out[i].branch_result) begin
+                rob_entry_in[i].rob.fu_value = cdb.alu_out[i].register_value;
+                if(cdb[i].inst_info.inst.is_branch && cdb[i].branch_result) begin
                     rob_entry_in[i].rob.branch_enable = '1; 
                 end
                 else begin
                     rob_entry_in[i].rob.branch_enable = '0; 
                 end
 
-                if(cdb.alu_out[i].inst_info.inst.is_branch && (cdb.alu_out[i].branch_result ^ cdb.alu_out[i].inst_info.inst.predict_branch)) begin
+                if(cdb[i].inst_info.inst.is_branch && (cdb[i].branch_result ^ cdb[i].inst_info.inst.predict_branch)) begin
                     rob_entry_in[i].rob.mispredict = '1; 
                 end
                 else begin
                     rob_entry_in[i].rob.mispredict = '0; 
                 end
-                
-                rob_entry_in[i].rob.commit = '1; 
-                bitmask[i] = 1'b1; 
-            end
-            // to fix lint warnings
-            else begin
-                rob_id_reg_select[i] = 'x;
-                rob_entry_in[i] = 'x;
-                bitmask[i] = 1'b0;
-            end
-        end
-
-        //MUL
-        for(int i = 0; i < N_MUL; i++) begin
-            out_bitmask[N_ALU + i] = 1'b1;
-            if(cdb.mul_out[i].ready_for_writeback) begin
-                rob_id_reg_select[N_ALU + i] = cdb.mul_out[i].inst_info.rob.rob_id[2:0]; // Need to fix
-                rob_entry_in[N_ALU + i] = cdb.mul_out[i].inst_info;
-                rob_entry_in[N_ALU + i].rob.commit = 1'b1;
-                bitmask[N_ALU + i] = 1'b1; 
-            end
-            // to fix lint warnings
-            else begin
-                rob_id_reg_select[N_ALU + i] = 'x;
-                rob_entry_in[N_ALU + i] = 'x;
-                bitmask[N_ALU + i] = 1'b0;
             end
         end
     end

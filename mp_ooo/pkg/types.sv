@@ -9,6 +9,7 @@ package rv32i_types;
     localparam ROB_D = 8;
     localparam N_MUL = 1;
     localparam N_ALU = 1;
+    localparam CDB = N_ALU + N_MUL + 1;
 
     typedef enum logic [6:0] {
         op_b_lui   = 7'b0110111, // U load upper immediate 
@@ -217,10 +218,7 @@ package rv32i_types;
         logic branch_result; 
     } fu_output_t; 
 
-    typedef struct {
-        fu_output_t alu_out [N_ALU];
-        fu_output_t mul_out [N_MUL];
-    } cdb_t;
+    typedef fu_output_t cdb_t [CDB];
 
     // typedef struct {
     //     super_dispatch_t instruction; 

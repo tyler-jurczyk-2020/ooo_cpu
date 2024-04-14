@@ -68,16 +68,14 @@ module reservation_table
                 end
             end
             // For a given CDB, Check whether we need to update any of the Entries
-            // ALU
-            for(int i = 0; i < REQUEST; i++) begin
+            for(int i = 0; i < CDB; i++) begin
                 for(int j = 0; j < reservation_table_size; j++) begin
-                    if(cdb_rob_ids[i].ready_for_writeback) begin
-                        if(reservation_table[j].rs_entry.rs1_source == cdb_rob_ids[i].inst_info.rob.rob_id) begin
-                            reservation_table[j].rs_entry.input1_met <= '1; 
-                        end
-                        if(reservation_table[j].rs_entry.rs2_source == cdb_rob_ids[i].inst_info.rob.rob_id) begin
-                            reservation_table[j].rs_entry.input2_met <= '1; 
-                        end
+                    if(cdb[i].ready_for_writeback && reservation_table[j].rs_entry.rs1_source == cdb[i].inst_info.rob.rob_id) begin
+                        reservation_table[j].rs_entry.input1_met <= '1; 
+                    end
+                          
+                    if(cdb[i].ready_for_writeback && reservation_table[j].rs_entry.rs2_source == cdb[i].inst_info.rob.rob_id) begin
+                        reservation_table[j].rs_entry.input2_met <= '1; 
                     end
                 end
             end

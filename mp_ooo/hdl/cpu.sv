@@ -152,12 +152,15 @@ fetch_stage #(.SS(SS)) fetch_stage_i (
 cdb_t cdb;
 fu_output_t alu_cmp_output [N_ALU], mul_output [N_MUL];
 // Merge cdb 
+// ALU entries come first, then MUL, then LSQ last
 always_comb begin
-    for(int i = 0; i < N_ALU; i++) begin
-        cdb.alu_out[i] = alu_cmp_output[i];
-    end
-    for(int i = 0; i < N_MUL; i++) begin
-        cdb.mul_out[i] = mul_output[i];
+    for(int i = 0; i < CDB; i++) begin
+        if(i < N_ALU)
+            cdb[i] = alu_output[i];
+        else if(i < N_ALU + N_MUL)
+            cdb[i] = mul_output [i - N_ALU];
+        else
+            cdb[i] = lsq_output;
     end
 end
 
@@ -176,7 +179,7 @@ physical_reg_response_t dispatch_reg_data [SS];
 physical_reg_response_t alu_reg_data [N_ALU], mul_reg_data [N_MUL];
 
 // MODULE INSTANTIATION
-phys_reg_file #(.SS(SS), .TABLE_ENTRIES(TABLE_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) reg_file (
+phys_reg_file #(.SS(SS), .TABLE_ENTRIES(TABLE_ENTRIES)) reg_file (
                 .clk(clk), .rst(rst), .regf_we('1), 
                 .cdb(cdb),
                 .dispatch_request(dispatch_request), .dispatch_reg_data(dispatch_reg_data), 
