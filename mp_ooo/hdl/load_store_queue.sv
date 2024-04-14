@@ -164,82 +164,34 @@ end
 
 // Modify entries up receiving updates from cdb
 always_comb begin
-    for(int i = 0; i < LD_ST_DEPTH; i++) begin
-        load_in[i] = load_out[i];
-        load_in_bit[i] = 1'b0;
-        store_in[i] = store_out[i];
-        store_in_bit[i] = 1'b0;
-        for(int j = 0; j < N_ALU; j++) begin
-            for(int k = 0; k < N_MUL; k++) begin
-                // Loads - RS1
-                if(cdb_in.alu_out[j].ready_for_writeback && load_out[i].rat.rs1 == cdb_in.alu_out[j].inst_info.rat.rd) begin
-                    load_in[i].rs_entry.input1_met |= 1'b1;
-                    load_in_bit[i] |= 1'b1;
-                end
-                else if(cdb_in.mul_out[k].ready_for_writeback && load_out[i].rat.rs1 == cdb_in.mul_out[k].inst_info.rat.rd) begin
-                    load_in[i].rs_entry.input1_met |= 1'b1;
-                    load_in_bit[i] |= 1'b1;
-                end
-                else if(cdb_in.lsq_out.ready_for_writeback && load_out[i].rat.rs1 == cdb_in.lsq_out.inst_info.rat.rd) begin
-                    load_in[i].rs_entry.input1_met |= 1'b1;
-                    load_in_bit[i] |= 1'b1;
-                end
-                else begin
-                    load_in[i].rs_entry.input1_met |= 1'b0;
-                    load_in_bit[i] |= 1'b0;
-                end
+    for(int d = 0; d < LD_ST_DEPTH; d++) begin
+        load_in[d] = load_out[d];
+        load_in_bit[d] = 1'b0;
+        store_in[d] = store_out[d];
+        store_in_bit[d] = 1'b0;
+        for(int i = 0; i < CDB; i++) begin
+            // Loads - RS1
+            if(cdb_in[i].ready_for_writeback && load_out[d].rat.rs1 == cdb_in[i].inst_info.rat.rd) begin
+                load_in[d].rs_entry.input1_met = 1'b1;
+                load_in_bit[d] = 1'b1;
+            end
 
-                if(cdb_in.alu_out[j].ready_for_writeback && load_out[i].rat.rs2 == cdb_in.alu_out[j].inst_info.rat.rd) begin
-                    load_in[i].rs_entry.input2_met |= 1'b1;
-                    load_in_bit[i] |= 1'b1;
-                end
-                else if(cdb_in.mul_out[k].ready_for_writeback && load_out[i].rat.rs2 == cdb_in.mul_out[k].inst_info.rat.rd) begin
-                    load_in[i].rs_entry.input2_met |= 1'b1;
-                    load_in_bit[i] |= 1'b1;
-                end
-                else if(cdb_in.lsq_out.ready_for_writeback && load_out[i].rat.rs2 == cdb_in.lsq_out.inst_info.rat.rd) begin
-                    load_in[i].rs_entry.input2_met |= 1'b1;
-                    load_in_bit[i] |= 1'b1;
-                end
-                else begin
-                    load_in[i].rs_entry.input2_met |= 1'b0;
-                    load_in_bit[i] |= 1'b0;
-                end
+            // Loads - RS2
+            if(cdb_in[i].ready_for_writeback && load_out[d].rat.rs2 == cdb_in[i].inst_info.rat.rd) begin
+                load_in[d].rs_entry.input2_met = 1'b1;
+                load_in_bit[d] = 1'b1;
+            end
 
-                // Stores
-                if(cdb_in.alu_out[j].ready_for_writeback && store_out[i].rat.rs1 == cdb_in.alu_out[j].inst_info.rat.rd) begin
-                    store_in[i].rs_entry.input1_met |= 1'b1;
-                    store_in_bit[i] |= 1'b1;
-                end
-                else if(cdb_in.mul_out[k].ready_for_writeback && store_out[i].rat.rs1 == cdb_in.mul_out[k].inst_info.rat.rd) begin
-                    store_in[i].rs_entry.input1_met |= 1'b1;
-                    store_in_bit[i] |= 1'b1;
-                end
-                else if(cdb_in.lsq_out.ready_for_writeback && store_out[i].rat.rs1 == cdb_in.lsq_out.inst_info.rat.rd) begin
-                    store_in[i].rs_entry.input1_met |= 1'b1;
-                    store_in_bit[i] |= 1'b1;
-                end
-                else begin
-                    store_in[i].rs_entry.input1_met |= 1'b0;
-                    store_in_bit[i] |= 1'b0;
-                end
+            // Stores - RS1
+            if(cdb_in[i].ready_for_writeback && store_out[d].rat.rs1 == cdb_in[i].inst_info.rat.rd) begin
+                store_in[d].rs_entry.input1_met = 1'b1;
+                store_in_bit[d] = 1'b1;
+            end
 
-                if(cdb_in.alu_out[j].ready_for_writeback && store_out[i].rat.rs2 == cdb_in.alu_out[j].inst_info.rat.rd) begin
-                    store_in[i].rs_entry.input2_met |= 1'b1;
-                    store_in_bit[i] |= 1'b1;
-                end
-                else if(cdb_in.mul_out[k].ready_for_writeback && store_out[i].rat.rs2 == cdb_in.mul_out[k].inst_info.rat.rd) begin
-                    store_in[i].rs_entry.input2_met |= 1'b1;
-                    store_in_bit[i] |= 1'b1;
-                end
-                else if(cdb_in.lsq_out.ready_for_writeback && store_out[i].rat.rs2 == cdb_in.lsq_out.inst_info.rat.rd) begin
-                    store_in[i].rs_entry.input2_met |= 1'b1;
-                    store_in_bit[i] |= 1'b1;
-                end
-                else begin
-                    store_in[i].rs_entry.input2_met |= 1'b0;
-                    store_in_bit[i] |= 1'b0;
-                end
+            // Stores - RS2
+            if(cdb_in[i].ready_for_writeback && store_out[d].rat.rs2 == cdb_in[i].inst_info.rat.rd) begin
+                store_in[d].rs_entry.input2_met = 1'b1;
+                store_in_bit[d] = 1'b1;
             end
         end
     end

@@ -66,30 +66,14 @@ module reservation_table
                 end
             end
             // For a given CDB, Check whether we need to update any of the Entries
-            for(int i = 0; i < N_ALU; i++) begin
-                for(int k = 0; k < N_MUL; k++) begin
-                    for(int j = 0; j < reservation_table_size; j++) begin
-                            // RS1
-                            if(cdb.alu_out[i].ready_for_writeback && reservation_table[j].rs_entry.rs1_source == cdb.alu_out[i].inst_info.rob.rob_id) begin
-                                reservation_table[j].rs_entry.input1_met <= '1; 
-                            end
-                            else if(cdb.mul_out[k].ready_for_writeback && reservation_table[j].rs_entry.rs1_source == cdb.mul_out[k].inst_info.rob.rob_id) begin
-                                reservation_table[j].rs_entry.input1_met <= '1; 
-                            end
-                            else if(cdb.lsq_out.ready_for_writeback && reservation_table[j].rs_entry.rs1_source == cdb.lsq_out.inst_info.rob.rob_id) begin
-                                reservation_table[j].rs_entry.input1_met <= '1; 
-                            end
-
-                            //RS2
-                            if(cdb.alu_out[i].ready_for_writeback && reservation_table[j].rs_entry.rs2_source == cdb.alu_out[i].inst_info.rob.rob_id) begin
-                                reservation_table[j].rs_entry.input2_met <= '1; 
-                            end
-                            else if(cdb.mul_out[k].ready_for_writeback && reservation_table[j].rs_entry.rs2_source == cdb.mul_out[k].inst_info.rob.rob_id) begin
-                                reservation_table[j].rs_entry.input2_met <= '1; 
-                            end
-                            else if(cdb.lsq_out.ready_for_writeback && reservation_table[j].rs_entry.rs2_source == cdb.lsq_out.inst_info.rob.rob_id) begin
-                                reservation_table[j].rs_entry.input2_met <= '1; 
-                            end
+            for(int i = 0; i < CDB; i++) begin
+                for(int j = 0; j < reservation_table_size; j++) begin
+                    if(cdb[i].ready_for_writeback && reservation_table[j].rs_entry.rs1_source == cdb[i].inst_info.rob.rob_id) begin
+                        reservation_table[j].rs_entry.input1_met <= '1; 
+                    end
+                          
+                    if(cdb[i].ready_for_writeback && reservation_table[j].rs_entry.rs2_source == cdb[i].inst_info.rob.rob_id) begin
+                        reservation_table[j].rs_entry.input2_met <= '1; 
                     end
                 end
             end
