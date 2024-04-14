@@ -20,7 +20,7 @@ import rv32i_types::*;
 
     // Regfile io
     output physical_reg_request_t lsq_request,
-    input physical_reg_request_t lsq_reg_data,
+    input physical_reg_response_t lsq_reg_data,
 
     // Output to cdb
     output fu_output_t cdb_out,
@@ -244,12 +244,18 @@ always_comb begin
         dmem_addr = store_out[store_tail].inst.immediate;
         dmem_rmask = 1'b0;
         dmem_wmask = store_out[store_tail].inst.wmask;
-        dmem_wdata = lsq_reg_data.rd_v.register_value;
+        dmem_wdata = lsq_reg_data.rs2_v.register_value;
+    end
+    default : begin
+        dmem_addr = 'x;
+        dmem_rmask = 'x;
+        dmem_wmask = 'x;
+        dmem_wdata = 'x;
     end
     endcase
 
     // Send out regfile requests
-    if(request_load_s) begin
+    if(state == request_load_s) begin
         pop_store = 1'b0;
         lsq_request.rs1_s = load_out[load_tail].rat.rs1;
         lsq_request.rs2_s = 'x;
@@ -269,7 +275,7 @@ always_comb begin
             cdb_out.ready_for_writeback = 1'b0;
         end
     end
-    else if(request_store_s) begin
+    else if(state == request_store_s) begin
         pop_load = 1'b0;
         pop_store = 1'b1;
         lsq_request.rs1_s = store_out[store_tail].rat.rs1;
@@ -277,6 +283,9 @@ always_comb begin
         lsq_request.rd_s = 'x;
         lsq_request.rd_en = 1'b0;
         lsq_request.rd_v = 'x;
+        cdb_out.inst_info = 'x;
+        cdb_out.register_value = 'x;
+        cdb_out.ready_for_writeback = 1'b0;
     end
     else begin
         pop_load = 1'b0;
@@ -286,6 +295,9 @@ always_comb begin
         lsq_request.rd_s = 'x;
         lsq_request.rd_en = 1'b0;
         lsq_request.rd_v = 'x;
+        cdb_out.inst_info = 'x;
+        cdb_out.register_value = 'x;
+        cdb_out.ready_for_writeback = 1'b0;
     end
 end
 

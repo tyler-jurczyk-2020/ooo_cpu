@@ -234,7 +234,10 @@ dispatcher #(.SS(SS), .PR_ENTRIES(PR_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) dispatcher
              // ROB ID for CUR INST
              .rob_id_next(rob_id_next), 
              
-             .rs_rob_entry(rs_rob_entry)
+             .rs_rob_entry(rs_rob_entry),
+
+             // Snipe rvfi
+             .snipe_rvfi(rob_entries_to_commit[0].rvfi)
             ); 
 
 
@@ -412,12 +415,15 @@ load_store_queue #(.SS(SS)) lsq(
     .avail_inst(avail_inst),
     .flush('0), // Wait to hookup flush signal
     .dispatch_entry(rs_rob_entry),
+    .lsq_request(lsq_request),
+    .lsq_reg_data(lsq_reg_data),
     .dmem_addr(dmem_addr),
     .dmem_rmask(dmem_rmask),
     .dmem_wmask(dmem_wmask),
     .dmem_rdata(dmem_rdata),
     .dmem_wdata(dmem_wdata),
     .dmem_resp(dmem_resp),
+    .cdb_in(cdb),
     .cdb_out(lsq_output)
 );
 

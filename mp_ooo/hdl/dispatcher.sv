@@ -78,8 +78,7 @@ module dispatcher
             active_store <= 1'b0;
     end
     
-    assign pop_inst_q = ~rs_full && ~inst_q_empty && ~rob_full
-                      && ~active_store && inst[0].wmask == 4'b0; 
+    assign pop_inst_q = ~rs_full && ~inst_q_empty && ~rob_full && ~active_store; 
     
     always_comb begin
         if(avail_inst) begin

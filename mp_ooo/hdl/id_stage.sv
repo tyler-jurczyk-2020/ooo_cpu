@@ -222,6 +222,7 @@ module id_stage
                 unique case (funct3)
                     lb, lh, lw : instruction_info.is_signed = 1'b1;
                     lbu, lhu : instruction_info.is_signed = 1'b0;
+                    default : instruction_info.rmask = 'x;
                 endcase
             end
             op_b_store : begin
