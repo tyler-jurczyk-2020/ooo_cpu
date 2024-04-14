@@ -78,7 +78,7 @@ module fu_wrapper
 
         if(to_be_calculated.inst_info.inst.is_branch) begin
             alu_cmp_output.inst_info.rvfi.rd_wdata  <= '0;
-            alu_cmp_output.register_value <= {31'd0, cmp_res};
+            alu_cmp_output.register_value <= alu_res;
         end
         else if(~to_be_calculated.inst_info.inst.alu_en) begin
             alu_cmp_output.inst_info.rvfi.rd_wdata  <= {31'd0, cmp_res};
@@ -88,7 +88,7 @@ module fu_wrapper
             alu_cmp_output.inst_info.rvfi.rd_wdata <= alu_res;
             alu_cmp_output.register_value <= alu_res;
         end
-        
+
         alu_cmp_output.ready_for_writeback <= 1'b1;
         alu_cmp_output.branch_result <= cmp_res; 
         

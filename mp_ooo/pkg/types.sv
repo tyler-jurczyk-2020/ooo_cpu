@@ -154,6 +154,7 @@ package rv32i_types;
        logic commit;
        logic mispredict; 
        logic branch_enable; 
+       logic [31:0] fu_value; 
        // Hardcoded ROB depth so it compiles
        // ROB entries to refer to for dependency
     } rob_t;

@@ -51,7 +51,7 @@ module fetch_stage
                 
                 pc_reg <= pc_reg + 4;
                 if(rob_entries_to_commit[i].rob.branch_enable && rob_entries_to_commit[i].rob.commit) begin
-                    pc_reg <= rob_entries_to_commit[i].inst.pc_next; 
+                    pc_reg <= rob_entries_to_commit[i].rob.fu_value; 
                     branch <= '1; 
                     break;
                 end

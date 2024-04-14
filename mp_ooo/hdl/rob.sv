@@ -61,6 +61,7 @@ module rob
             if(cdb.alu_out[i].ready_for_writeback) begin
                 rob_id_reg_select[i] = cdb.alu_out[i].inst_info.rob.rob_id[2:0]; // Need to fix
                 rob_entry_in[i] = cdb.alu_out[i].inst_info;
+                rob_entry_in[i].rob.fu_value = cdb.alu_out[i].register_value; 
                 if(cdb.alu_out[i].inst_info.inst.is_branch && cdb.alu_out[i].branch_result) begin
                     rob_entry_in[i].rob.branch_enable = '1; 
                 end
@@ -132,6 +133,10 @@ module rob
                 // based on whether the i'th instruction is valid or not AND
                 // whether a previous instruction was a mispredict or not, set valid
                 rob_entries_to_commit[i].rvfi.valid = valid_commit[i]; 
+
+                if(inspect_queue[i].inst.is_branch) begin
+                    rob_entries_to_commit[i].rvfi.pc_wdata = inspect_queue[i].rob.fu_value; 
+                end
 
                 rob_entries_to_commit[i].rvfi.order = order_counter + {32'b0, i};
                 // Send some signal to tell rrat to commit above entries

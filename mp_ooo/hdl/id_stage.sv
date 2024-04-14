@@ -188,8 +188,8 @@ module id_stage
                 instruction_info.cmp_operation = '0; 
             end
             op_b_br : begin
-                instruction_info.execute_operand1 = 2'b00; 
-                instruction_info.execute_operand2 = 2'b00; 
+                instruction_info.execute_operand1 = 2'b11; 
+                instruction_info.execute_operand2 = 2'b11; 
                 instruction_info.immediate = b_imm; 
                 instruction_info.is_branch = '1;   
                 instruction_info.rd_s = '0; 
