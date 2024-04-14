@@ -35,7 +35,11 @@ import rv32i_types::*;
 
     // MUL Requests
     input physical_reg_request_t mul_request [N_MUL],
-    output physical_reg_response_t mul_reg_data [N_MUL]
+    output physical_reg_response_t mul_reg_data [N_MUL],
+
+    // LSQ Requests
+    input physical_reg_request_t lsq_request,
+    output physical_reg_response_t lsq_reg_data
 );
 
     physical_reg_data_t  data [TABLE_ENTRIES];
@@ -46,7 +50,7 @@ import rv32i_types::*;
                 data[i] <= '0;
             end
         end else if (regf_we) begin
-            // ROB
+            // Dispatch updates rob dependencies now
             for (int i = 0; i < SS; i++) begin
             // for the given source register, is it NOT R0?
                 if(dispatch_request[i].rd_en) begin
@@ -76,9 +80,63 @@ import rv32i_types::*;
                     data[cdb.mul_out[i].inst_info.rat.rd].dependency <= '0; 
                 end
             end
+
+            // LSQ
+            if(cdb.lsq_out.ready_for_writeback) begin
+                data[cdb.lsq_out.inst_info.rat.rd].register_value <= cdb.lsq_out.register_value;
+                data[cdb.lsq_out.inst_info.rat.rd].dependency <= '0;
+            end
         end
     end     
 
+    // LSQ Reg data
+    always_comb begin
+        // ALU dispatch
+        for(int k = 0; k < SS; k++) begin
+            for (int i = 0; i < N_ALU; i++) begin
+                for(int j = 0; j < N_MUL; j++) begin
+                    // RS1
+                    if(cdb.alu_out[i].ready_for_writeback && (lsq_request.rs1_s == cdb.alu_out[i].inst_info.rat.rd)) begin
+                        lsq_reg_data.rs1_v.register_value = cdb.alu_out[i].register_value;
+                        lsq_reg_data.rs1_v.dependency = ~cdb.alu_out[i].inst_info.rs_entry.input1_met;
+                        lsq_reg_data.rs1_v.ROB_ID = cdb.alu_out[i].inst_info.rob.rob_id;
+                    end
+                    else if(cdb.mul_out[j].ready_for_writeback && (lsq_request.rs1_s == cdb.mul_out[j].inst_info.rat.rd)) begin
+                        lsq_reg_data.rs1_v.register_value = cdb.mul_out[j].register_value;
+                        lsq_reg_data.rs1_v.dependency = ~cdb.mul_out[j].inst_info.rs_entry.input1_met;
+                        lsq_reg_data.rs1_v.ROB_ID = cdb.mul_out[j].inst_info.rob.rob_id;
+                    end
+                    else if(cdb.lsq_out.ready_for_writeback && (lsq_request.rs1_s == cdb.lsq_out.inst_info.rat.rd)) begin
+                        lsq_reg_data.rs1_v.register_value = cdb.lsq_out.register_value;
+                        lsq_reg_data.rs1_v.dependency = ~cdb.lsq_out.inst_info.rs_entry.input1_met;
+                        lsq_reg_data.rs1_v.ROB_ID = cdb.lsq_out.inst_info.rob.rob_id;
+                    end
+                    else begin
+                        lsq_reg_data.rs1_v = data[lsq_request.rs1_s];
+                    end
+                    // RS2
+                    if(cdb.alu_out[i].ready_for_writeback && (lsq_request.rs2_s == cdb.alu_out[i].inst_info.rat.rd)) begin
+                        lsq_reg_data.rs2_v.register_value = cdb.alu_out[i].register_value;
+                        lsq_reg_data.rs2_v.dependency = ~cdb.alu_out[i].inst_info.rs_entry.input2_met;
+                        lsq_reg_data.rs2_v.ROB_ID = cdb.alu_out[i].inst_info.rob.rob_id;
+                    end
+                    else if(cdb.mul_out[j].ready_for_writeback && (lsq_request.rs2_s == cdb.mul_out[j].inst_info.rat.rd)) begin
+                        lsq_reg_data.rs2_v.register_value = cdb.mul_out[j].register_value;
+                        lsq_reg_data.rs2_v.dependency = ~cdb.mul_out[j].inst_info.rs_entry.input2_met;
+                        lsq_reg_data.rs2_v.ROB_ID = cdb.mul_out[j].inst_info.rob.rob_id;
+                    end
+                    else if(cdb.lsq_out.ready_for_writeback && (lsq_request.rs2_s == cdb.lsq_out.inst_info.rat.rd)) begin
+                        lsq_reg_data.rs2_v.register_value = cdb.lsq_out.register_value;
+                        lsq_reg_data.rs2_v.dependency = ~cdb.lsq_out.inst_info.rs_entry.input2_met;
+                        lsq_reg_data.rs2_v.ROB_ID = cdb.lsq_out.inst_info.rob.rob_id;
+                    end
+                    else begin
+                        lsq_reg_data.rs2_v = data[lsq_request.rs2_s];
+                    end
+                end
+            end
+        end
+    end
 
     // Modifying for the transparent regfile so if we are in the dispatcher
     // and the dispatcher needs to fetch data which is being written by the functional unit(s) then
@@ -101,6 +159,11 @@ import rv32i_types::*;
                         dispatch_reg_data[k].rs1_v.dependency = ~cdb.mul_out[j].inst_info.rs_entry.input1_met;
                         dispatch_reg_data[k].rs1_v.ROB_ID = cdb.mul_out[j].inst_info.rob.rob_id;
                     end
+                    else if(cdb.lsq_out.ready_for_writeback && (dispatch_request[k].rs1_s == cdb.mul_out[j].inst_info.rat.rd)) begin
+                        dispatch_reg_data[k].rs1_v.register_value = cdb.lsq_out.register_value;
+                        dispatch_reg_data[k].rs1_v.dependency = ~cdb.lsq_out.inst_info.rs_entry.input1_met;
+                        dispatch_reg_data[k].rs1_v.ROB_ID = cdb.lsq_out.inst_info.rob.rob_id;
+                    end
                     else begin
                         dispatch_reg_data[k].rs1_v = data[dispatch_request[k].rs1_s];
                     end
@@ -114,6 +177,11 @@ import rv32i_types::*;
                         dispatch_reg_data[k].rs2_v.register_value = cdb.mul_out[j].register_value;
                         dispatch_reg_data[k].rs2_v.dependency = ~cdb.mul_out[j].inst_info.rs_entry.input2_met;
                         dispatch_reg_data[k].rs2_v.ROB_ID = cdb.mul_out[j].inst_info.rob.rob_id;
+                    end
+                    else if(cdb.lsq_out.ready_for_writeback && (dispatch_request[k].rs2_s == cdb.lsq_out.inst_info.rat.rd)) begin
+                        dispatch_reg_data[k].rs2_v.register_value = cdb.lsq_out.register_value;
+                        dispatch_reg_data[k].rs2_v.dependency = ~cdb.lsq_out.inst_info.rs_entry.input2_met;
+                        dispatch_reg_data[k].rs2_v.ROB_ID = cdb.lsq_out.inst_info.rob.rob_id;
                     end
                     else begin
                         dispatch_reg_data[k].rs2_v = data[dispatch_request[k].rs2_s];
@@ -143,6 +211,11 @@ import rv32i_types::*;
                         alu_reg_data[k].rs1_v.dependency = ~cdb.mul_out[j].inst_info.rs_entry.input1_met;
                         alu_reg_data[k].rs1_v.ROB_ID = cdb.mul_out[j].inst_info.rob.rob_id;
                     end
+                    else if(cdb.lsq_out.ready_for_writeback && (alu_request[k].rs1_s == cdb.mul_out[j].inst_info.rat.rd)) begin
+                        alu_reg_data[k].rs1_v.register_value = cdb.lsq_out.register_value;
+                        alu_reg_data[k].rs1_v.dependency = ~cdb.lsq_out.inst_info.rs_entry.input1_met;
+                        alu_reg_data[k].rs1_v.ROB_ID = cdb.lsq_out.inst_info.rob.rob_id;
+                    end
                     else begin
                         alu_reg_data[k].rs1_v = data[alu_request[k].rs1_s];
                     end
@@ -156,6 +229,11 @@ import rv32i_types::*;
                         alu_reg_data[k].rs2_v.register_value = cdb.mul_out[j].register_value;
                         alu_reg_data[k].rs2_v.dependency = ~cdb.mul_out[j].inst_info.rs_entry.input2_met;
                         alu_reg_data[k].rs2_v.ROB_ID = cdb.mul_out[j].inst_info.rob.rob_id;
+                    end
+                    else if(cdb.lsq_out.ready_for_writeback && (alu_request[k].rs2_s == cdb.lsq_out.inst_info.rat.rd)) begin
+                        alu_reg_data[k].rs2_v.register_value = cdb.lsq_out.register_value;
+                        alu_reg_data[k].rs2_v.dependency = ~cdb.lsq_out.inst_info.rs_entry.input2_met;
+                        alu_reg_data[k].rs2_v.ROB_ID = cdb.lsq_out.inst_info.rob.rob_id;
                     end
                     else begin
                         alu_reg_data[k].rs2_v = data[alu_request[k].rs2_s];
@@ -185,6 +263,11 @@ import rv32i_types::*;
                         mul_reg_data[k].rs1_v.dependency = ~cdb.mul_out[j].inst_info.rs_entry.input1_met;
                         mul_reg_data[k].rs1_v.ROB_ID = cdb.mul_out[j].inst_info.rob.rob_id;
                     end
+                    else if(cdb.lsq_out.ready_for_writeback && (mul_request[k].rs1_s == cdb.mul_out[j].inst_info.rat.rd)) begin
+                        mul_reg_data[k].rs1_v.register_value = cdb.lsq_out.register_value;
+                        mul_reg_data[k].rs1_v.dependency = ~cdb.lsq_out.inst_info.rs_entry.input1_met;
+                        mul_reg_data[k].rs1_v.ROB_ID = cdb.lsq_out.inst_info.rob.rob_id;
+                    end
                     else begin
                         mul_reg_data[k].rs1_v = data[mul_request[k].rs1_s];
                     end
@@ -198,6 +281,11 @@ import rv32i_types::*;
                         mul_reg_data[k].rs2_v.register_value = cdb.mul_out[j].register_value;
                         mul_reg_data[k].rs2_v.dependency = ~cdb.mul_out[j].inst_info.rs_entry.input2_met;
                         mul_reg_data[k].rs2_v.ROB_ID = cdb.mul_out[j].inst_info.rob.rob_id;
+                    end
+                    else if(cdb.lsq_out.ready_for_writeback && (mul_request[k].rs2_s == cdb.lsq_out.inst_info.rat.rd)) begin
+                        mul_reg_data[k].rs2_v.register_value = cdb.lsq_out.register_value;
+                        mul_reg_data[k].rs2_v.dependency = ~cdb.lsq_out.inst_info.rs_entry.input2_met;
+                        mul_reg_data[k].rs2_v.ROB_ID = cdb.lsq_out.inst_info.rob.rob_id;
                     end
                     else begin
                         mul_reg_data[k].rs2_v = data[mul_request[k].rs2_s];

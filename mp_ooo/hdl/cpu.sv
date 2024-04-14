@@ -71,10 +71,6 @@ fetch_output_reg_t if_id_reg, if_id_reg_next;
 // Parsed out decoded cacheline
 instruction_info_reg_t decoded_inst [SS];
 
-// Dummy assign
-assign dmem_addr = '0;
-assign dmem_wdata = '0;
-
 // Dummy instruction assigns
 logic [SS-1:0] d_bitmask;
 logic [$clog2(ROB_DEPTH)-1:0] d_reg_sel [SS];
@@ -145,9 +141,10 @@ fetch_stage fetch_stage_i (
 
 
 cdb_t cdb;
-fu_output_t alu_output [N_ALU], mul_output [N_MUL];
+fu_output_t alu_output [N_ALU], mul_output [N_MUL], lsq_output;
 // Merge cdb 
 always_comb begin
+    cdb.lsq_out = lsq_output;
     for(int i = 0; i < N_ALU; i++) begin
         cdb.alu_out[i] = alu_output[i];
     end
@@ -161,7 +158,7 @@ end
 // MODULE INPUTS DECLARATION 
 physical_reg_request_t dispatch_request[SS];
 physical_reg_request_t alu_request [N_ALU] , mul_request [N_MUL];
-
+physical_reg_request_t lsq_request;
 
 // INPUTS FROM THE RESERVATION TABLE FROM THE ALU
 // @TYLER HOOK THIS UP ----> its hooked up now - <Gay
@@ -169,6 +166,7 @@ physical_reg_request_t alu_request [N_ALU] , mul_request [N_MUL];
 // MODULE OUTPUT DECLARATION
 physical_reg_response_t dispatch_reg_data [SS];
 physical_reg_response_t alu_reg_data [N_ALU], mul_reg_data [N_MUL];
+physical_reg_response_t lsq_reg_data;
 
 // MODULE INSTANTIATION
 phys_reg_file #(.SS(SS), .TABLE_ENTRIES(TABLE_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) reg_file (
@@ -176,7 +174,8 @@ phys_reg_file #(.SS(SS), .TABLE_ENTRIES(TABLE_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) r
                 .cdb(cdb),
                 .dispatch_request(dispatch_request), .dispatch_reg_data(dispatch_reg_data), 
                 .alu_request(alu_request), .alu_reg_data(alu_reg_data),
-                .mul_request(mul_request), .mul_reg_data(mul_reg_data)
+                .mul_request(mul_request), .mul_reg_data(mul_reg_data),
+                .lsq_request(lsq_request), .lsq_reg_data(lsq_reg_data)
                 ); 
 
 // Cycle 0: 
@@ -401,9 +400,26 @@ for(genvar i = 0; i < N_MUL; i++) begin : fu_muls
 end
 endgenerate
 
-// Temporary:
-assign dmem_rmask = 1'b0;
-assign dmem_wmask = 4'b0;
+// Cycle 1: 
+///////////////////// Issue: Load Store Queue /////////////////////
+// MODULE INPUTS DECLARATION 
+
+// MODULE OUTPUT DECLARATION
+
+// MODULE INSTANTIATION
+load_store_queue #(.SS(SS)) lsq(
+    .clk(clk), .rst(rst),
+    .avail_inst(avail_inst),
+    .flush('0), // Wait to hookup flush signal
+    .dispatch_entry(rs_rob_entry),
+    .dmem_addr(dmem_addr),
+    .dmem_rmask(dmem_rmask),
+    .dmem_wmask(dmem_wmask),
+    .dmem_rdata(dmem_rdata),
+    .dmem_wdata(dmem_wdata),
+    .dmem_resp(dmem_resp),
+    .cdb_out(lsq_output)
+);
 
 // //RVFI Signals
 // // Must be hardwired to 2 to be consistent with rvfi_reference.json

@@ -7,6 +7,7 @@ package rv32i_types;
 
     localparam TABLE_ENTRIES = 64;
     localparam ROB_D = 8;
+    localparam LD_ST = 8;
     localparam N_MUL = 1;
     localparam N_ALU = 1;
 
@@ -103,6 +104,11 @@ package rv32i_types;
             logic [1:0] execute_operand1; 
             logic [1:0] execute_operand2; 
 
+            logic [3:0] rmask;
+            logic [3:0] wmask;
+
+            logic is_signed;
+
 
             // logic op1_is_imm; 
             // logic op2_is_imm; 
@@ -162,11 +168,17 @@ package rv32i_types;
     } reservation_entry_t; 
 
     typedef struct packed {
+       logic [$clog2(LD_ST)-1:0] pointer;     
+       logic cross_dep_met;
+    } cross_tail_t;
+
+    typedef struct packed {
        rob_t rob;
        rvfi_t rvfi; 
        instruction_info_reg_t inst;
        rat_t rat;
        reservation_entry_t rs_entry;
+       cross_tail_t cross_tail;
     } super_dispatch_t;
 
     typedef enum logic {
@@ -213,6 +225,7 @@ package rv32i_types;
     typedef struct {
         fu_output_t alu_out [N_ALU];
         fu_output_t mul_out [N_MUL];
+        fu_output_t lsq_out;
     } cdb_t;
 
     typedef struct packed {
@@ -221,6 +234,14 @@ package rv32i_types;
         logic [31:0] b; 
         logic start; 
     } multiply_FUs_t; 
+
+    typedef enum logic [1:0] {
+        wait_s_load_p,
+        wait_s_store_p,
+        request_load_s,
+        request_store_s
+    } ld_st_controller_t;
+
 endpackage
 
 package cache_types;

@@ -19,6 +19,7 @@ module id_stage
     logic   [4:0]   rs1_s;
     logic   [4:0]   rs2_s;
     logic   [4:0]   rd_s;   
+    logic   [11:0]  offset;
 
     assign funct3 = imem_rdata[14:12];
     assign funct7 = imem_rdata[31:25];
@@ -31,6 +32,7 @@ module id_stage
     assign rs1_s  = imem_rdata[19:15];
     assign rs2_s  = imem_rdata[24:20];
     assign rd_s   = imem_rdata[11:7];
+    assign offset = imem_rdata[31:20];
 
     always_comb begin
         instruction_info.funct3 = funct3; 
@@ -75,6 +77,11 @@ module id_stage
         instruction_info.is_mul = 1'b0;
         instruction_info.mul_type = 'x;
 
+        // Memory mask
+        instruction_info.rmask = '0;
+        instruction_info.wmask = '0;
+
+        instruction_info.is_signed = '0;
         // calculating branch target 
         // logic [31:0] b_imm;    // Branch immediate extracted from the instruction
         // logic [31:0] branch_target;
@@ -206,12 +213,28 @@ module id_stage
                 instruction_info.execute_operand2 = 2'b11; 
                 instruction_info.immediate = i_imm; 
                 // instruction_info.cmp_en = '0;  
+                unique case (funct3)
+                    lb, lbu : instruction_info.rmask = 4'h1 << offset[1:0];
+                    lh, lhu : instruction_info.rmask = 4'h3 << offset[1:0];
+                    lw : instruction_info.rmask = 4'hf;
+                    default : instruction_info.rmask = 'x;
+                endcase
+                unique case (funct3)
+                    lb, lh, lw : instruction_info.is_signed = 1'b1;
+                    lbu, lhu : instruction_info.is_signed = 1'b0;
+                endcase
             end
             op_b_store : begin
                 instruction_info.execute_operand1 = 2'b00; 
                 instruction_info.execute_operand2 = 2'b11; 
                 instruction_info.immediate = s_imm; 
                 // instruction_info.cmp_en = '1;  
+                unique case (funct3)
+                    sb : instruction_info.wmask = 4'h1 << offset[1:0];
+                    sh, lhu : instruction_info.wmask = 4'h3 << offset[1:0];
+                    sw : instruction_info.wmask = 4'hf;
+                    default : instruction_info.wmask = 'x;
+                endcase
             end
 
             default : ; 
