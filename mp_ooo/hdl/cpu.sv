@@ -359,7 +359,7 @@ reservation_table #(.SS(SS), .REQUEST(N_ALU), .TABLE_TYPE(ALU_T), .reservation_t
 generate
 for(genvar i = 0; i < N_ALU; i++) begin : fu_alus
     fu_wrapper fuck_u(
-            .clk(clk), //.rst(rst),
+            .clk(clk), .rst(rst || flush),
             .to_be_calculated(inst_for_fu_alu[i]),
             .alu_cmp_output(alu_cmp_output[i]),
             .fu_reg_data(alu_reg_data[i])

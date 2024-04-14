@@ -14,13 +14,16 @@ li x2, 20
 li x3, 30
 li x4, 40
 
-bne x1, x2, halt; 
+bne x1, x2, b2
 
 li x5, 50
 li x6, 60
 
-bne x4, x6, halt
+b2: 
+bne x3, x4, halt
 
+li x6, 60
+li x7, 70
 
 halt:                 
     slti x0, x0, -256

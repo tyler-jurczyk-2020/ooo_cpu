@@ -47,6 +47,10 @@ module reservation_table
             for(int j = 0; j < reservation_table_size; j++) begin
                 reservation_table[j].rs_entry.full <= '0; 
             end
+            // for(int i = 0; i < REQUEST; i++) begin
+            //     inst_for_fu[i] <= '0;
+            //     fu_request[i] <= '0; 
+            // end            
         end
         // Write new entry
         else begin
@@ -80,6 +84,7 @@ module reservation_table
 
             for(int i = 0; i < REQUEST; i++) begin
                 for(int j = 0; j < reservation_table_size; j++) begin
+                    
                     if(reservation_table[j].rs_entry.full && reservation_table[j].rs_entry.input1_met && reservation_table[j].rs_entry.input2_met) begin
                         if(FU_Ready[i]) begin
                             reservation_table[j].rs_entry.full <= '0;

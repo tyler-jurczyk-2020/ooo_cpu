@@ -1,7 +1,7 @@
 module fu_wrapper
     import rv32i_types::*;
     (
-        input logic clk, // rst,
+        input logic clk, rst,
         // get entry from reservation station
         input fu_input_t to_be_calculated, 
 
@@ -74,6 +74,10 @@ module fu_wrapper
 
     // Select register to push out
     always_ff @(posedge clk) begin
+        if(rst) begin
+            alu_cmp_output <= '0; 
+        end
+        else begin
         alu_cmp_output.inst_info <= to_be_calculated.inst_info;
 
         if(to_be_calculated.inst_info.inst.is_branch) begin
@@ -94,6 +98,7 @@ module fu_wrapper
         
         alu_cmp_output.inst_info.rvfi.rs1_rdata <= fu_reg_data.rs1_v.register_value;
         alu_cmp_output.inst_info.rvfi.rs2_rdata <= fu_reg_data.rs2_v.register_value;
+        end
     end
         
 endmodule : fu_wrapper
