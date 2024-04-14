@@ -37,13 +37,13 @@ logic load_full, store_full;
 // Hardcoded reg select
 logic [$clog2(LD_ST_DEPTH)-1:0] reg_select_queue [LD_ST_DEPTH];
 always_comb begin
-    for(int i = 0; i < LD_ST_DEPTH; i++) begin
+    for(int unsigned i = 0; i < LD_ST_DEPTH; i++) begin
         reg_select_queue[i] = ($clog2(LD_ST_DEPTH))'(i);
     end
 end
 
 // Input into queues
-super_dispatch_t load_queue_in [SS], store_queue_in [SS];
+super_dispatch_t load_queue_in [SS], load_queue_out [SS], store_queue_in [SS] , store_queue_out [SS];
 
 // Entries of the queue to fw
 logic [LD_ST_DEPTH-1:0] load_in_bit, store_in_bit;
@@ -78,6 +78,7 @@ circular_queue #(.QUEUE_TYPE(super_dispatch_t), .SS(SS), .SEL_IN(LD_ST_DEPTH), .
 load_queue(
     .clk(clk), .rst(rst || flush),
     .in(load_queue_in),
+    .out(load_queue_out),
     .tail_out(load_tail),
     // Always need to access all entries
     .reg_select_in(reg_select_queue),
@@ -96,6 +97,7 @@ circular_queue #(.QUEUE_TYPE(super_dispatch_t), .SS(SS), .SEL_IN(LD_ST_DEPTH), .
 store_queue(
     .clk(clk), .rst(rst || flush),
     .in(store_queue_in),
+    .out(store_queue_out),
     .tail_out(store_tail),
     // Always need to access all entries
     .reg_select_in(reg_select_queue),
@@ -147,10 +149,13 @@ always_comb begin
     else if((state == request_load_s || state == request_store_s) && dmem_resp) begin
         // Return to other wait state to prevent starvation
         unique case (state)
-            request_load_s : next_state = wait_s_store_p;
+            request_load_s : next_state = latch_load_s;
             request_store_s : next_state = wait_s_load_p;
             default : next_state = state;
         endcase
+    end
+    else if(state == latch_load_s) begin
+        next_state = wait_s_store_p;
     end
     else begin
         next_state = state;
@@ -240,6 +245,22 @@ always_comb begin
     end
 end
 
+
+logic [31:0] dmem_rdata_masked_reg, dmem_rdata_reg, rs1_register_value_reg;
+
+always_ff @(posedge clk) begin
+    if(rst) begin
+        dmem_rdata_masked_reg <= '0;
+        dmem_rdata_reg <= '0;
+        rs1_register_value_reg <= '0;
+    end
+    else if(dmem_resp) begin
+        dmem_rdata_masked_reg <= dmem_rdata_masked;
+        dmem_rdata_reg <= dmem_rdata;
+        rs1_register_value_reg <= lsq_reg_data.rs1_v.register_value;
+    end
+end
+
 always_comb begin
     // Send out to data cache based on state of controller
     unique case (state)
@@ -269,6 +290,7 @@ always_comb begin
     end
     endcase
 
+
     // Send out regfile requests
     if(state == request_load_s) begin
         pop_store = 1'b0;
@@ -277,22 +299,14 @@ always_comb begin
         lsq_request.rd_s = 'x;
         lsq_request.rd_en = 1'b0;
         lsq_request.rd_v = 'x;
+        cdb_out.inst_info = 'x;
+        cdb_out.register_value = 'x;
+        cdb_out.ready_for_writeback = 1'b0;
         if(dmem_resp) begin
             pop_load = 1'b1;
-            cdb_out.inst_info = load_out[load_tail];
-            cdb_out.register_value = dmem_rdata_masked;
-            cdb_out.ready_for_writeback = 1'b1;
-            cdb_out.inst_info.rvfi.rd_wdata = dmem_rdata_masked;
-            cdb_out.inst_info.rvfi.rs1_rdata = lsq_reg_data.rs1_v.register_value;
-            cdb_out.inst_info.rvfi.rs2_rdata = '0;
-            cdb_out.inst_info.rvfi.mem_rdata = dmem_rdata;
-            cdb_out.inst_info.rvfi.mem_addr = lsq_reg_data.rs1_v.register_value + load_out[load_tail].inst.immediate;
         end
         else begin
             pop_load = 1'b0;
-            cdb_out.inst_info = 'x;
-            cdb_out.register_value = 'x;
-            cdb_out.ready_for_writeback = 1'b0;
         end
     end
     else if(state == request_store_s) begin
@@ -306,6 +320,23 @@ always_comb begin
         cdb_out.inst_info = 'x;
         cdb_out.register_value = 'x;
         cdb_out.ready_for_writeback = 1'b0;
+    end
+    else if(state == latch_load_s) begin
+        pop_load = 1'b0;
+        pop_store = 1'b0;
+        lsq_request.rs1_s = 'x;
+        lsq_request.rs2_s = 'x;
+        lsq_request.rd_s = 'x;
+        lsq_request.rd_en = 1'b0;
+        lsq_request.rd_v = 'x;
+        cdb_out.inst_info = load_queue_out[0];
+        cdb_out.register_value = dmem_rdata_masked_reg;
+        cdb_out.ready_for_writeback = 1'b1;
+        cdb_out.inst_info.rvfi.rd_wdata = dmem_rdata_masked_reg;
+        cdb_out.inst_info.rvfi.rs1_rdata = rs1_register_value_reg;
+        cdb_out.inst_info.rvfi.rs2_rdata = '0;
+        cdb_out.inst_info.rvfi.mem_rdata = dmem_rdata_reg;
+        cdb_out.inst_info.rvfi.mem_addr = rs1_register_value_reg + load_queue_out[0].inst.immediate;
     end
     else begin
         pop_load = 1'b0;

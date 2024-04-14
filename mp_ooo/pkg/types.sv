@@ -236,10 +236,11 @@ package rv32i_types;
         logic start; 
     } multiply_FUs_t; 
 
-    typedef enum logic [1:0] {
+    typedef enum logic [2:0] {
         wait_s_load_p,
         wait_s_store_p,
         request_load_s,
+        latch_load_s,
         request_store_s
     } ld_st_controller_t;
 
