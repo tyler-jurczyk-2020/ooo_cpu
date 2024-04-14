@@ -208,6 +208,7 @@ logic avail_inst;
 // MODULE OUTPUT DECLARATION
 super_dispatch_t rs_rob_entry [SS]; 
 
+super_dispatch_t rob_entries_to_commit [SS];
 
 // MODULE INSTANTIATION
 dispatcher #(.SS(SS), .PR_ENTRIES(PR_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) dispatcher_i(
@@ -247,7 +248,6 @@ dispatcher #(.SS(SS), .PR_ENTRIES(PR_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) dispatcher
 logic pop_from_rob;
 logic push_to_free_list;
 logic [5:0] retire_to_free_list [SS];
-super_dispatch_t rob_entries_to_commit [SS];
 // MODULE OUTPUT DECLARATION
 
 // MODULE INSTANTIATION

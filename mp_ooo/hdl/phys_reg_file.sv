@@ -106,11 +106,6 @@ import rv32i_types::*;
                         lsq_reg_data.rs1_v.dependency = ~cdb.mul_out[j].inst_info.rs_entry.input1_met;
                         lsq_reg_data.rs1_v.ROB_ID = cdb.mul_out[j].inst_info.rob.rob_id;
                     end
-                    else if(cdb.lsq_out.ready_for_writeback && (lsq_request.rs1_s == cdb.lsq_out.inst_info.rat.rd)) begin
-                        lsq_reg_data.rs1_v.register_value = cdb.lsq_out.register_value;
-                        lsq_reg_data.rs1_v.dependency = ~cdb.lsq_out.inst_info.rs_entry.input1_met;
-                        lsq_reg_data.rs1_v.ROB_ID = cdb.lsq_out.inst_info.rob.rob_id;
-                    end
                     else begin
                         lsq_reg_data.rs1_v = data[lsq_request.rs1_s];
                     end
@@ -124,11 +119,6 @@ import rv32i_types::*;
                         lsq_reg_data.rs2_v.register_value = cdb.mul_out[j].register_value;
                         lsq_reg_data.rs2_v.dependency = ~cdb.mul_out[j].inst_info.rs_entry.input2_met;
                         lsq_reg_data.rs2_v.ROB_ID = cdb.mul_out[j].inst_info.rob.rob_id;
-                    end
-                    else if(cdb.lsq_out.ready_for_writeback && (lsq_request.rs2_s == cdb.lsq_out.inst_info.rat.rd)) begin
-                        lsq_reg_data.rs2_v.register_value = cdb.lsq_out.register_value;
-                        lsq_reg_data.rs2_v.dependency = ~cdb.lsq_out.inst_info.rs_entry.input2_met;
-                        lsq_reg_data.rs2_v.ROB_ID = cdb.lsq_out.inst_info.rob.rob_id;
                     end
                     else begin
                         lsq_reg_data.rs2_v = data[lsq_request.rs2_s];
