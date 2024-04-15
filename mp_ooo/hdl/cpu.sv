@@ -118,12 +118,7 @@ endgenerate
 instruction_info_reg_t instruction [SS];
 logic inst_q_empty, pop_inst_q;
 instruction_info_reg_t view_inst_tail [1];
-logic [$clog2(ROB_DEPTH)-1:0] inst_tail;
-logic [$clog2(ROB_DEPTH)-1:0] sel_out_inst [1];
-assign sel_out_inst[0] = inst_tail;
-
-// Check if next inst has rd
-logic next_inst_has_rd = view_inst_tail[0].has_rd;
+logic [$clog2(ROB_DEPTH-1):0] inst_tail;
 
 circular_queue #(.SS(SS), .IN_WIDTH(SS), .SEL_IN(SS), .SEL_OUT(1), .DEPTH(ROB_DEPTH)) instruction_queue
                 (.clk(clk), .rst(rst || flush),
@@ -131,8 +126,7 @@ circular_queue #(.SS(SS), .IN_WIDTH(SS), .SEL_IN(SS), .SEL_OUT(1), .DEPTH(ROB_DE
                  .out(instruction), .flush(flush),
                  .push(imem_resp), .pop(pop_inst_q), .empty(inst_q_empty),
                  .out_bitmask('1), .in_bitmask(d_bitmask), .tail_out(inst_tail),
-                 .reg_out(view_inst_tail),
-                 .reg_select_in(d_reg_sel), .reg_select_out(sel_out_inst), .reg_in(d_reg_in), .backup_freelist()
+                 .reg_select_in(d_reg_sel),.reg_select_out(view_inst_tail),.reg_in(d_reg_in), .backup_freelist()
                  );
                 // planning on passing dummy shit or 0 into reg_select shit
 
@@ -219,7 +213,7 @@ logic [$clog2(ROB_DEPTH)-1:0] rob_id_next [SS]; // INPUTS
 logic avail_inst; 
 
 // MODULE OUTPUT DECLARATION
-logic update_rat;
+
 
 // MODULE INSTANTIATION
 dispatcher #(.SS(SS), .PR_ENTRIES(PR_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) dispatcher_i(
@@ -246,8 +240,7 @@ dispatcher #(.SS(SS), .PR_ENTRIES(PR_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) dispatcher
              // ROB ID for CUR INST
              .rob_id_next(rob_id_next), 
              
-             .rs_rob_entry(rs_rob_entry),
-             .update_rat(update_rat)
+             .rs_rob_entry(rs_rob_entry)
             ); 
 
 
@@ -263,7 +256,7 @@ logic [5:0] backup_retired_rat [32];
 // MODULE OUTPUT DECLARATION
 
 // MODULE INSTANTIATION
-rat #(.SS(SS)) rt(.clk(clk), .rst(rst), .regf_we(update_rat), // Need to connect write enable to pop_inst_q?
+rat #(.SS(SS)) rt(.clk(clk), .rst(rst), .regf_we(avail_inst), // Need to connect write enable to pop_inst_q?
      .rat_rd(rat_rd),
      .isa_rd(isa_rd), .isa_rs1(isa_rs1), .isa_rs2(isa_rs2),
      .rat_rs1(rat_rs1) , .rat_rs2(rat_rs2),
@@ -302,7 +295,7 @@ logic [5:0] backup_freelist [32];
 
 // free list 
 circular_queue #( .SS(SS), .SEL_IN(SS), .SEL_OUT(SS), .QUEUE_TYPE(logic [5:0]), .INIT_TYPE(FREE_LIST), .DEPTH(32))
-      free_list(.clk(clk), .rst(rst), .in(retire_to_free_list), .push(push_to_free_list), .pop(pop_inst_q && next_inst_has_rd),
+      free_list(.clk(clk), .rst(rst), .in(retire_to_free_list), .push(push_to_free_list), .pop(pop_inst_q),
       .flush(flush),
       .reg_in(d_free_reg_in), .reg_select_in(d_free_reg_sel), .reg_select_out(d_free_reg_sel),      
       .out_bitmask(d_bitmask), .in_bitmask(d_bitmask),
