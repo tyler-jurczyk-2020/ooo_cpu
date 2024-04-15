@@ -71,6 +71,8 @@ fetch_output_reg_t if_id_reg, if_id_reg_next;
 // Parsed out decoded cacheline
 instruction_info_reg_t decoded_inst [SS];
 
+super_dispatch_t rob_entries_to_commit1[SS]; 
+
 logic valid_request; 
 
 
@@ -80,12 +82,13 @@ always_ff @ (posedge clk) begin
     if(rst) begin
         flush_reg <= '0; 
     end
-    else if(imem_resp) begin
-        flush_reg <= '0; 
-    end
     else if(flush) begin
         flush_reg <= '1; 
     end
+    else if(imem_resp) begin
+        flush_reg <= '0; 
+    end
+    
     
 end
 
@@ -186,7 +189,9 @@ fetch_stage #(.SS(SS)) fetch_stage_i (
     .pc_reg(pc_reg),
     .imem_rmask(imem_rmask),
     .imem_addr(imem_addr), 
-    .decoded_inst(decoded_inst)
+    .decoded_inst(decoded_inst), 
+    .valid_request(valid_request), 
+    .rob_entries_to_commit1(rob_entries_to_commit1)
 );
 
 
@@ -394,7 +399,8 @@ rob #(.SS(SS), .ROB_DEPTH(ROB_DEPTH)) rb(.clk(clk), .rst(rst),
                                          .rob_id_next(rob_id_next), 
                                          .rob_entries_to_commit(rob_entries_to_commit),
                                          .rob_full(rob_full),
-                                         .pop_from_rob(pop_from_rob)
+                                         .pop_from_rob(pop_from_rob), 
+                                         .rob_entries_to_commit1(rob_entries_to_commit1)
                                         );
 
 // Cycle 1: 

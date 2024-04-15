@@ -22,7 +22,8 @@ module rob
         // send out full rob
         output logic rob_full,
         // pop from rob queue
-        output logic pop_from_rob
+        output logic pop_from_rob, 
+        output super_dispatch_t rob_entries_to_commit1 [SS]
     );
     
     // head & tail pointers for ROB entries
@@ -109,6 +110,14 @@ module rob
                 rob_entries_to_commit[i] = 'x;
                 rob_entries_to_commit[i].rvfi.valid = 1'b0;
             end
+        end
+    end
+
+    
+
+    always_ff @ (posedge clk) begin
+        if(pop_from_rob) begin
+            rob_entries_to_commit1 <= rob_entries_to_commit;
         end
     end
 
