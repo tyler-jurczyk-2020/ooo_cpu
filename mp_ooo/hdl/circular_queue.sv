@@ -20,15 +20,16 @@ import rv32i_types::*;
  
     input logic flush,
 
-    input logic [$clog2(DEPTH)-1:0] tail_in,
-    input logic [$clog2(DEPTH)-1:0] head_in,
+    input logic [$clog2(DEPTH):0] extendo_tail_in,
+    input logic [$clog2(DEPTH):0] extendo_head_in,
 
     // Need to consider potentially how partial pushes/pops may work in superscalar context
     output logic empty,
     output logic full,
     output logic [$clog2(DEPTH)-1:0] head_out, tail_out,
+    output logic [$clog2(DEPTH):0] extendo_head_out, extendo_tail_out,
     output QUEUE_TYPE out [SS], // Values pushed out
-    output QUEUE_TYPE reg_out [SEL_OUT], // Values selected to be observed
+    output QUEUE_TYPE reg_out [SEL_OUT] // Values selected to be observed
     );
 
 QUEUE_TYPE entries [DEPTH];
@@ -37,6 +38,8 @@ logic [31:0] sext_head, sext_tail, sext_amount, sext_amount_in, sext_amount_out;
 
 assign head_out = head[$clog2(DEPTH)-1:0];
 assign tail_out = tail[$clog2(DEPTH)-1:0];
+assign extendo_head_out = head[$clog2(DEPTH):0];
+assign extendo_tail_out = tail[$clog2(DEPTH):0];
 
 assign head_spec = head + SS[$clog2(DEPTH):0]; // Need to make superscalar
 
@@ -83,8 +86,8 @@ always_ff @(posedge clk) begin
         end
         
         if(flush && INIT_TYPE == FREE_LIST) begin
-            tail <= tail_in;
-            head <= head_in;
+            tail <= extendo_tail_in;
+            head <= extendo_head_in;
             for(int i = 0; i < DEPTH; i++) 
                 entries[i] <= reg_in[i];
         end

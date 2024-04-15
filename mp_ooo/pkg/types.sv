@@ -178,7 +178,7 @@ package rv32i_types;
        reservation_entry_t rs_entry;
     } super_dispatch_t;
 
-    typedef enum logic {
+    typedef enum logic [1:0] {
         ZERO,
         FREE_LIST,
         BACKUP_FREE_LIST

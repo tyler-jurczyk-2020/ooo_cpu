@@ -132,7 +132,7 @@ circular_queue #(.SS(SS), .IN_WIDTH(SS), .SEL_IN(SS), .SEL_OUT(1), .DEPTH(ROB_DE
                  .push(imem_resp), .pop(pop_inst_q), .empty(inst_q_empty),
                  .out_bitmask('1), .in_bitmask(d_bitmask), .tail_out(inst_tail),
                  .reg_out(view_inst_tail),
-                 .tail_in('0),.head_in('0),
+                 .extendo_tail_in('0), .extendo_head_in('0),
                  .reg_select_in(d_reg_sel), .reg_select_out(sel_out_inst), .reg_in(d_reg_in)
                  );
                 // planning on passing dummy shit or 0 into reg_select shit
@@ -301,13 +301,15 @@ end
 
 logic [5:0] backup_freelist [32];
 logic [5:0] dummy_backup_freelist [32];
+logic [$clog2(32)-1:0] d_backup_reg_sel [32];
 
-logic [$clog2(32)-1:0] tail_in, head_in, tail_backup, head_backup;
+logic [$clog2(32):0] tail_backup, head_backup;
 logic [$clog2(32)-1:0] select_backup_freelist [32];
 
 always_comb begin
     for (int i = 0; i < 32; i++) begin
         select_backup_freelist[i] = ($clog2(32))'(i);
+        d_backup_reg_sel[i] = '0;
     end
 end
 
@@ -315,9 +317,9 @@ end
 circular_queue #( .SS(SS), .SEL_IN(32), .SEL_OUT(SS), .QUEUE_TYPE(logic [5:0]), .INIT_TYPE(FREE_LIST), .DEPTH(32))
       free_list(.clk(clk), .rst(rst), .in(retire_to_free_list), .push(push_to_free_list), .pop(pop_inst_q && next_inst_has_rd),
       .flush(flush),
-      .reg_in(backup_freelist), .reg_select_in(d_free_reg_sel), .reg_select_out(d_free_reg_sel),      
-      .out_bitmask(d_bitmask), .in_bitmask(d_bitmask),
-      .tail_in(tail_in), .head_in(head_in),
+      .reg_in(backup_freelist), .reg_select_in(d_backup_reg_sel), .reg_select_out(d_free_reg_sel),      
+      .out_bitmask(d_bitmask), .in_bitmask('0),
+      .extendo_tail_in(tail_backup), .extendo_head_in(head_backup),
       // outputs
       .empty(), .full(), 
       .head_out(), .tail_out(),  
@@ -333,11 +335,10 @@ circular_queue #( .SS(SS), .SEL_IN(SS), .SEL_OUT(32), .QUEUE_TYPE(logic [5:0]), 
       .flush(flush),
       .reg_in(d_free_reg_in), .reg_select_in(d_free_reg_sel), .reg_select_out(select_backup_freelist),      
       .out_bitmask('1), .in_bitmask(d_bitmask),
-      .tail_in('0), .head_in('0),
+      .extendo_tail_in('0), .extendo_head_in('0),
       // outputs
       .empty(), .full(), 
-      .head_out(head_backup), .tail_out(tail_backup),  
-      .out(free_rat_rds), 
+      .extendo_head_out(head_backup), .extendo_tail_out(tail_backup),
       .reg_out(backup_freelist)
     );
 
