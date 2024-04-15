@@ -54,9 +54,9 @@ super_dispatch_t store_in [LD_ST_DEPTH], store_out [LD_ST_DEPTH];
 assign push_load = avail_inst && ~load_full && dispatch_entry[0].inst.rmask != 4'b0;
 assign push_store = avail_inst && ~store_full && dispatch_entry[0].inst.wmask != 4'b0;
 assign pop_load_ready = load_out[load_tail].cross_entry.cross_dep_met && load_out[load_tail].rs_entry.input1_met
-                    && load_out[load_tail].rs_entry.input2_met;
+                    && load_out[load_tail].rs_entry.input2_met && load_out[load_tail].cross_entry.valid;
 assign pop_store_ready = store_out[store_tail].cross_entry.cross_dep_met && store_out[store_tail].rs_entry.input1_met
-                      && store_out[store_tail].rs_entry.input2_met;
+                      && store_out[store_tail].rs_entry.input2_met && store_out[store_tail].cross_entry.valid;
 
 // Setup inputs to queues
 always_comb begin
@@ -159,6 +159,10 @@ always_comb begin
     end
 end
 
+logic move_to_load, move_to_store;
+assign move_to_load = (pop_load_ready && (state == wait_s_load_p || (state == wait_s_store_p && ~pop_store_ready)));
+assign move_to_store = (pop_store_ready && (state == wait_s_store_p || (state == wait_s_load_p && ~pop_load_ready)));
+
 // Modify entries up receiving updates from cdb
 always_comb begin
     for(int d = 0; d < LD_ST_DEPTH; d++) begin
@@ -205,12 +209,19 @@ always_comb begin
             store_in[d].cross_entry.cross_dep_met = 1'b1;
             store_in_bit[d] = 1'b1;
         end
+
+        // Invalidate old entries
+        if(move_to_load && (($clog2(LD_ST_DEPTH))'(d) == load_tail)) begin
+            load_in[d].cross_entry.valid = 1'b0;
+            load_in_bit[d] = 1'b1;
+        end
+        if(move_to_store && (($clog2(LD_ST_DEPTH))'(d)) == store_tail) begin
+            store_in[d].cross_entry.valid = 1'b0;
+            store_in_bit[d] = 1'b1;
+        end
     end
 end
 
-logic move_to_load, move_to_store;
-assign move_to_load = (pop_load_ready && (state == wait_s_load_p || (state == wait_s_store_p && ~pop_store_ready)));
-assign move_to_store = (pop_store_ready && (state == wait_s_store_p || (state == wait_s_load_p && ~pop_load_ready)));
 
 // Latches for response
 logic [31:0] dmem_rdata_masked_reg, dmem_rdata_reg;

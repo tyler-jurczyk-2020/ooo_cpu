@@ -146,6 +146,7 @@ endgenerate
 // Instruction Queue(8 decoded instructions):
 instruction_info_reg_t instruction [SS];
 logic inst_q_empty, pop_inst_q;
+
 instruction_info_reg_t view_inst_tail [1];
 logic [$clog2(ROB_DEPTH)-1:0] inst_tail;
 logic [$clog2(ROB_DEPTH)-1:0] sel_out_inst [1];
@@ -222,13 +223,13 @@ physical_reg_response_t lsq_reg_data;
 
 // MODULE INSTANTIATION
 phys_reg_file #(.SS(SS), .TABLE_ENTRIES(TABLE_ENTRIES)) reg_file (
-                .clk(clk), .rst(rst), .regf_we('1), 
+                .clk(clk), .rst(rst), .regf_we('1),
                 .cdb(cdb),
-                .dispatch_request(dispatch_request), .dispatch_reg_data(dispatch_reg_data), 
+                .dispatch_request(dispatch_request), .dispatch_reg_data(dispatch_reg_data),
                 .alu_request(alu_request), .alu_reg_data(alu_reg_data),
                 .mul_request(mul_request), .mul_reg_data(mul_reg_data),
                 .lsq_request(lsq_request), .lsq_reg_data(lsq_reg_data)
-                ); 
+                );
 
 // Cycle 0: 
 ///////////////////// Rename/Dispatch: Dispatcher /////////////////////
@@ -364,15 +365,17 @@ end
 
 // free list 
 circular_queue #( .SS(SS), .SEL_IN(32), .SEL_OUT(SS), .QUEUE_TYPE(logic [5:0]), .INIT_TYPE(FREE_LIST), .DEPTH(32))
-      free_list(.clk(clk), .rst(rst), .in(retire_to_free_list), .push(push_to_free_list), .pop(pop_inst_q),
+      free_list(.clk(clk), .rst(rst), .in(retire_to_free_list), .push(push_to_free_list), 
+      .pop(pop_inst_q),
+    //.pop(pop_inst_q && next_inst_has_rd),
       .flush(flush),
       .reg_in(backup_freelist), .reg_select_in(d_backup_reg_sel), .reg_select_out(d_free_reg_sel),      
       .out_bitmask(d_bitmask), .in_bitmask('0),
       .extendo_tail_in(tail_backup), .extendo_head_in(head_backup),
       // outputs
-      .empty(), .full(), 
-      .head_out(), .tail_out(),  
-      .out(free_rat_rds), 
+      .empty(), .full(),
+      .head_out(), .tail_out(),
+      .out(free_rat_rds),
       .reg_out()
 );
 
@@ -380,7 +383,8 @@ circular_queue #( .SS(SS), .SEL_IN(32), .SEL_OUT(SS), .QUEUE_TYPE(logic [5:0]), 
 
 // back up freelist
 circular_queue #( .SS(SS), .SEL_IN(SS), .SEL_OUT(32), .QUEUE_TYPE(logic [5:0]), .INIT_TYPE(BACKUP_FREE_LIST), .DEPTH(32))
-      backup_free_list(.clk(clk), .rst(rst), .in(retire_to_free_list), .push(push_to_free_list), .pop(push_to_free_list),
+      backup_free_list(.clk(clk), .rst(rst), .in(retire_to_free_list), .push(push_to_free_list), 
+      .pop(push_to_free_list),
       .flush(flush),
       .reg_in(d_free_reg_in), .reg_select_in(d_free_reg_sel), .reg_select_out(select_backup_freelist),      
       .out_bitmask('1), .in_bitmask(d_bitmask),
@@ -507,7 +511,7 @@ endgenerate
 load_store_queue #(.SS(SS)) lsq(
     .clk(clk), .rst(rst),
     .avail_inst(avail_inst),
-    .flush('0), // Wait to hookup flush signal
+    .flush(flush),
     .dispatch_entry(rs_rob_entry),
     .lsq_request(lsq_request),
     .lsq_reg_data(lsq_reg_data),

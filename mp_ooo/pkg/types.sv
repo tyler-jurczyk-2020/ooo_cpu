@@ -115,7 +115,6 @@ package rv32i_types;
 
             logic is_signed;
 
-
             // logic op1_is_imm; 
             // logic op2_is_imm; 
             // logic rs1_needed; 
@@ -233,7 +232,7 @@ package rv32i_types;
         logic ready_for_writeback;
         logic branch_result;
         // will update not based on writebacks ---> store, branch
-        // logic commit;
+        // logic ready_to_commit;
     } fu_output_t;
 
     typedef fu_output_t cdb_t [CDB];
