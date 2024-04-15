@@ -113,7 +113,7 @@ circular_queue #(.SS(SS), .IN_WIDTH(SS), .SEL_IN(SS), .SEL_OUT(SS), .DEPTH(ROB_D
                 (.clk(clk), .rst(rst),
                  .full(inst_queue_full), .in(decoded_inst),
                  .out(instruction),
-                 .push(imem_resp), .pop(pop_inst_q), .empty(inst_q_empty),
+                 .push(imem_resp && ~inst_queue_full), .pop(pop_inst_q), .empty(inst_q_empty),
                  .out_bitmask(d_bitmask), .in_bitmask(d_bitmask),
                  .reg_select_in(d_reg_sel),.reg_select_out(d_reg_sel),.reg_in(d_reg_in)
                 );
@@ -212,13 +212,17 @@ super_dispatch_t rs_rob_entry [SS];
 
 super_dispatch_t rob_entries_to_commit [SS];
 
+// Full Signals
+logic alu_table_full; 
+logic mult_table_full; 
+
 // MODULE INSTANTIATION
 dispatcher #(.SS(SS), .PR_ENTRIES(PR_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) dispatcher_i(
              .clk(clk), .rst(rst), 
              .pop_inst_q(pop_inst_q), // Needs to connect to free list as well
              .avail_inst(avail_inst),
              
-             .rs_full('0), // Resevation station informs that must stall pipeline (stop requesting pops)
+             .rs_full(alu_table_full || mult_table_full), // Resevation station informs that must stall pipeline (stop requesting pops)
              .inst_q_empty(inst_q_empty), // to prevent pop requests to free list
              .rob_full(rob_full),
              .inst(instruction), 
@@ -322,7 +326,6 @@ rob #(.SS(SS)) rb(.clk(clk), .rst(rst),
 // MODULE OUTPUT DECLARATION
 
 fu_input_t inst_for_fu_alu [N_ALU]; 
-logic alu_table_full; 
 logic FU_ready_alu [N_ALU];
 always_comb begin
     for(int i = 0; i < N_ALU; i++) begin
@@ -370,7 +373,6 @@ logic FU_ready [N_MUL];
 
 // MODULE OUTPUT DECLARATION
 fu_input_t inst_for_fu_mult [N_MUL]; 
-logic mult_table_full; 
 
 
 // MODULE INSTANTIATION
