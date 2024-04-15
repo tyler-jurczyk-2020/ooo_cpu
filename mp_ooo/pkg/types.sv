@@ -9,7 +9,7 @@ package rv32i_types;
     localparam ROB_D = 8;
     localparam N_MUL = 1;
     localparam N_ALU = 1;
-    localparam CDB = N_ALU + N_MUL + 1;
+    localparam CDB = N_ALU + N_MUL;
 
     typedef enum logic [6:0] {
         op_b_lui   = 7'b0110111, // U load upper immediate 

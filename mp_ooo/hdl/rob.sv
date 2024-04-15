@@ -53,7 +53,7 @@ module rob
                 rob_entry_in[i].rob.commit = 1'b1;
                 bitmask[i] = 1'b1; 
 
-                rob_entry_in[i].rob.fu_value = cdb.alu_out[i].register_value;
+                rob_entry_in[i].rob.fu_value = cdb[i].register_value;
                 if(cdb[i].inst_info.inst.is_branch && cdb[i].branch_result) begin
                     rob_entry_in[i].rob.branch_enable = '1; 
                 end

@@ -156,11 +156,9 @@ fu_output_t alu_cmp_output [N_ALU], mul_output [N_MUL];
 always_comb begin
     for(int i = 0; i < CDB; i++) begin
         if(i < N_ALU)
-            cdb[i] = alu_output[i];
+            cdb[i] = alu_cmp_output[i];
         else if(i < N_ALU + N_MUL)
             cdb[i] = mul_output [i - N_ALU];
-        else
-            cdb[i] = lsq_output;
     end
 end
 
@@ -344,7 +342,7 @@ reservation_table #(.SS(SS), .REQUEST(N_ALU), .TABLE_TYPE(ALU_T), .reservation_t
        .ROB_DEPTH(ROB_DEPTH)) alu_table(.clk(clk), .rst(rst || flush),
                                         .dispatched(rs_rob_entry), // Dispatched shit
                                         .avail_inst(avail_inst), // Thing
-                                        .cdb_rob_ids(cdb.mul_out), // CDB 
+                                        .cdb_rob_ids(cdb), // CDB 
                                         .inst_for_fu(inst_for_fu_alu), // send instruction to be caluclated to fu
                                         .fu_request(alu_request), // get vars from phys reg file
                                         .FU_Ready(FU_ready_alu), // ALU FU will never be full 
@@ -386,7 +384,7 @@ reservation_table #(.SS(SS), .REQUEST(N_MUL), .reservation_table_size(reservatio
         .ROB_DEPTH(ROB_DEPTH), .TABLE_TYPE(MUL_T)) mult_table(.clk(clk), .rst(rst),
                                                             .dispatched(rs_rob_entry), // Dispatched shit
                                                             .avail_inst(avail_inst), // Thing
-                                                            .cdb_rob_ids(cdb.alu_out), // CDB 
+                                                            .cdb_rob_ids(cdb), // CDB 
                                                             .inst_for_fu(inst_for_fu_mult), // send instruction to be caluclated to fu
                                                             .fu_request(mul_request), // get vars from phys reg file
                                                             .FU_Ready(FU_ready), // ALU FU will never be full 

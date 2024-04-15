@@ -17,12 +17,11 @@ module reservation_table
         // indicates whether dispatched signal is new signal
         input logic avail_inst, 
 
-
         /////////////// ISSUING FROM TABLE ///////////////
         output fu_input_t inst_for_fu [REQUEST], // *parameterize!
 
         /////////////// RETRIEVING UPDATED DEPENDECY FROM FU (CDB) ///////////////
-        input fu_output_t cdb_rob_ids [REQUEST], 
+        input cdb_t cdb_rob_ids, 
 
         /////////////// REQUESTING REGISTER VALUE FROM PHYS. REG. FILE ///////////////
         output physical_reg_request_t fu_request [REQUEST],
@@ -70,11 +69,11 @@ module reservation_table
             // For a given CDB, Check whether we need to update any of the Entries
             for(int i = 0; i < CDB; i++) begin
                 for(int j = 0; j < reservation_table_size; j++) begin
-                    if(cdb[i].ready_for_writeback && reservation_table[j].rs_entry.rs1_source == cdb[i].inst_info.rob.rob_id) begin
+                    if(cdb_rob_ids[i].ready_for_writeback && reservation_table[j].rs_entry.rs1_source == cdb_rob_ids[i].inst_info.rob.rob_id) begin
                         reservation_table[j].rs_entry.input1_met <= '1; 
                     end
                           
-                    if(cdb[i].ready_for_writeback && reservation_table[j].rs_entry.rs2_source == cdb[i].inst_info.rob.rob_id) begin
+                    if(cdb_rob_ids[i].ready_for_writeback && reservation_table[j].rs_entry.rs2_source == cdb_rob_ids[i].inst_info.rob.rob_id) begin
                         reservation_table[j].rs_entry.input2_met <= '1; 
                     end
                 end
