@@ -55,10 +55,10 @@ module reservation_table
             for(int j = 0; j < reservation_table_size; j++) begin
                 reservation_table[j].rs_entry.full <= '0; 
             end
-            for(int i = 0; i < REQUEST; i++) begin
-                inst_for_fu0[i] <= '0;
-                fu_request0[i] <= '0; 
-            end            
+            // for(int i = 0; i < REQUEST; i++) begin
+            //     inst_for_fu0[i] <= '0;
+            //     fu_request0[i] <= '0; 
+            // end            
         end
         // Write new entry
         else begin
@@ -93,17 +93,42 @@ module reservation_table
                     if(reservation_table[j].rs_entry.full && reservation_table[j].rs_entry.input1_met && reservation_table[j].rs_entry.input2_met) begin
                         if(FU_Ready[i]) begin
                             reservation_table[j].rs_entry.full <= '0;
-                            inst_for_fu0[i].inst_info <= reservation_table[j]; 
-                            inst_for_fu0[i].start_calculate <= '1; 
-                            fu_request0[i].rs1_s <= reservation_table[j].rat.rs1;
-                            fu_request0[i].rs2_s <= reservation_table[j].rat.rs2;
-                            inst_for_fu0[i].inst_info.rob.commit <= '1; 
+                            // inst_for_fu0[i].inst_info <= reservation_table[j]; 
+                            // inst_for_fu0[i].start_calculate <= '1; 
+                            // fu_request0[i].rs1_s <= reservation_table[j].rat.rs1;
+                            // fu_request0[i].rs2_s <= reservation_table[j].rat.rs2;
+                            // inst_for_fu0[i].inst_info.rob.commit <= '1; 
                             break;
                         end
                     end
-                    else begin
-                        inst_for_fu0[i].start_calculate <= '0; 
+                    // else begin
+                    //     inst_for_fu0[i].start_calculate <= '0; 
+                    // end
+                end
+            end
+        end
+    end
+
+    always_comb begin
+        for(int i = 0; i < REQUEST; i++) begin
+            inst_for_fu0[i] = '0; 
+            fu_request0[i] = '0; 
+        end
+        for(int i = 0; i < REQUEST; i++) begin
+            for(int j = 0; j < reservation_table_size; j++) begin
+                if(reservation_table[j].rs_entry.full && reservation_table[j].rs_entry.input1_met && reservation_table[j].rs_entry.input2_met) begin
+                    if(FU_Ready[i]) begin
+                        // reservation_table[j].rs_entry.full <= '0;
+                        inst_for_fu0[i].inst_info = reservation_table[j]; 
+                        inst_for_fu0[i].start_calculate = '1; 
+                        fu_request0[i].rs1_s = reservation_table[j].rat.rs1;
+                        fu_request0[i].rs2_s = reservation_table[j].rat.rs2;
+                        inst_for_fu0[i].inst_info.rob.commit = '1; 
+                        break;
                     end
+                end
+                else begin
+                    inst_for_fu0[i].start_calculate = '0; 
                 end
             end
         end
