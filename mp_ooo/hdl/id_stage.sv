@@ -66,7 +66,6 @@ module id_stage
         instruction_info.cmp_en = '1;  
         instruction_info.is_branch = '0;  
         instruction_info.is_jump = '0;
-        instruction_info.is_jumpr = '0;   
         instruction_info.is_mul = '0;
         instruction_info.alu_operation = alu_add; 
         instruction_info.cmp_operation = funct3;
@@ -77,7 +76,6 @@ module id_stage
         instruction_info.is_mul = 1'b0;
         instruction_info.mul_type = 'x;
         
-        instruction_info.has_rd = '1;
         // For Branches
         // Connect to Future Branch Predictor
         instruction_info.predict_branch = predict_branch;  
@@ -94,8 +92,6 @@ module id_stage
             instruction_info.pc_next = pc_curr + 4; 
 
         //pc_next = instruction_info.pc_next;
-
-        
 
         unique case (opcode) 
             op_b_reg : begin 
@@ -197,8 +193,6 @@ module id_stage
                 instruction_info.immediate = b_imm; 
                 instruction_info.is_branch = '1;   
                 instruction_info.rd_s = '0; 
-                instruction_info.has_rd ='0;
-
             end
             op_b_jal : begin
                 instruction_info.execute_operand1 = 2'b11; 
@@ -206,13 +200,12 @@ module id_stage
                 instruction_info.immediate = j_imm; 
                 instruction_info.is_jump = '1;   
                 instruction_info.cmp_en = '0;  
-                // instruction_info.jump = '1; 
             end
             op_b_jalr : begin
-                instruction_info.execute_operand1 = 2'b00; 
+                instruction_info.execute_operand1 = 2'b11; 
                 instruction_info.execute_operand2 = 2'b11; 
                 instruction_info.immediate = j_imm; 
-                instruction_info.is_jumpr = '1;   
+                instruction_info.is_jump = '1;   
                 instruction_info.cmp_en = '0;  
             end 
             op_b_load : begin
@@ -226,7 +219,6 @@ module id_stage
                 instruction_info.execute_operand2 = 2'b11; 
                 instruction_info.immediate = s_imm; 
                 instruction_info.cmp_en = '1;  
-                instruction_info.has_rd ='0;
             end
 
             default : ; 

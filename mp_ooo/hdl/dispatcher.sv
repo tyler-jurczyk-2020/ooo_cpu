@@ -47,8 +47,7 @@ module dispatcher
         input logic [$clog2(ROB_DEPTH)-1:0] rob_id_next [SS],
         
         // Build a super dispatch struct to feed into the ROB and the Reservation Station
-        output super_dispatch_t rs_rob_entry [SS],
-        output logic update_rat 
+        output super_dispatch_t rs_rob_entry [SS]
     ); 
 
     // We want to gain new input every clock cycle from the free list and inst queues
@@ -66,9 +65,7 @@ module dispatcher
     end
 
     assign pop_inst_q = ~rs_full && ~inst_q_empty && ~rob_full; 
-
-    assign update_rat = avail_inst && inst[0].has_rd;
-
+    
     always_comb begin
         if(avail_inst) begin
             // need to build rat signals, rvfi signals
@@ -144,10 +141,7 @@ module dispatcher
                 rs_rob_entry[i].rat.rs1 = rat_rs1[i];
                 rs_rob_entry[i].rat.rs2 = rat_rs2[i];
                 // Don't need to save the mapping we are overwritting because that is in the RRAT
-                if(inst[0].has_rd)
-                    rs_rob_entry[i].rat.rd = free_rat_rds[i];
-                else
-                    rs_rob_entry[i].rat.rd = '0;
+                rs_rob_entry[i].rat.rd = free_rat_rds[i];
             end
         end
         else begin

@@ -92,7 +92,6 @@ package rv32i_types;
 
             logic is_branch;
             logic is_jump;
-            logic is_jumpr;
 
             // to let shift_add_multiplier know we multiplyin
             logic is_mul;
@@ -108,7 +107,6 @@ package rv32i_types;
             logic [1:0] execute_operand1; 
             logic [1:0] execute_operand2; 
 
-            logic has_rd;
 
             // logic op1_is_imm; 
             // logic op2_is_imm; 
