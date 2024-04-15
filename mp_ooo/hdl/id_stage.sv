@@ -21,11 +21,8 @@ module id_stage
     logic   [4:0]   rs1_s;
     logic   [4:0]   rs2_s;
     logic   [4:0]   rd_s;   
-<<<<<<< HEAD
     logic [31:0] branch_target;
-=======
     logic   [11:0]  offset;
->>>>>>> cp3_mem
 
     assign funct3 = imem_rdata[14:12];
     assign funct7 = imem_rdata[31:25];
@@ -81,13 +78,11 @@ module id_stage
 
         instruction_info.is_mul = 1'b0;
         instruction_info.mul_type = 'x;
-<<<<<<< HEAD
         
         instruction_info.has_rd = '1;
         // For Branches
         // Connect to Future Branch Predictor
         instruction_info.predict_branch = predict_branch;  
-=======
 
         // Memory mask
         instruction_info.rmask = '0;
@@ -103,7 +98,6 @@ module id_stage
 
         // // Calculate branch target
         // assign branch_target = pc_curr + $signed(b_imm);
->>>>>>> cp3_mem
 
 
         // set pc_next to branch target ---------> Soumil is Asleep and i put a bug in his waterbottle 
@@ -242,9 +236,7 @@ module id_stage
                 instruction_info.execute_operand1 = 2'b00; 
                 instruction_info.execute_operand2 = 2'b11; 
                 instruction_info.immediate = i_imm; 
-<<<<<<< HEAD
                 instruction_info.cmp_en = '0;  
-=======
                 // instruction_info.cmp_en = '0;  
                 // Note that these masked are unshifted and need to be shifted in lsq
                 unique case (funct3)
@@ -258,16 +250,13 @@ module id_stage
                     lbu, lhu : instruction_info.is_signed = 1'b0;
                     default : instruction_info.rmask = 'x;
                 endcase
->>>>>>> cp3_mem
             end
             op_b_store : begin
                 instruction_info.execute_operand1 = 2'b00; 
                 instruction_info.execute_operand2 = 2'b11; 
                 instruction_info.immediate = s_imm; 
-<<<<<<< HEAD
                 instruction_info.cmp_en = '1;  
                 instruction_info.has_rd ='0;
-=======
                 // instruction_info.cmp_en = '1;  
                 unique case (funct3)
                     sb : instruction_info.wmask = 4'h1;
@@ -275,7 +264,6 @@ module id_stage
                     sw : instruction_info.wmask = 4'hf;
                     default : instruction_info.wmask = 'x;
                 endcase
->>>>>>> cp3_mem
             end
 
             default : ; 

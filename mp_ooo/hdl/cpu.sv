@@ -106,10 +106,6 @@ end
 
 // logic [31:0] pc_next [SS]; 
 
-// Dummy assign
-assign dmem_addr = '0;
-assign dmem_wdata = '0;
-
 // Dummy instruction assigns
 logic [SS-1:0] d_bitmask;
 logic [$clog2(ROB_DEPTH)-1:0] d_reg_sel [SS];
@@ -174,8 +170,8 @@ circular_queue #(.SS(SS), .IN_WIDTH(SS), .SEL_IN(SS), .SEL_OUT(1), .DEPTH(ROB_DE
                  );
                 // planning on passing dummy shit or 0 into reg_select shit
 
+super_dispatch_t rob_entries_to_commit [SS];
 ///////////////////// INSTRUCTION FETCH (SIMILAR TO MP2) /////////////////////
-super_dispatch_t rs_rob_entry [SS], rob_entries_to_commit [SS];
 fetch_stage #(.SS(SS)) fetch_stage_i (
     .clk(clk),
     .rst(rst),
@@ -194,13 +190,13 @@ fetch_stage #(.SS(SS)) fetch_stage_i (
 
 
 cdb_t cdb;
-fu_output_t alu_output [N_ALU], mul_output [N_MUL], lsq_output;
+fu_output_t alu_cmp_output [N_ALU], mul_output [N_MUL], lsq_output;
 // Merge cdb 
 // ALU entries come first, then MUL, then LSQ last
 always_comb begin
     for(int i = 0; i < CDB; i++) begin
         if(i < N_ALU)
-            cdb[i] = alu_output[i];
+            cdb[i] = alu_cmp_output[i];
         else if(i < N_ALU + N_MUL)
             cdb[i] = mul_output [i - N_ALU];
         else
@@ -264,7 +260,6 @@ logic avail_inst;
 logic update_rat;
 super_dispatch_t rs_rob_entry [SS]; 
 
-super_dispatch_t rob_entries_to_commit [SS];
 
 // Full Signals
 logic alu_table_full; 
@@ -296,7 +291,7 @@ dispatcher #(.SS(SS), .PR_ENTRIES(PR_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) dispatcher
              .rob_id_next(rob_id_next), 
              
              .rs_rob_entry(rs_rob_entry),
-             .update_rat(update_rat)
+             .update_rat(update_rat),
 
              // Snipe rvfi
              .snipe_rvfi(rob_entries_to_commit[0].rvfi)

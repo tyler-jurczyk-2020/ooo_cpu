@@ -48,13 +48,10 @@ module dispatcher
         
         // Build a super dispatch struct to feed into the ROB and the Reservation Station
         output super_dispatch_t rs_rob_entry [SS],
-<<<<<<< HEAD
-        output logic update_rat 
-=======
+        output logic update_rat, 
 
         // Snipe rvfi to check when store commits
         input rvfi_t snipe_rvfi
->>>>>>> cp3_mem
     ); 
 
     // We want to gain new input every clock cycle from the free list and inst queues
@@ -71,12 +68,8 @@ module dispatcher
         end
     end
 
-<<<<<<< HEAD
-    assign pop_inst_q = ~rs_full && ~inst_q_empty && ~rob_full; 
-
     assign update_rat = avail_inst && inst[0].has_rd;
 
-=======
     // Temporary logic to stall the entire cpu when a store comes through until it commits
     logic active_store;
     always_ff @(posedge clk) begin
@@ -98,7 +91,6 @@ module dispatcher
     end
     
     
->>>>>>> cp3_mem
     always_comb begin
         if(avail_inst) begin
             // need to build rat signals, rvfi signals
@@ -174,17 +166,13 @@ module dispatcher
                 rs_rob_entry[i].rat.rs1 = rat_rs1[i];
                 rs_rob_entry[i].rat.rs2 = rat_rs2[i];
                 // Don't need to save the mapping we are overwritting because that is in the RRAT
-<<<<<<< HEAD
                 if(inst[0].has_rd)
                     rs_rob_entry[i].rat.rd = free_rat_rds[i];
                 else
                     rs_rob_entry[i].rat.rd = '0;
-=======
-                rs_rob_entry[i].rat.rd = free_rat_rds[i];
 
                 // Set cross tail for load store queue
                 rs_rob_entry[i].cross_entry = 'x;
->>>>>>> cp3_mem
             end
         end
         else begin

@@ -10,11 +10,7 @@ package rv32i_types;
     localparam LD_ST = 8;
     localparam N_MUL = 1;
     localparam N_ALU = 1;
-<<<<<<< HEAD
-    localparam CDB = N_ALU + N_MUL;
-=======
     localparam CDB = N_ALU + N_MUL + 1;
->>>>>>> cp3_mem
 
     typedef enum logic [6:0] {
         op_b_lui   = 7'b0110111, // U load upper immediate 
@@ -113,15 +109,12 @@ package rv32i_types;
             logic [1:0] execute_operand1; 
             logic [1:0] execute_operand2; 
 
-<<<<<<< HEAD
             logic has_rd;
-=======
             logic [3:0] rmask;
             logic [3:0] wmask;
 
             logic is_signed;
 
->>>>>>> cp3_mem
 
             // logic op1_is_imm; 
             // logic op2_is_imm; 
@@ -242,14 +235,6 @@ package rv32i_types;
     } fu_output_t; 
 
     typedef fu_output_t cdb_t [CDB];
-<<<<<<< HEAD
-
-    // typedef struct {
-    //     super_dispatch_t instruction; 
-    //     logic valid_commit; 
-    // } commited_t; 
-=======
->>>>>>> cp3_mem
 
     typedef struct packed {
         logic [1:0] mul_type; 
