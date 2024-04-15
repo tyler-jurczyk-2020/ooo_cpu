@@ -63,12 +63,12 @@ always_comb begin
     for(int i = 0; i < SS; i++) begin
         load_queue_in[i] = dispatch_entry[i];
         load_queue_in[i].cross_tail.pointer = store_tail;
-        load_queue_in[i].cross_tail.cross_dep_met = 1'b1; // Cross dep is 1 for now bc imma lazy bastard
+        load_queue_in[i].cross_tail.cross_dep_met = 1'b0;
         load_queue_in[i].cross_tail.valid = 1'b1;
 
         store_queue_in[i] = dispatch_entry[i];
         store_queue_in[i].cross_tail.pointer = load_tail;
-        store_queue_in[i].cross_tail.cross_dep_met = 1'b1; // Cross dep is 1 for now bc imma lazy bastard
+        store_queue_in[i].cross_tail.cross_dep_met = 1'b0;
         store_queue_in[i].cross_tail.valid = 1'b1;
     end
 end
@@ -162,29 +162,43 @@ always_comb begin
         store_in[d] = store_out[d];
         store_in_bit[d] = 1'b0;
         for(int i = 0; i < CDB; i++) begin
-            // Loads - RS1
-            if(cdb_in[i].ready_for_writeback && load_out[d].rat.rs1 == cdb_in[i].inst_info.rat.rd) begin
-                load_in[d].rs_entry.input1_met = 1'b1;
-                load_in_bit[d] = 1'b1;
-            end
+            if(load_out[d].cross_tail.valid) begin
+                // Loads - RS1
+                if(cdb_in[i].ready_for_writeback && load_out[d].rat.rs1 == cdb_in[i].inst_info.rat.rd) begin
+                    load_in[d].rs_entry.input1_met = 1'b1;
+                    load_in_bit[d] = 1'b1;
+                end
 
-            // Loads - RS2
-            if(cdb_in[i].ready_for_writeback && load_out[d].rat.rs2 == cdb_in[i].inst_info.rat.rd) begin
-                load_in[d].rs_entry.input2_met = 1'b1;
-                load_in_bit[d] = 1'b1;
+                // Loads - RS2
+                if(cdb_in[i].ready_for_writeback && load_out[d].rat.rs2 == cdb_in[i].inst_info.rat.rd) begin
+                    load_in[d].rs_entry.input2_met = 1'b1;
+                    load_in_bit[d] = 1'b1;
+                end
             end
+            if(store_out[d].cross_tail.valid) begin
+                // Stores - RS1
+                if(cdb_in[i].ready_for_writeback && store_out[d].rat.rs1 == cdb_in[i].inst_info.rat.rd) begin
+                    store_in[d].rs_entry.input1_met = 1'b1;
+                    store_in_bit[d] = 1'b1;
+                end
 
-            // Stores - RS1
-            if(cdb_in[i].ready_for_writeback && store_out[d].rat.rs1 == cdb_in[i].inst_info.rat.rd) begin
-                store_in[d].rs_entry.input1_met = 1'b1;
-                store_in_bit[d] = 1'b1;
+                // Stores - RS2
+                if(cdb_in[i].ready_for_writeback && store_out[d].rat.rs2 == cdb_in[i].inst_info.rat.rd) begin
+                    store_in[d].rs_entry.input2_met = 1'b1;
+                    store_in_bit[d] = 1'b1;
+                end
             end
-
-            // Stores - RS2
-            if(cdb_in[i].ready_for_writeback && store_out[d].rat.rs2 == cdb_in[i].inst_info.rat.rd) begin
-                store_in[d].rs_entry.input2_met = 1'b1;
-                store_in_bit[d] = 1'b1;
-            end
+        end
+        
+        // Update cross dependencies for loads
+        if(load_out[d].cross_tail.valid && load_out[d].cross_tail.pointer == store_tail) begin
+            load_in[d].cross_tail.cross_dep_met = 1'b1;
+            load_in_bit[d] = 1'b1;
+        end
+        // Update cross dependencies for stores
+        if(store_out[d].cross_tail.valid && store_out[d].cross_tail.pointer == load_tail) begin
+            store_in[d].cross_tail.cross_dep_met = 1'b1;
+            store_in_bit[d] = 1'b1;
         end
     end
 end
@@ -282,8 +296,8 @@ always_comb begin
     end
     default : begin
         dmem_addr = 'x;
-        dmem_rmask = 'x;
-        dmem_wmask = 'x;
+        dmem_rmask = 1'b0;
+        dmem_wmask = 4'b0;
         dmem_wdata = 'x;
     end
     endcase
