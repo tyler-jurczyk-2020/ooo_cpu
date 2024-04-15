@@ -41,6 +41,7 @@ module fu_wrapper_mult
             multiplication.mul_type <= to_be_multiplied.inst_info.inst.mul_type; 
             multiplication.a <= fu_reg_data.rs1_v.register_value; 
             multiplication.b <= fu_reg_data.rs2_v.register_value; 
+            multiplication.inst_info <= to_be_multiplied.inst_info; 
         end
         else if(mult_status)
             multiplication.start <= '0;
@@ -79,7 +80,7 @@ module fu_wrapper_mult
     always_comb begin
         mul_output = '0;
         if(mult_status) begin
-            mul_output.inst_info = to_be_multiplied.inst_info;
+            mul_output.inst_info = multiplication.inst_info;
             mul_output.register_value = mult_output;
             mul_output.ready_for_writeback = 1'b1;
             mul_output.inst_info.rvfi.rd_wdata = mult_output;

@@ -233,6 +233,7 @@ package rv32i_types;
         logic [31:0] a; 
         logic [31:0] b; 
         logic start; 
+        super_dispatch_t inst_info; 
     } multiply_FUs_t; 
 endpackage
 
