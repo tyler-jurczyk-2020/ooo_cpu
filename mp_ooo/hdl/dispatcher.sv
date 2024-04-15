@@ -51,7 +51,10 @@ module dispatcher
         output logic update_rat, 
 
         // Snipe rvfi to check when store commits
-        input rvfi_t snipe_rvfi
+        input rvfi_t snipe_rvfi,
+
+        // Active store so stall bb
+        output logic active_store
     ); 
 
     // We want to gain new input every clock cycle from the free list and inst queues
@@ -71,11 +74,10 @@ module dispatcher
     assign update_rat = avail_inst && inst[0].has_rd;
 
     // Temporary logic to stall the entire cpu when a store comes through until it commits
-    logic active_store;
     always_ff @(posedge clk) begin
         if(rst)
             active_store <= 1'b0;
-        else if(inst[0].wmask != 4'b0)
+        else if(inst[0].wmask != 4'b0 && avail_inst)
             active_store <= 1'b1;
         else if(snipe_rvfi.valid && snipe_rvfi.mem_wmask != 4'b0)
             active_store <= 1'b0;

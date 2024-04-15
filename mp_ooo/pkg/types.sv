@@ -228,11 +228,13 @@ package rv32i_types;
     } fu_input_t; 
 
     typedef struct packed {
-        super_dispatch_t inst_info; 
-        logic [31:0] register_value; 
-        logic ready_for_writeback; 
-        logic branch_result; 
-    } fu_output_t; 
+        super_dispatch_t inst_info;
+        logic [31:0] register_value;
+        logic ready_for_writeback;
+        logic branch_result;
+        // will update not based on writebacks ---> store, branch
+        // logic commit;
+    } fu_output_t;
 
     typedef fu_output_t cdb_t [CDB];
 

@@ -157,12 +157,13 @@ logic next_inst_has_rd = view_inst_tail[0].has_rd;
 // if we have a pop_from_rob, then we set a flag high (because that is the closest thing to knowing when pc is updated to some shit)
 // if we have a flush, we set that flag low, meaning we shouldn't push 
 // 
+logic active_store;
 
 circular_queue #(.SS(SS), .IN_WIDTH(SS), .SEL_IN(SS), .SEL_OUT(1), .DEPTH(ROB_DEPTH)) instruction_queue
                 (.clk(clk), .rst(rst || flush),
                  .full(inst_queue_full), .in(decoded_inst),
                  .out(instruction), .flush(flush),
-                 .push(valid_request), .pop(pop_inst_q), .empty(inst_q_empty),
+                 .push(valid_request && ~active_store), .pop(pop_inst_q), .empty(inst_q_empty),
                  .out_bitmask('1), .in_bitmask(d_bitmask), .tail_out(inst_tail),
                  .reg_out(view_inst_tail),
                  .extendo_tail_in('0), .extendo_head_in('0),
@@ -176,7 +177,7 @@ fetch_stage #(.SS(SS)) fetch_stage_i (
     .clk(clk),
     .rst(rst),
     .predict_branch('0), // Change this later
-    .stall_inst(inst_queue_full), 
+    .stall_inst(inst_queue_full || active_store), 
     .imem_resp(imem_resp), 
     .rob_entries_to_commit(rob_entries_to_commit), // passing branch target from rob
     .pc_reg(pc_reg),
@@ -294,7 +295,10 @@ dispatcher #(.SS(SS), .PR_ENTRIES(PR_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) dispatcher
              .update_rat(update_rat),
 
              // Snipe rvfi
-             .snipe_rvfi(rob_entries_to_commit[0].rvfi)
+             .snipe_rvfi(rob_entries_to_commit[0].rvfi),
+
+             // Active store
+             .active_store(active_store)
             ); 
 
 
@@ -328,9 +332,9 @@ retired_rat #(.SS(SS)) retire_ratatoullie(
     );
 
 
-// Cycle 0: 
+// Cycle 0:
 ///////////////////// Rename/Dispatch: Free Lists /////////////////////
-// MODULE INPUTS DECLARATION 
+// MODULE INPUTS DECLARATION
 // MODULE OUTPUT DECLARATION
 
 // MODULE INSTANTIATION
@@ -343,7 +347,6 @@ always_comb begin
         d_free_reg_in[i] = '0;
     end
 end
-
 
 logic [5:0] backup_freelist [32];
 logic [5:0] dummy_backup_freelist [32];
