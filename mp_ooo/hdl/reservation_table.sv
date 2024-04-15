@@ -8,7 +8,7 @@ module reservation_table
         parameter REQUEST = 2
     )
     (
-        input clk, rst, 
+        input clk, rst,
 
         /////////////// WRITING TO TABLE ///////////////
         // get entry from the dispatcher 
@@ -34,6 +34,15 @@ module reservation_table
 
     );
 
+    fu_input_t inst_for_fu0 [REQUEST]; // *parameterize!
+    physical_reg_request_t fu_request0 [REQUEST];
+
+
+    // have some sort of reg_value and reg_value_next
+    // always_comb updates reg_value_next to some value
+    // always_ff updates reg_value to reg_value_next
+
+
     // table. Packed array
     super_dispatch_t reservation_table [reservation_table_size]; 
 
@@ -46,10 +55,10 @@ module reservation_table
             for(int j = 0; j < reservation_table_size; j++) begin
                 reservation_table[j].rs_entry.full <= '0; 
             end
-            // for(int i = 0; i < REQUEST; i++) begin
-            //     inst_for_fu[i] <= '0;
-            //     fu_request[i] <= '0; 
-            // end            
+            for(int i = 0; i < REQUEST; i++) begin
+                inst_for_fu0[i] <= '0;
+                fu_request0[i] <= '0; 
+            end            
         end
         // Write new entry
         else begin
@@ -81,24 +90,39 @@ module reservation_table
 
             for(int i = 0; i < REQUEST; i++) begin
                 for(int j = 0; j < reservation_table_size; j++) begin
-                    
                     if(reservation_table[j].rs_entry.full && reservation_table[j].rs_entry.input1_met && reservation_table[j].rs_entry.input2_met) begin
                         if(FU_Ready[i]) begin
                             reservation_table[j].rs_entry.full <= '0;
-                            inst_for_fu[i].inst_info <= reservation_table[j]; 
-                            inst_for_fu[i].start_calculate <= '1; 
-                            fu_request[i].rs1_s <= reservation_table[j].rat.rs1;
-                            fu_request[i].rs2_s <= reservation_table[j].rat.rs2;
+                            inst_for_fu0[i].inst_info <= reservation_table[j]; 
+                            inst_for_fu0[i].start_calculate <= '1; 
+                            fu_request0[i].rs1_s <= reservation_table[j].rat.rs1;
+                            fu_request0[i].rs2_s <= reservation_table[j].rat.rs2;
+                            inst_for_fu0[i].inst_info.rob.commit <= '1; 
                             break;
                         end
                     end
                     else begin
-                        inst_for_fu[i].start_calculate <= '0; 
+                        inst_for_fu0[i].start_calculate <= '0; 
                     end
                 end
             end
         end
     end
+
+
+    always_ff @ (posedge clk) begin
+        if(rst) begin
+            for(int i = 0; i < REQUEST; i++) begin
+                inst_for_fu[i] <= '0; 
+                fu_request[i] <= '0; 
+            end
+        end
+        else begin
+            inst_for_fu <= inst_for_fu0; 
+            fu_request <= fu_request0; 
+        end
+    end
+
 
 always_comb begin
         // Number of occupied entries in the table

@@ -57,7 +57,7 @@ import rv32i_types::*;
             // CDB entries 
             for (int i = 0; i < CDB; i++) begin
             // for the given source register, is it NOT R0?
-                if(cdb[i].ready_for_writeback) begin
+                if(cdb[i].ready_for_writeback && cdb[i].inst_info.rat.rd != '0) begin
                     // When we write via cdb for funct, then we remove ROB_ID because dependency is gone
                     // Due to register-renaming, ROB entries and physical registers are one-to-one. So when dependency is gone, we flush the ROB. 
                     data[cdb[i].inst_info.rat.rd].register_value <= cdb[i].register_value; 

@@ -4,11 +4,24 @@ module fu_wrapper
         input logic clk, rst,
         // get entry from reservation station
         input fu_input_t to_be_calculated, 
-
+        input flush, 
         output fu_output_t alu_cmp_output,
         input physical_reg_response_t fu_reg_data
 
     );
+
+    fu_input_t internal_operand; 
+
+
+    always_comb begin
+        if(flush) begin
+            internal_operand = '0; 
+        end
+        else begin
+            internal_operand = to_be_calculated; 
+        end
+    end
+
     // the reservation 
     // hi guys
     // ben bitdiddle is who I aspire to be
@@ -34,16 +47,16 @@ module fu_wrapper
 
     // Need to properly extend to superscalar
     always_comb begin
-        unique case (to_be_calculated.inst_info.inst.execute_operand1)
+        unique case (internal_operand.inst_info.inst.execute_operand1)
             2'b00 : alu_input_a = fu_reg_data.rs1_v.register_value;
-            2'b01 : alu_input_a = to_be_calculated.inst_info.inst.immediate; 
-            2'b11 : alu_input_a = to_be_calculated.inst_info.inst.pc_curr;
+            2'b01 : alu_input_a = internal_operand.inst_info.inst.immediate; 
+            2'b11 : alu_input_a = internal_operand.inst_info.inst.pc_curr;
             default : alu_input_a = 'x;
         endcase
-        unique case (to_be_calculated.inst_info.inst.execute_operand2)
+        unique case (internal_operand.inst_info.inst.execute_operand2)
             2'b00 : alu_input_b = fu_reg_data.rs2_v.register_value;
             2'b01 : alu_input_b = '0;
-            2'b11 : alu_input_b = to_be_calculated.inst_info.inst.immediate;
+            2'b11 : alu_input_b = internal_operand.inst_info.inst.immediate;
             default : alu_input_b = 'x;
         endcase
     end
@@ -53,7 +66,7 @@ module fu_wrapper
         cmp_input_a = alu_input_a;
         cmp_input_b = alu_input_b;
 
-        if(to_be_calculated.inst_info.inst.is_branch) begin
+        if(internal_operand.inst_info.inst.is_branch) begin
             cmp_input_a = fu_reg_data.rs1_v.register_value;
             cmp_input_b = fu_reg_data.rs2_v.register_value;
         end
@@ -61,12 +74,12 @@ module fu_wrapper
         
     
 
-    alu calculator(.aluop(to_be_calculated.inst_info.inst.alu_operation), 
+    alu calculator(.aluop(internal_operand.inst_info.inst.alu_operation), 
                     .a(alu_input_a),
                     .b(alu_input_b),
                     .f(alu_res));
     
-    cmp comparator(.cmpop(to_be_calculated.inst_info.inst.cmp_operation), 
+    cmp comparator(.cmpop(internal_operand.inst_info.inst.cmp_operation), 
                     .a(cmp_input_a),
                     .b(cmp_input_b),
                     .br_en(cmp_res));
@@ -74,17 +87,17 @@ module fu_wrapper
 
     // Select register to push out
     always_ff @(posedge clk) begin
-        if(rst) begin
+        if(rst || flush) begin
             alu_cmp_output <= '0; 
         end
         else begin
-        alu_cmp_output.inst_info <= to_be_calculated.inst_info;
+        alu_cmp_output.inst_info <= internal_operand.inst_info;
 
-        if(to_be_calculated.inst_info.inst.is_branch) begin
+        if(internal_operand.inst_info.inst.is_branch) begin
             alu_cmp_output.inst_info.rvfi.rd_wdata  <= '0;
             alu_cmp_output.register_value <= alu_res;
         end
-        else if(~to_be_calculated.inst_info.inst.alu_en) begin
+        else if(~internal_operand.inst_info.inst.alu_en) begin
             alu_cmp_output.inst_info.rvfi.rd_wdata  <= {31'd0, cmp_res};
             alu_cmp_output.register_value <= {31'd0, cmp_res};
         end 
@@ -93,7 +106,7 @@ module fu_wrapper
             alu_cmp_output.register_value <= alu_res;
         end
 
-        alu_cmp_output.ready_for_writeback <= 1'b1;
+        alu_cmp_output.ready_for_writeback <= internal_operand.inst_info.rob.commit;
         alu_cmp_output.branch_result <= cmp_res; 
         
         alu_cmp_output.inst_info.rvfi.rs1_rdata <= fu_reg_data.rs1_v.register_value;
