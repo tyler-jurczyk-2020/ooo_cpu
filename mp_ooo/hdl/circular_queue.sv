@@ -68,7 +68,7 @@ always_ff @(posedge clk) begin
             for(int i = 0; i < DEPTH; i++) 
                 entries[i] <= '0;
         end
-        if(INIT_TYPE == FREE_LIST) begin
+        if(INIT_TYPE == FREE_LIST || INIT_TYPE == BACKUP_FREE_LIST) begin
             head <= '0;
             tail <= '0;
             for(int unsigned i = 32; i < 32 + unsigned'(DEPTH); i++) begin

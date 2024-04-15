@@ -71,6 +71,39 @@ fetch_output_reg_t if_id_reg, if_id_reg_next;
 // Parsed out decoded cacheline
 instruction_info_reg_t decoded_inst [SS];
 
+logic valid_request; 
+
+
+logic flush_reg; 
+
+always_ff @ (posedge clk) begin
+    if(rst) begin
+        flush_reg <= '0; 
+    end
+    else if(imem_resp) begin
+        flush_reg <= '0; 
+    end
+    else if(flush) begin
+        flush_reg <= '1; 
+    end
+    
+end
+
+always_comb begin
+    if(flush) begin
+        valid_request = '0; 
+    end
+    else if(imem_resp && flush_reg) begin
+        valid_request = '0; 
+    end
+    else if(imem_resp && ~flush_reg) begin
+        valid_request = '1; 
+    end
+    else begin
+        valid_request = '0; 
+    end
+end
+
 // logic [31:0] pc_next [SS]; 
 
 // Dummy assign
@@ -125,11 +158,15 @@ assign sel_out_inst[0] = inst_tail;
 // Check if next inst has rd
 logic next_inst_has_rd = view_inst_tail[0].has_rd;
 
+// if we have a pop_from_rob, then we set a flag high (because that is the closest thing to knowing when pc is updated to some shit)
+// if we have a flush, we set that flag low, meaning we shouldn't push 
+// 
+
 circular_queue #(.SS(SS), .IN_WIDTH(SS), .SEL_IN(SS), .SEL_OUT(1), .DEPTH(ROB_DEPTH)) instruction_queue
                 (.clk(clk), .rst(rst || flush),
                  .full(inst_queue_full), .in(decoded_inst),
                  .out(instruction), .flush(flush),
-                 .push(imem_resp), .pop(pop_inst_q), .empty(inst_q_empty),
+                 .push(valid_request), .pop(pop_inst_q), .empty(inst_q_empty),
                  .out_bitmask('1), .in_bitmask(d_bitmask), .tail_out(inst_tail),
                  .reg_out(view_inst_tail),
                  .extendo_tail_in('0), .extendo_head_in('0),
@@ -315,7 +352,7 @@ end
 
 // free list 
 circular_queue #( .SS(SS), .SEL_IN(32), .SEL_OUT(SS), .QUEUE_TYPE(logic [5:0]), .INIT_TYPE(FREE_LIST), .DEPTH(32))
-      free_list(.clk(clk), .rst(rst), .in(retire_to_free_list), .push(push_to_free_list), .pop(pop_inst_q && next_inst_has_rd),
+      free_list(.clk(clk), .rst(rst), .in(retire_to_free_list), .push(push_to_free_list), .pop(pop_inst_q),
       .flush(flush),
       .reg_in(backup_freelist), .reg_select_in(d_backup_reg_sel), .reg_select_out(d_free_reg_sel),      
       .out_bitmask(d_bitmask), .in_bitmask('0),

@@ -50,7 +50,7 @@ next_test_4:
     # Test for BLTU (Branch if Less Than, Unsigned)
     li x9, 0xFFFFFFFF
     li x15, 0x1
-    bltu x9, x15, bltu_target  # should branch because 0xFFFFFFFF < 0x1 unsigned
+    bltu x9, x15, bltu_target  # should NOT branch because 0xFFFFFFFF < 0x1 unsigned
     li x14, 0
     j next_test_5
 bltu_target:

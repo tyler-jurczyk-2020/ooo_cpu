@@ -108,8 +108,10 @@ module fu_wrapper
 
         if(internal_operand.inst_info.inst.is_branch) begin
             alu_cmp_output.inst_info.rvfi.rd_wdata  <= '0;
-            alu_cmp_output.register_value <= alu_res;
-            alu_cmp_output.inst_info.inst.pc_next <= alu_res; 
+            alu_cmp_output.register_value <= '0;
+            if(cmp_res) begin
+                alu_cmp_output.inst_info.inst.pc_next <= alu_res; 
+            end
             // alu_cmp_output.rvfi.pc_wdata <= alu_res;
         end
         else if(internal_operand.inst_info.inst.is_jump) begin

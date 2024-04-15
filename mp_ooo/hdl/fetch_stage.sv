@@ -18,6 +18,12 @@ module fetch_stage
         output logic [31:0] imem_addr
     );
 
+
+    // If there's a flush, update reg to flush
+    // If there is a imem_resp and reg_flush is high, then your instruction is invalid
+    // If there's a imem_resp and reg_flush is low, then your instruction is valid
+    // If there's a imem_resp, then set the flush signal to low
+
     assign imem_rmask = 1'b1;
     assign imem_addr = pc_reg;
     
@@ -37,12 +43,23 @@ module fetch_stage
     always_ff @ (posedge clk) begin
         if(rst) begin
             pc_reg <= 32'h60000000;
+            // valid_request <= '1; 
         end
+        // else if (flush) begin
+        //     valid_request <= '0; 
+        // end
         // if the instructon queue is NOT stalling b/c inst. queue & res. table are NOT full, and we're not waiting on instruction memory
         else if((~stall_inst && imem_resp)) begin
+            // valid_request <= '1; 
+
             // If our committed ROB is a branch and we are supposed to branch, then update to the new PC
             // else, pc goes up by 4
+            // if(flush) begin
+            //     valid_request <= '0; 
+            // end
 
+            // BEWARE: THE BRANCH AND THE TAKE_BRANCH LOGIC DOES NOT WORK. I REPEAT, WILL NOT WORK. 
+            // WHEN YOU IMPLEMENT THE BRANCH PREDICTOR, THIS LOGIC MUST ALL BE CHANGED. THE ONLY REASON THIS WORKS IS BECAUSE THERE'S NO BRANCH PREDICTOR
             // JANK 
             for(int i = 0; i < SS; i++) begin
                 // if an input from the rob_entries_to_commit says to branch somewhere, start fetching from there
@@ -53,6 +70,7 @@ module fetch_stage
                 if(rob_entries_to_commit[i].rob.branch_enable && rob_entries_to_commit[i].rob.commit) begin
                     pc_reg <= rob_entries_to_commit[i].rvfi.pc_wdata; 
                     branch <= '1; 
+                    // pc_updated = '1; 
                     break;
                 end
             end
@@ -62,13 +80,19 @@ module fetch_stage
                     if(decoded_inst[i].is_branch && predict_branch) begin
                         pc_reg <= decoded_inst[i].pc_next; 
                         take_branch <= '1; 
+                        // pc_updated <= '1; 
+                        break; 
                     end
                 end
+                
             end
 
             if(~take_branch) begin
                 pc_reg <= pc_reg + 32'd4; 
+                // pc_updated <= '1; 
             end
+
+            // valid_request <= pc_updated; 
 
         end
 
