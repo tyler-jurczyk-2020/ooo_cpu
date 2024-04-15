@@ -54,15 +54,14 @@ module rob
                 bitmask[i] = 1'b1; 
 
                 rob_entry_in[i].rob.fu_value = cdb[i].register_value;
-                if((cdb[i].inst_info.inst.is_branch || cdb[i].inst_info.inst.is_jump || cdb[i].inst_info.inst.is_jumpr)
-                 && cdb[i].branch_result) begin
+                if(cdb[i].inst_info.inst.is_branch && cdb[i].branch_result) begin
                     rob_entry_in[i].rob.branch_enable = '1; 
                 end
                 else begin
                     rob_entry_in[i].rob.branch_enable = '0; 
                 end
 
-                if((cdb[i].inst_info.inst.is_branch && (cdb[i].branch_result ^ cdb[i].inst_info.inst.predict_branch)) || (cdb[i].inst_info.inst.is_jump || cdb[i].inst_info.inst.is_jumpr)) begin
+                if(cdb[i].inst_info.inst.is_branch && (cdb[i].branch_result ^ cdb[i].inst_info.inst.predict_branch)) begin
                     rob_entry_in[i].rob.mispredict = '1; 
                 end
                 else begin
@@ -100,7 +99,10 @@ module rob
                 // based on whether the i'th instruction is valid or not AND
                 // whether a previous instruction was a mispredict or not, set valid
                 rob_entries_to_commit[i].rvfi.valid = valid_commit[i]; 
-                rob_entries_to_commit[i].rvfi.pc_wdata = inspect_queue[i].inst.pc_next; 
+
+                if(inspect_queue[i].inst.is_branch) begin
+                    rob_entries_to_commit[i].rvfi.pc_wdata = inspect_queue[i].rob.fu_value; 
+                end
 
                 rob_entries_to_commit[i].rvfi.order = order_counter + {32'b0, i};
                 // Send some signal to tell rrat to commit above entries

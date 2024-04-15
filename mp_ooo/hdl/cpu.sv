@@ -117,21 +117,20 @@ endgenerate
 // Instruction Queue(8 decoded instructions):
 instruction_info_reg_t instruction [SS];
 logic inst_q_empty, pop_inst_q;
-instruction_info_reg_t view_inst_tail [1];
-logic [$clog2(ROB_DEPTH-1):0] inst_tail;
-
-circular_queue #(.SS(SS), .IN_WIDTH(SS), .SEL_IN(SS), .SEL_OUT(1), .DEPTH(ROB_DEPTH)) instruction_queue
+circular_queue #(.SS(SS), .IN_WIDTH(SS), .SEL_IN(SS), .SEL_OUT(SS), .DEPTH(ROB_DEPTH)) instruction_queue
                 (.clk(clk), .rst(rst || flush),
                  .full(inst_queue_full), .in(decoded_inst),
                  .out(instruction), .flush(flush),
                  .push(imem_resp), .pop(pop_inst_q), .empty(inst_q_empty),
-                 .out_bitmask('1), .in_bitmask(d_bitmask), .tail_out(inst_tail),
-                 .reg_select_in(d_reg_sel),.reg_select_out(view_inst_tail),.reg_in(d_reg_in), .backup_freelist()
+                 .out_bitmask(d_bitmask), .in_bitmask(d_bitmask),
+                 .reg_select_in(d_reg_sel),.reg_select_out(d_reg_sel),.reg_in(d_reg_in), .backup_freelist()
+                
                  );
                 // planning on passing dummy shit or 0 into reg_select shit
 
 ///////////////////// INSTRUCTION FETCH (SIMILAR TO MP2) /////////////////////
 super_dispatch_t rs_rob_entry [SS], rob_entries_to_commit [SS];
+
 fetch_stage #(.SS(SS)) fetch_stage_i (
     .clk(clk),
     .rst(rst),
@@ -146,6 +145,7 @@ fetch_stage #(.SS(SS)) fetch_stage_i (
 );
 
 
+    // this is all ur fault J 
     // P.S. soumil u r slow
 
 
@@ -291,8 +291,6 @@ always_comb begin
 end
 
 logic [5:0] backup_freelist [32];
-
-
 // free list 
 circular_queue #( .SS(SS), .SEL_IN(SS), .SEL_OUT(SS), .QUEUE_TYPE(logic [5:0]), .INIT_TYPE(FREE_LIST), .DEPTH(32))
       free_list(.clk(clk), .rst(rst), .in(retire_to_free_list), .push(push_to_free_list), .pop(pop_inst_q),
@@ -341,7 +339,7 @@ end
 
 // MODULE INSTANTIATION
 reservation_table #(.SS(SS), .REQUEST(N_ALU), .TABLE_TYPE(ALU_T), .reservation_table_size(reservation_table_size), 
-    .ROB_DEPTH(ROB_DEPTH)) alu_table(.clk(clk), .rst(rst || flush),
+       .ROB_DEPTH(ROB_DEPTH)) alu_table(.clk(clk), .rst(rst || flush),
                                         .dispatched(rs_rob_entry), // Dispatched shit
                                         .avail_inst(avail_inst), // Thing
                                         .cdb_rob_ids(cdb), // CDB 

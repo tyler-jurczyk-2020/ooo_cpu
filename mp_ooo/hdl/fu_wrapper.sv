@@ -91,38 +91,11 @@ module fu_wrapper
             alu_cmp_output <= '0; 
         end
         else begin
-
-        // If Jump
-        // rd_v is PC + 4
-        // pc = pc + offset 
-        
-
-        // If JumpR
-        // rd_v = PC + 4
-        // pc = rs1 + offset &  & 32'hfffffffe
-
-
-
-
         alu_cmp_output.inst_info <= internal_operand.inst_info;
 
         if(internal_operand.inst_info.inst.is_branch) begin
             alu_cmp_output.inst_info.rvfi.rd_wdata  <= '0;
             alu_cmp_output.register_value <= alu_res;
-            alu_cmp_output.inst_info.inst.pc_next <= alu_res; 
-            // alu_cmp_output.rvfi.pc_wdata <= alu_res;
-        end
-        else if(internal_operand.inst_info.inst.is_jump) begin
-            alu_cmp_output.register_value <= internal_operand.inst_info.inst.pc_curr + 32'd4;
-            alu_cmp_output.inst_info.inst.pc_next <= alu_res; 
-            alu_cmp_output.inst_info.rvfi.rd_wdata  <= internal_operand.inst_info.inst.pc_curr + 32'd4;
-            // alu_cmp_output.rvfi.pc_wdata <= alu_res;
-        end
-        else if(internal_operand.inst_info.inst.is_jumpr) begin
-            alu_cmp_output.register_value <= internal_operand.inst_info.inst.pc_curr + 32'd4;
-            alu_cmp_output.inst_info.inst.pc_next <= alu_res & 32'hfffffffe; 
-            alu_cmp_output.inst_info.rvfi.rd_wdata  <= internal_operand.inst_info.inst.pc_curr + 32'd4;
-            // alu_cmp_output.rvfi.pc_wdata <= alu_res & 32'hfffffffe;
         end
         else if(~internal_operand.inst_info.inst.alu_en) begin
             alu_cmp_output.inst_info.rvfi.rd_wdata  <= {31'd0, cmp_res};
@@ -134,12 +107,7 @@ module fu_wrapper
         end
 
         alu_cmp_output.ready_for_writeback <= internal_operand.inst_info.rob.commit;
-        if(internal_operand.inst_info.inst.is_jump || internal_operand.inst_info.inst.is_jumpr) begin
-            alu_cmp_output.branch_result <= '1; 
-        end
-        else begin
-            alu_cmp_output.branch_result <= cmp_res; 
-        end
+        alu_cmp_output.branch_result <= cmp_res; 
         
         alu_cmp_output.inst_info.rvfi.rs1_rdata <= fu_reg_data.rs1_v.register_value;
         alu_cmp_output.inst_info.rvfi.rs2_rdata <= fu_reg_data.rs2_v.register_value;
