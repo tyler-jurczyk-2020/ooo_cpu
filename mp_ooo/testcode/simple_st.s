@@ -16,7 +16,7 @@ _start:
     sw x6, 0(x1)
     sh x5, 6(x1)
     sh x5, 8(x1)
-    sh x5 10(x1)
+    sh x5, 10(x1)
     sb x5, 7(x1)
 
 halt:                 
