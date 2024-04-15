@@ -48,13 +48,25 @@ module fetch_stage
                 // if an input from the rob_entries_to_commit says to branch somewhere, start fetching from there
                 // else, if the branch predictor says to branch, start fetching from the pc_next provided by decode
                 // else, start fetching from pc + 4
-            
+                
                 pc_reg <= pc_reg + 4;
                 if(rob_entries_to_commit[i].rob.branch_enable && rob_entries_to_commit[i].rob.commit) begin
-                    pc_reg <= rob_entries_to_commit[i].rvfi.pc_wdata; 
+                    pc_reg <= rob_entries_to_commit[i].rob.fu_value; 
                     branch <= '1; 
                     break;
                 end
+                
+                
+                // if(rob_entries_to_commit[i].)begin
+                //     pc_reg <= rob_entries_to_commit[i].inst.pc_curr;
+                // end
+                // else if(rob_entries_to_commit[i].rob.branch_enable) begin
+                //     pc_reg <= rob_entries_to_commit[i].inst.pc_next; 
+                // end
+                // else begin
+                //     pc_reg <= pc_reg + 4; 
+                // end
+
             end
 
             if(~branch) begin

@@ -47,8 +47,7 @@ module dispatcher
         input logic [$clog2(ROB_DEPTH)-1:0] rob_id_next [SS],
         
         // Build a super dispatch struct to feed into the ROB and the Reservation Station
-        output super_dispatch_t rs_rob_entry [SS],
-        output logic pop_freelist 
+        output super_dispatch_t rs_rob_entry [SS]
     ); 
 
     // We want to gain new input every clock cycle from the free list and inst queues
@@ -66,7 +65,7 @@ module dispatcher
     end
 
     assign pop_inst_q = ~rs_full && ~inst_q_empty && ~rob_full; 
-
+    
     always_comb begin
         if(avail_inst) begin
             // need to build rat signals, rvfi signals
