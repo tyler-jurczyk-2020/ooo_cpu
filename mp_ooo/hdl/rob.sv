@@ -38,9 +38,9 @@ module rob
     logic [(CDB)-1:0] bitmask;
     // ROB receives data from cdb and updates commit flag in circular queue
     circular_queue #(.SS(SS), .SEL_IN(CDB), .SEL_OUT(SS), .QUEUE_TYPE(super_dispatch_t), .DEPTH(ROB_DEPTH)) rob_dut(.clk(clk), .rst(rst || flush), .flush(flush), .in(dispatch_info), .push(avail_inst), .pop(pop_from_rob), 
-    .reg_select_out(rob_id_out), 
+    .reg_select_out(rob_id_out), .head_in('0), .tail_in('0),
     .reg_out(inspect_queue), .reg_select_in(rob_id_reg_select), .reg_in(rob_entry_in), .in_bitmask(bitmask), .out_bitmask('1),// One hot bitmask
-    .head_out(head), .tail_out(tail), .full(rob_full), .empty(rob_empty), .backup_freelist());
+    .head_out(head), .tail_out(tail), .full(rob_full), .empty(rob_empty));
 
     always_comb begin
         for(int i = 0; i < CDB; i++) begin

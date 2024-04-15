@@ -40,8 +40,9 @@ end
 
 always_comb begin
     for(int i = 0; i < SS; i++) begin
-        if(retire_we && rob_info[i].inst.rd_s != 5'b0)
+        if(retire_we && rob_info[i].inst.rd_s != 5'b0) begin
             free_list_entry[i] = data[rob_info[i].inst.rd_s];
+        end
         else
             free_list_entry[i] = 'x;
     end

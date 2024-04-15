@@ -132,7 +132,8 @@ circular_queue #(.SS(SS), .IN_WIDTH(SS), .SEL_IN(SS), .SEL_OUT(1), .DEPTH(ROB_DE
                  .push(imem_resp), .pop(pop_inst_q), .empty(inst_q_empty),
                  .out_bitmask('1), .in_bitmask(d_bitmask), .tail_out(inst_tail),
                  .reg_out(view_inst_tail),
-                 .reg_select_in(d_reg_sel), .reg_select_out(sel_out_inst), .reg_in(d_reg_in), .backup_freelist()
+                 .tail_in('0),.head_in('0),
+                 .reg_select_in(d_reg_sel), .reg_select_out(sel_out_inst), .reg_in(d_reg_in)
                  );
                 // planning on passing dummy shit or 0 into reg_select shit
 
@@ -297,21 +298,49 @@ always_comb begin
     end
 end
 
-logic [5:0] backup_freelist [32];
 
+logic [5:0] backup_freelist [32];
+logic [5:0] dummy_backup_freelist [32];
+
+logic [$clog2(32)-1:0] tail_in, head_in, tail_backup, head_backup;
+logic [$clog2(32)-1:0] select_backup_freelist [32];
+
+always_comb begin
+    for (int i = 0; i < 32; i++) begin
+        select_backup_freelist[i] = ($clog2(32))'(i);
+    end
+end
 
 // free list 
-circular_queue #( .SS(SS), .SEL_IN(SS), .SEL_OUT(SS), .QUEUE_TYPE(logic [5:0]), .INIT_TYPE(FREE_LIST), .DEPTH(32))
+circular_queue #( .SS(SS), .SEL_IN(32), .SEL_OUT(SS), .QUEUE_TYPE(logic [5:0]), .INIT_TYPE(FREE_LIST), .DEPTH(32))
       free_list(.clk(clk), .rst(rst), .in(retire_to_free_list), .push(push_to_free_list), .pop(pop_inst_q && next_inst_has_rd),
       .flush(flush),
-      .reg_in(d_free_reg_in), .reg_select_in(d_free_reg_sel), .reg_select_out(d_free_reg_sel),      
+      .reg_in(backup_freelist), .reg_select_in(d_free_reg_sel), .reg_select_out(d_free_reg_sel),      
       .out_bitmask(d_bitmask), .in_bitmask(d_bitmask),
+      .tail_in(tail_in), .head_in(head_in),
       // outputs
       .empty(), .full(), 
       .head_out(), .tail_out(),  
       .out(free_rat_rds), 
-      .reg_out(), .backup_freelist(backup_freelist)
+      .reg_out()
+);
+
+
+
+// back up freelist
+circular_queue #( .SS(SS), .SEL_IN(SS), .SEL_OUT(32), .QUEUE_TYPE(logic [5:0]), .INIT_TYPE(BACKUP_FREE_LIST), .DEPTH(32))
+      backup_free_list(.clk(clk), .rst(rst), .in(retire_to_free_list), .push(push_to_free_list), .pop(push_to_free_list),
+      .flush(flush),
+      .reg_in(d_free_reg_in), .reg_select_in(d_free_reg_sel), .reg_select_out(select_backup_freelist),      
+      .out_bitmask('1), .in_bitmask(d_bitmask),
+      .tail_in('0), .head_in('0),
+      // outputs
+      .empty(), .full(), 
+      .head_out(head_backup), .tail_out(tail_backup),  
+      .out(free_rat_rds), 
+      .reg_out(backup_freelist)
     );
+
     
 // Cycle 0: 
 ///////////////////// Rename/Dispatch: ROB /////////////////////

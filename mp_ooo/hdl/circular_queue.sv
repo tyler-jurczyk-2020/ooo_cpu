@@ -20,13 +20,15 @@ import rv32i_types::*;
  
     input logic flush,
 
+    input logic [$clog2(DEPTH)-1:0] tail_in,
+    input logic [$clog2(DEPTH)-1:0] head_in,
+
     // Need to consider potentially how partial pushes/pops may work in superscalar context
     output logic empty,
     output logic full,
     output logic [$clog2(DEPTH)-1:0] head_out, tail_out,
     output QUEUE_TYPE out [SS], // Values pushed out
     output QUEUE_TYPE reg_out [SEL_OUT], // Values selected to be observed
-    output QUEUE_TYPE backup_freelist [DEPTH]
     );
 
 QUEUE_TYPE entries [DEPTH];
@@ -66,8 +68,9 @@ always_ff @(posedge clk) begin
         if(INIT_TYPE == FREE_LIST) begin
             head <= '0;
             tail <= '0;
-            for(int unsigned i = 32; i < 32 + unsigned'(DEPTH); i++)
+            for(int unsigned i = 32; i < 32 + unsigned'(DEPTH); i++) begin
                 entries[i-32] <= ($bits(QUEUE_TYPE))'(i);
+            end
         end
     end
     else begin
@@ -77,14 +80,13 @@ always_ff @(posedge clk) begin
                 if(i < sext_head + sext_amount_in && i >= sext_head)
                     entries[i] <= in[i - sext_head];
             end
-            if(INIT_TYPE == FREE_LIST && flush)begin
-                backup_freelist <= entries;
-            end
-
         end
-
+        
         if(flush && INIT_TYPE == FREE_LIST) begin
-            entries <= backup_freelist;
+            tail <= tail_in;
+            head <= head_in;
+            for(int i = 0; i < DEPTH; i++) 
+                entries[i] <= reg_in[i];
         end
         
         if(pop)  begin

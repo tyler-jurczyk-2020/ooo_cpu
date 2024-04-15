@@ -180,7 +180,8 @@ package rv32i_types;
 
     typedef enum logic {
         ZERO,
-        FREE_LIST
+        FREE_LIST,
+        BACKUP_FREE_LIST
     } initialization_t;
 
     typedef enum logic {
