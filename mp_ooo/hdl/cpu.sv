@@ -194,15 +194,17 @@ fetch_stage #(.SS(SS)) fetch_stage_i (
 
 
 cdb_t cdb;
-fu_output_t alu_cmp_output [N_ALU], mul_output [N_MUL];
+fu_output_t alu_output [N_ALU], mul_output [N_MUL], lsq_output;
 // Merge cdb 
 // ALU entries come first, then MUL, then LSQ last
 always_comb begin
     for(int i = 0; i < CDB; i++) begin
         if(i < N_ALU)
-            cdb[i] = alu_cmp_output[i];
+            cdb[i] = alu_output[i];
         else if(i < N_ALU + N_MUL)
             cdb[i] = mul_output [i - N_ALU];
+        else
+            cdb[i] = lsq_output;
     end
 end
 
@@ -211,7 +213,7 @@ end
 // MODULE INPUTS DECLARATION 
 physical_reg_request_t dispatch_request[SS];
 physical_reg_request_t alu_request [N_ALU] , mul_request [N_MUL];
-
+physical_reg_request_t lsq_request;
 
 // INPUTS FROM THE RESERVATION TABLE FROM THE ALU
 // @TYLER HOOK THIS UP ----> its hooked up now - <Gay
@@ -219,6 +221,7 @@ physical_reg_request_t alu_request [N_ALU] , mul_request [N_MUL];
 // MODULE OUTPUT DECLARATION
 physical_reg_response_t dispatch_reg_data [SS];
 physical_reg_response_t alu_reg_data [N_ALU], mul_reg_data [N_MUL];
+physical_reg_response_t lsq_reg_data;
 
 // MODULE INSTANTIATION
 phys_reg_file #(.SS(SS), .TABLE_ENTRIES(TABLE_ENTRIES)) reg_file (
@@ -226,7 +229,8 @@ phys_reg_file #(.SS(SS), .TABLE_ENTRIES(TABLE_ENTRIES)) reg_file (
                 .cdb(cdb),
                 .dispatch_request(dispatch_request), .dispatch_reg_data(dispatch_reg_data), 
                 .alu_request(alu_request), .alu_reg_data(alu_reg_data),
-                .mul_request(mul_request), .mul_reg_data(mul_reg_data)
+                .mul_request(mul_request), .mul_reg_data(mul_reg_data),
+                .lsq_request(lsq_request), .lsq_reg_data(lsq_reg_data)
                 ); 
 
 // Cycle 0: 
@@ -258,6 +262,13 @@ logic avail_inst;
 
 // MODULE OUTPUT DECLARATION
 logic update_rat;
+super_dispatch_t rs_rob_entry [SS]; 
+
+super_dispatch_t rob_entries_to_commit [SS];
+
+// Full Signals
+logic alu_table_full; 
+logic mult_table_full; 
 
 // MODULE INSTANTIATION
 dispatcher #(.SS(SS), .PR_ENTRIES(PR_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) dispatcher_i(
@@ -265,7 +276,7 @@ dispatcher #(.SS(SS), .PR_ENTRIES(PR_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) dispatcher
              .pop_inst_q(pop_inst_q), // Needs to connect to free list as well
              .avail_inst(avail_inst),
              
-             .rs_full('0), // Resevation station informs that must stall pipeline (stop requesting pops)
+             .rs_full(alu_table_full || mult_table_full), // Resevation station informs that must stall pipeline (stop requesting pops)
              .inst_q_empty(inst_q_empty), // to prevent pop requests to free list
              .rob_full(rob_full),
              .inst(instruction), 
@@ -286,6 +297,9 @@ dispatcher #(.SS(SS), .PR_ENTRIES(PR_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) dispatcher
              
              .rs_rob_entry(rs_rob_entry),
              .update_rat(update_rat)
+
+             // Snipe rvfi
+             .snipe_rvfi(rob_entries_to_commit[0].rvfi)
             ); 
 
 
@@ -404,7 +418,6 @@ rob #(.SS(SS), .ROB_DEPTH(ROB_DEPTH)) rb(.clk(clk), .rst(rst),
 // MODULE OUTPUT DECLARATION
 
 fu_input_t inst_for_fu_alu [N_ALU]; 
-logic alu_table_full; 
 logic FU_ready_alu [N_ALU];
 always_comb begin
     for(int i = 0; i < N_ALU; i++) begin
@@ -452,7 +465,6 @@ logic FU_ready [N_MUL];
 
 // MODULE OUTPUT DECLARATION
 fu_input_t inst_for_fu_mult [N_MUL]; 
-logic mult_table_full; 
 
 
 // MODULE INSTANTIATION
@@ -487,9 +499,29 @@ for(genvar i = 0; i < N_MUL; i++) begin : fu_muls
 end
 endgenerate
 
-// Temporary:
-assign dmem_rmask = 1'b0;
-assign dmem_wmask = 4'b0;
+// Cycle 1: 
+///////////////////// Issue: Load Store Queue /////////////////////
+// MODULE INPUTS DECLARATION 
+
+// MODULE OUTPUT DECLARATION
+
+// MODULE INSTANTIATION
+load_store_queue #(.SS(SS)) lsq(
+    .clk(clk), .rst(rst),
+    .avail_inst(avail_inst),
+    .flush('0), // Wait to hookup flush signal
+    .dispatch_entry(rs_rob_entry),
+    .lsq_request(lsq_request),
+    .lsq_reg_data(lsq_reg_data),
+    .dmem_addr(dmem_addr),
+    .dmem_rmask(dmem_rmask),
+    .dmem_wmask(dmem_wmask),
+    .dmem_rdata(dmem_rdata),
+    .dmem_wdata(dmem_wdata),
+    .dmem_resp(dmem_resp),
+    .cdb_in(cdb),
+    .cdb_out(lsq_output)
+);
 
 // //RVFI Signals
 // // Must be hardwired to 2 to be consistent with rvfi_reference.json

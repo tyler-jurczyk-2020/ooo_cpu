@@ -34,7 +34,11 @@ import rv32i_types::*;
 
     // MUL Requests
     input physical_reg_request_t mul_request [N_MUL],
-    output physical_reg_response_t mul_reg_data [N_MUL]
+    output physical_reg_response_t mul_reg_data [N_MUL],
+
+    // LSQ Requests
+    input physical_reg_request_t lsq_request,
+    output physical_reg_response_t lsq_reg_data
 );
 
     physical_reg_data_t  data [TABLE_ENTRIES];
@@ -45,7 +49,7 @@ import rv32i_types::*;
                 data[i] <= '0;
             end
         end else if (regf_we) begin
-            // ROB
+            // Dispatch updates rob dependencies now
             for (int i = 0; i < SS; i++) begin
             // for the given source register, is it NOT R0?
                 if(dispatch_request[i].rd_en) begin
@@ -66,6 +70,27 @@ import rv32i_types::*;
             end
         end
     end     
+
+    // LSQ Response
+    always_comb begin
+        for(int i = 0; i < CDB; i++)begin
+            // Default RS1
+            lsq_reg_data.rs1_v = data[lsq_request.rs1_s];
+            if(cdb[i].ready_for_writeback && (lsq_request.rs1_s == cdb[i].inst_info.rat.rd)) begin
+                lsq_reg_data.rs1_v.register_value = cdb[i].register_value;
+                lsq_reg_data.rs1_v.dependency = ~cdb[i].inst_info.rs_entry.input1_met;
+                lsq_reg_data.rs1_v.ROB_ID = cdb[i].inst_info.rob.rob_id;
+            end
+
+            // Default RS2
+            lsq_reg_data.rs2_v = data[lsq_request.rs2_s];
+            if(cdb[i].ready_for_writeback && (lsq_request.rs2_s == cdb[i].inst_info.rat.rd)) begin
+                lsq_reg_data.rs2_v.register_value = cdb[i].register_value;
+                lsq_reg_data.rs2_v.dependency = ~cdb[i].inst_info.rs_entry.input2_met;
+                lsq_reg_data.rs2_v.ROB_ID = cdb[i].inst_info.rob.rob_id;
+            end
+        end
+    end
 
     // Modifying for the transparent regfile so if we are in the dispatcher
     // and the dispatcher needs to fetch data which is being written by the functional unit(s) then

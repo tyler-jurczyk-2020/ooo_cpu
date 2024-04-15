@@ -7,9 +7,14 @@ package rv32i_types;
 
     localparam TABLE_ENTRIES = 64;
     localparam ROB_D = 8;
+    localparam LD_ST = 8;
     localparam N_MUL = 1;
     localparam N_ALU = 1;
+<<<<<<< HEAD
     localparam CDB = N_ALU + N_MUL;
+=======
+    localparam CDB = N_ALU + N_MUL + 1;
+>>>>>>> cp3_mem
 
     typedef enum logic [6:0] {
         op_b_lui   = 7'b0110111, // U load upper immediate 
@@ -108,7 +113,15 @@ package rv32i_types;
             logic [1:0] execute_operand1; 
             logic [1:0] execute_operand2; 
 
+<<<<<<< HEAD
             logic has_rd;
+=======
+            logic [3:0] rmask;
+            logic [3:0] wmask;
+
+            logic is_signed;
+
+>>>>>>> cp3_mem
 
             // logic op1_is_imm; 
             // logic op2_is_imm; 
@@ -171,11 +184,18 @@ package rv32i_types;
     } reservation_entry_t; 
 
     typedef struct packed {
+       logic [$clog2(LD_ST)-1:0] pointer;     
+       logic cross_dep_met;
+       logic valid;
+    } cross_t;
+
+    typedef struct packed {
        rob_t rob;
        rvfi_t rvfi; 
        instruction_info_reg_t inst;
        rat_t rat;
        reservation_entry_t rs_entry;
+       cross_t cross_entry;
     } super_dispatch_t;
 
     typedef enum logic [1:0] {
@@ -222,11 +242,14 @@ package rv32i_types;
     } fu_output_t; 
 
     typedef fu_output_t cdb_t [CDB];
+<<<<<<< HEAD
 
     // typedef struct {
     //     super_dispatch_t instruction; 
     //     logic valid_commit; 
     // } commited_t; 
+=======
+>>>>>>> cp3_mem
 
     typedef struct packed {
         logic [1:0] mul_type; 
@@ -235,6 +258,16 @@ package rv32i_types;
         logic start; 
         super_dispatch_t inst_info; 
     } multiply_FUs_t; 
+
+    typedef enum logic [2:0] {
+        wait_s_load_p,
+        wait_s_store_p,
+        request_load_s,
+        latch_load_s,
+        request_store_s,
+        latch_store_s
+    } ld_st_controller_t;
+
 endpackage
 
 package cache_types;

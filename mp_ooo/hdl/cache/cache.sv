@@ -5,7 +5,7 @@ import cache_types::*;
     parameter               TAG_SIZE   = 24,
     parameter               CACHE_LINE_SIZE = 256,
     parameter               READ_SIZE = 32,
-    parameter               OFFSET = 5
+    parameter               OFFSET = 3
 )(
     input   logic           clk,
     input   logic           rst,

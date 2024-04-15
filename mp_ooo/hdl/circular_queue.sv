@@ -54,9 +54,10 @@ assign head_next = head + {sext_amount_in[$clog2(DEPTH):0]};
 assign tail_next = tail + {sext_amount[$clog2(DEPTH):0]};
 
 always_comb begin
-    if(~push)
-        full = (head[$clog2(DEPTH)-1:0] == tail[$clog2(DEPTH)-1:0]) && (head[$clog2(DEPTH)] != tail[$clog2(DEPTH)]);
-    else
+    //if(~push)
+    //    full = (head[$clog2(DEPTH)-1:0] == tail[$clog2(DEPTH)-1:0]) && (head[$clog2(DEPTH)] != tail[$clog2(DEPTH)]);
+    //else
+    // Always use speculative full?
         full = (head_spec[$clog2(DEPTH)-1:0] == tail[$clog2(DEPTH)-1:0]) && (head_spec[$clog2(DEPTH)] != tail[$clog2(DEPTH)]);
 end
 

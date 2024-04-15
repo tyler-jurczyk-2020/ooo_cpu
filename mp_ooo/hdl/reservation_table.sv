@@ -65,7 +65,9 @@ module reservation_table
             if(avail_inst && ~table_full) begin
                 for(int i = 0; i < SS; i++) begin
                     for(int j = 0; j < reservation_table_size; j++) begin
-                        if(~reservation_table[j].rs_entry.full && (dispatched[i].inst.is_mul == TABLE_TYPE)) begin
+                        // Need to check to make sure we dont put any loads and stores in the table
+                        if(~reservation_table[j].rs_entry.full && (dispatched[i].inst.is_mul == TABLE_TYPE)
+                           && dispatched[i].inst.rmask == 4'b0 && dispatched[i].inst.wmask == 4'b0) begin
                             reservation_table[j] <= dispatched[i]; 
                             reservation_table[j].rs_entry.full <= '1; 
                             // MUST break because otherwise the entry will be put in to every available spot in the table
