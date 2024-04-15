@@ -66,6 +66,6 @@ next_test_5:
 bgeu_target:
     li x18, 1
 
-end:           
+end:        
     slti x0, x0, -256
                        
