@@ -31,7 +31,7 @@ import rv32i_types::*;
 );
 
 logic push_load, push_store, pop_load_ready, pop_store_ready, pop_load, pop_store;
-logic [$clog2(LD_ST_DEPTH)-1:0] load_tail, store_tail;
+logic [$clog2(LD_ST_DEPTH)-1:0] load_tail, store_tail, load_head, store_head;
 logic load_full, store_full;
 
 // Hardcoded reg select
@@ -53,23 +53,23 @@ super_dispatch_t store_in [LD_ST_DEPTH], store_out [LD_ST_DEPTH];
 // For now only properly support non-superscalar
 assign push_load = avail_inst && ~load_full && dispatch_entry[0].inst.rmask != 4'b0;
 assign push_store = avail_inst && ~store_full && dispatch_entry[0].inst.wmask != 4'b0;
-assign pop_load_ready = load_out[load_tail].cross_tail.cross_dep_met && load_out[load_tail].rs_entry.input1_met
+assign pop_load_ready = load_out[load_tail].cross_entry.cross_dep_met && load_out[load_tail].rs_entry.input1_met
                     && load_out[load_tail].rs_entry.input2_met;
-assign pop_store_ready = store_out[store_tail].cross_tail.cross_dep_met && store_out[store_tail].rs_entry.input1_met
+assign pop_store_ready = store_out[store_tail].cross_entry.cross_dep_met && store_out[store_tail].rs_entry.input1_met
                       && store_out[store_tail].rs_entry.input2_met;
 
 // Setup inputs to queues
 always_comb begin
     for(int i = 0; i < SS; i++) begin
         load_queue_in[i] = dispatch_entry[i];
-        load_queue_in[i].cross_tail.pointer = store_tail;
-        load_queue_in[i].cross_tail.cross_dep_met = 1'b0;
-        load_queue_in[i].cross_tail.valid = 1'b1;
+        load_queue_in[i].cross_entry.pointer = store_head;
+        load_queue_in[i].cross_entry.cross_dep_met = 1'b0;
+        load_queue_in[i].cross_entry.valid = 1'b1;
 
         store_queue_in[i] = dispatch_entry[i];
-        store_queue_in[i].cross_tail.pointer = load_tail;
-        store_queue_in[i].cross_tail.cross_dep_met = 1'b0;
-        store_queue_in[i].cross_tail.valid = 1'b1;
+        store_queue_in[i].cross_entry.pointer = load_head;
+        store_queue_in[i].cross_entry.cross_dep_met = 1'b0;
+        store_queue_in[i].cross_entry.valid = 1'b1;
     end
 end
 
@@ -80,6 +80,7 @@ load_queue(
     .in(load_queue_in),
     .out(load_queue_out),
     .tail_out(load_tail),
+    .head_out(load_head),
     // Always need to access all entries
     .reg_select_in(reg_select_queue),
     .reg_select_out(reg_select_queue),
@@ -99,6 +100,7 @@ store_queue(
     .in(store_queue_in),
     .out(store_queue_out),
     .tail_out(store_tail),
+    .head_out(store_head),
     // Always need to access all entries
     .reg_select_in(reg_select_queue),
     .reg_select_out(reg_select_queue),
@@ -142,12 +144,15 @@ always_comb begin
         // Return to other wait state to prevent starvation
         unique case (state)
             request_load_s : next_state = latch_load_s;
-            request_store_s : next_state = wait_s_load_p;
+            request_store_s : next_state = latch_store_s;
             default : next_state = state;
         endcase
     end
     else if(state == latch_load_s) begin
         next_state = wait_s_store_p;
+    end
+    else if(state == latch_store_s) begin
+        next_state = wait_s_load_p;
     end
     else begin
         next_state = state;
@@ -162,7 +167,7 @@ always_comb begin
         store_in[d] = store_out[d];
         store_in_bit[d] = 1'b0;
         for(int i = 0; i < CDB; i++) begin
-            if(load_out[d].cross_tail.valid) begin
+            if(load_out[d].cross_entry.valid) begin
                 // Loads - RS1
                 if(cdb_in[i].ready_for_writeback && load_out[d].rat.rs1 == cdb_in[i].inst_info.rat.rd) begin
                     load_in[d].rs_entry.input1_met = 1'b1;
@@ -175,7 +180,7 @@ always_comb begin
                     load_in_bit[d] = 1'b1;
                 end
             end
-            if(store_out[d].cross_tail.valid) begin
+            if(store_out[d].cross_entry.valid) begin
                 // Stores - RS1
                 if(cdb_in[i].ready_for_writeback && store_out[d].rat.rs1 == cdb_in[i].inst_info.rat.rd) begin
                     store_in[d].rs_entry.input1_met = 1'b1;
@@ -191,13 +196,13 @@ always_comb begin
         end
         
         // Update cross dependencies for loads
-        if(load_out[d].cross_tail.valid && load_out[d].cross_tail.pointer == store_tail) begin
-            load_in[d].cross_tail.cross_dep_met = 1'b1;
+        if(load_out[d].cross_entry.valid && load_out[d].cross_entry.pointer == store_tail) begin
+            load_in[d].cross_entry.cross_dep_met = 1'b1;
             load_in_bit[d] = 1'b1;
         end
         // Update cross dependencies for stores
-        if(store_out[d].cross_tail.valid && store_out[d].cross_tail.pointer == load_tail) begin
-            store_in[d].cross_tail.cross_dep_met = 1'b1;
+        if(store_out[d].cross_entry.valid && store_out[d].cross_entry.pointer == load_tail) begin
+            store_in[d].cross_entry.cross_dep_met = 1'b1;
             store_in_bit[d] = 1'b1;
         end
     end
@@ -210,25 +215,32 @@ assign move_to_store = (pop_store_ready && (state == wait_s_store_p || (state ==
 // Latches for response
 logic [31:0] dmem_rdata_masked_reg, dmem_rdata_reg;
 // Latches for sending out to dram (load)
-logic [31:0] cdb_rs1_register_value_reg, load_out_immediate_reg;
+logic [31:0] cdb_rs1_register_value_reg, immediate_reg;
 // Latches for sending out to dram (store)
-logic [31:0] cdb_rs2_register_value_reg, store_out_immediate_reg;
+logic [31:0] cdb_rs2_register_value_reg;
 logic [3:0] store_out_wmask_reg;
 
 // Masked read data returned from memory appropriately
-logic [31:0] dmem_rdata_masked, dmem_rdata_out, dmem_addr_latched;
-assign dmem_addr_latched = cdb_rs1_register_value_reg + load_out_immediate_reg;
+logic [31:0] dmem_rdata_masked, dmem_rdata_out, dmem_addr_latched, dmem_comb_addr_load, dmem_comb_addr_store;
+logic [3:0] dmem_rmask_reg, dmem_wmask_reg;
+
+// Addr that held during request states
+assign dmem_addr_latched = cdb_rs1_register_value_reg + immediate_reg;
+// Addr computed for request states
+assign dmem_comb_addr_store = lsq_reg_data.rs1_v.register_value + store_out[store_tail].inst.immediate;
+assign dmem_comb_addr_load = lsq_reg_data.rs1_v.register_value + load_out[load_tail].inst.immediate;
 
 always_ff @(posedge clk) begin
     if(rst) begin
         dmem_rdata_masked_reg <= '0;
         dmem_rdata_reg <= '0;
+        dmem_rmask_reg <= '0;
+        dmem_wmask_reg <= '0;
 
         cdb_rs1_register_value_reg <= '0;
-        load_out_immediate_reg <= '0;
+        immediate_reg <= '0;
 
         cdb_rs2_register_value_reg <= '0;
-        store_out_immediate_reg <= '0;
         store_out_wmask_reg <= '0;
     end
     else begin
@@ -239,28 +251,37 @@ always_ff @(posedge clk) begin
 
         if(move_to_load) begin
             cdb_rs1_register_value_reg <= lsq_reg_data.rs1_v.register_value;
-            load_out_immediate_reg <= load_out[load_tail].inst.immediate;
+            immediate_reg <= load_out[load_tail].inst.immediate;
+            dmem_rmask_reg <= load_out[load_tail].inst.rmask << dmem_comb_addr_load[1:0];
         end
 
         if(move_to_store) begin
+            cdb_rs1_register_value_reg <= lsq_reg_data.rs1_v.register_value;
             cdb_rs2_register_value_reg <= lsq_reg_data.rs2_v.register_value;
-            store_out_immediate_reg <= store_out[store_tail].inst.immediate;
-            store_out_wmask_reg <= store_out[store_tail].inst.wmask;
+            immediate_reg <= store_out[store_tail].inst.immediate;
+            dmem_wmask_reg <= store_out[store_tail].inst.wmask << dmem_comb_addr_store[1:0];
         end
     end
 end
 
+logic [31:0] shift_amt;
+assign shift_amt =  8*(dmem_addr_latched[1:0]);
+
+// Used on data response
 always_comb begin
-    if(~load_out[load_tail].inst.is_signed)
-        dmem_rdata_out = dmem_rdata_masked >> 8*dmem_addr_latched[1:0];
-    else
-        dmem_rdata_out = dmem_rdata_masked >>> 8*dmem_addr_latched[1:0];
+    if(~load_out[load_tail].inst.is_signed) begin
+        dmem_rdata_out = (dmem_rdata_masked >> shift_amt);
+    end
+    else begin
+        dmem_rdata_out = (dmem_rdata_masked >>> shift_amt);
+    end
     for(int i = 0; i < 4; i++) begin
         // Differentiate between signed and unsigned
-        if(~load_out[load_tail].inst.is_signed)
-            dmem_rdata_masked[8*i+:8] = dmem_rdata[8*i+:8] & {8{load_out[load_tail].inst.rmask[i]}}; 
+        if(~load_out[load_tail].inst.is_signed) begin
+            dmem_rdata_masked[8*i+:8] = dmem_rdata[8*i+:8] & {8{dmem_rmask_reg[i]}}; 
+        end
         else begin
-            if(load_out[load_tail].inst.rmask[i])
+            if(dmem_rmask_reg[i])
                 dmem_rdata_masked[8*i+:8] = dmem_rdata[8*i+:8]; 
             else begin
                 if(i > 0)
@@ -283,15 +304,15 @@ always_comb begin
         dmem_wdata = 'x;
     end
     request_load_s : begin
-        dmem_addr = cdb_rs1_register_value_reg + load_out_immediate_reg;
+        dmem_addr = dmem_addr_latched;
         dmem_rmask = 1'b1;
         dmem_wmask = 4'b0;
         dmem_wdata = 'x;
     end
     request_store_s : begin
-        dmem_addr = store_out_immediate_reg; // NOT CORRECT!!
+        dmem_addr = dmem_addr_latched; // NOT CORRECT!!
         dmem_rmask = 1'b0;
-        dmem_wmask = store_out_wmask_reg;
+        dmem_wmask = dmem_wmask_reg;
         dmem_wdata = cdb_rs2_register_value_reg;
     end
     default : begin
@@ -343,13 +364,33 @@ always_comb begin
         lsq_request.rd_en = 1'b0;
         lsq_request.rd_v = 'x;
         cdb_out.inst_info = load_queue_out[0];
-        cdb_out.register_value = dmem_rdata_masked_reg;
+        cdb_out.register_value = dmem_rdata_out;
         cdb_out.ready_for_writeback = 1'b1;
         cdb_out.inst_info.rvfi.rd_wdata = dmem_rdata_out;
         cdb_out.inst_info.rvfi.rs1_rdata = cdb_rs1_register_value_reg;
         cdb_out.inst_info.rvfi.rs2_rdata = '0;
         cdb_out.inst_info.rvfi.mem_rdata = dmem_rdata_reg;
+        cdb_out.inst_info.rvfi.mem_wdata = 'x;
+        cdb_out.inst_info.rvfi.mem_rmask = load_queue_out[0].inst.rmask << dmem_addr_latched[1:0];
         cdb_out.inst_info.rvfi.mem_addr = cdb_rs1_register_value_reg + load_queue_out[0].inst.immediate;
+    end
+    else if(state == latch_store_s) begin
+        lsq_request.rs1_s = 'x;
+        lsq_request.rs2_s = 'x;
+        lsq_request.rd_s = 'x;
+        lsq_request.rd_en = 1'b0;
+        lsq_request.rd_v = 'x;
+        cdb_out.inst_info = store_queue_out[0];
+        cdb_out.register_value = 'x;
+        cdb_out.ready_for_writeback = 1'b1;
+        cdb_out.inst_info.rvfi.rd_addr = '0;
+        cdb_out.inst_info.rvfi.rd_wdata = 'x;
+        cdb_out.inst_info.rvfi.rs1_rdata = cdb_rs1_register_value_reg;
+        cdb_out.inst_info.rvfi.rs2_rdata = cdb_rs2_register_value_reg;
+        cdb_out.inst_info.rvfi.mem_rdata = 'x;
+        cdb_out.inst_info.rvfi.mem_wdata = cdb_rs2_register_value_reg << 8*dmem_addr_latched[1:0];
+        cdb_out.inst_info.rvfi.mem_wmask = store_queue_out[0].inst.wmask << dmem_addr_latched[1:0];
+        cdb_out.inst_info.rvfi.mem_addr = cdb_rs1_register_value_reg + store_queue_out[0].inst.immediate;
     end
     else begin
         lsq_request.rs1_s = 'x;

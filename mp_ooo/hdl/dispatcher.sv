@@ -155,7 +155,7 @@ module dispatcher
                 rs_rob_entry[i].rat.rd = free_rat_rds[i];
 
                 // Set cross tail for load store queue
-                rs_rob_entry[i].cross_tail = 'x;
+                rs_rob_entry[i].cross_entry = 'x;
             end
         end
         else begin
@@ -212,7 +212,7 @@ module dispatcher
                 rs_rob_entry[i].rat.rd = 'x;
 
                 // Set cross tail for load store queue
-                rs_rob_entry[i].cross_tail = 'x;
+                rs_rob_entry[i].cross_entry = 'x;
             end
         end
     end

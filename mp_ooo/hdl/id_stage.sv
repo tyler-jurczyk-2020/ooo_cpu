@@ -213,9 +213,10 @@ module id_stage
                 instruction_info.execute_operand2 = 2'b11; 
                 instruction_info.immediate = i_imm; 
                 // instruction_info.cmp_en = '0;  
+                // Note that these masked are unshifted and need to be shifted in lsq
                 unique case (funct3)
-                    lb, lbu : instruction_info.rmask = 4'h1 << offset[1:0];
-                    lh, lhu : instruction_info.rmask = 4'h3 << offset[1:0];
+                    lb, lbu : instruction_info.rmask = 4'h1;
+                    lh, lhu : instruction_info.rmask = 4'h3;
                     lw : instruction_info.rmask = 4'hf;
                     default : instruction_info.rmask = 'x;
                 endcase
@@ -231,8 +232,8 @@ module id_stage
                 instruction_info.immediate = s_imm; 
                 // instruction_info.cmp_en = '1;  
                 unique case (funct3)
-                    sb : instruction_info.wmask = 4'h1 << offset[1:0];
-                    sh, lhu : instruction_info.wmask = 4'h3 << offset[1:0];
+                    sb : instruction_info.wmask = 4'h1;
+                    sh : instruction_info.wmask = 4'h3;
                     sw : instruction_info.wmask = 4'hf;
                     default : instruction_info.wmask = 'x;
                 endcase

@@ -172,7 +172,7 @@ package rv32i_types;
        logic [$clog2(LD_ST)-1:0] pointer;     
        logic cross_dep_met;
        logic valid;
-    } cross_tail_t;
+    } cross_t;
 
     typedef struct packed {
        rob_t rob;
@@ -180,7 +180,7 @@ package rv32i_types;
        instruction_info_reg_t inst;
        rat_t rat;
        reservation_entry_t rs_entry;
-       cross_tail_t cross_tail;
+       cross_t cross_entry;
     } super_dispatch_t;
 
     typedef enum logic {
@@ -238,7 +238,8 @@ package rv32i_types;
         wait_s_store_p,
         request_load_s,
         latch_load_s,
-        request_store_s
+        request_store_s,
+        latch_store_s
     } ld_st_controller_t;
 
 endpackage
