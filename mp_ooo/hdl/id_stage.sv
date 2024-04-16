@@ -221,6 +221,13 @@ module id_stage
                 instruction_info.immediate = i_imm; 
                 instruction_info.cmp_en = '0;  
             end
+            op_b_lui : begin
+                instruction_info.execute_operand1 = 2'b01; 
+                instruction_info.execute_operand2 = 2'b01; 
+                instruction_info.immediate = u_imm; 
+                instruction_info.alu_operation = alu_add; 
+                instruction_info.cmp_en = '0;  
+            end
             op_b_store : begin
                 instruction_info.execute_operand1 = 2'b00; 
                 instruction_info.execute_operand2 = 2'b11; 
