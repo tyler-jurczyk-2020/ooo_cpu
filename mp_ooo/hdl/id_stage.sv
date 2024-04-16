@@ -211,7 +211,7 @@ module id_stage
             op_b_jalr : begin
                 instruction_info.execute_operand1 = 2'b00; 
                 instruction_info.execute_operand2 = 2'b11; 
-                instruction_info.immediate = j_imm; 
+                instruction_info.immediate = i_imm; 
                 instruction_info.is_jumpr = '1;   
                 instruction_info.cmp_en = '0;  
             end 
