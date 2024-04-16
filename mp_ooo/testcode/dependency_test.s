@@ -1,4 +1,4 @@
-dependency_test.s: 
+dependency_test.s:
 .align 4
 .section .text
 .globl _start
@@ -41,8 +41,5 @@ add x6, x9, x10
 mul x11, x12, x13
 add x12, x1, x2
 
-
-
-halt:                 
+halt:
     slti x0, x0, -256
-                       

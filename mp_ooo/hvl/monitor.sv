@@ -142,22 +142,21 @@ module monitor (
                                 itf.error <= 1'b1;
                             end
                         end
-                    end 
-                end 
+                    end
+                end
             end
         end
     endgenerate
-
-    
 
     initial begin
         for (int unsigned channel=0; channel < 8; ++channel) begin
             itf.halt[channel] = '0;
         end
     end
-    always @(posedge itf.clk) begin
+
+    always @(posedge itf.clk iff !itf.rst) begin
         for (int unsigned channel=0; channel < 8; ++channel) begin
-            if ((!itf.rst && itf.valid[channel]) && ((itf.pc_rdata[channel] == itf.pc_wdata[channel]) || (itf.inst[channel] == 32'h00000063) || (itf.inst[channel] == 32'h0000006f) || (itf.inst[channel] == 32'hF0002013))) begin
+            if (itf.valid[channel] && ((itf.pc_rdata[channel] == itf.pc_wdata[channel]) || (itf.inst[channel] == 32'h00000063) || (itf.inst[channel] == 32'h0000006f) || (itf.inst[channel] == 32'hF0002013))) begin
                 itf.halt[channel] <= 1'b1;
             end
         end
@@ -170,43 +169,71 @@ module monitor (
         end
     end
 
+    int time_fd;
+    initial time_fd = $fopen("./time.txt", "w");
+
     longint inst_count = longint'(0);
     longint cycle_count = longint'(0);
     longint start_time = longint'(0);
     longint total_time = longint'(0);
     bit done_print_ipc = 1'b0;
     real ipc = real'(0);
-    always @(posedge itf.clk) begin
+    longint power_start_time = longint'(0);
+    bit done_print_power = 1'b0;
+
+    always @(posedge itf.clk iff !itf.rst) begin
         cycle_count += longint'(1);
         for (int unsigned channel=0; channel < 8; ++channel) begin
-            if ((!itf.rst && itf.valid[channel]) && (itf.inst[channel] == 32'h00102013)) begin
-                inst_count = longint'(0);
-                cycle_count = longint'(0);
-                start_time = $time;
-                $display("Monitor: Segment Start time is %t",$time); 
-            end else begin
-                if (!itf.rst && itf.valid[channel]) begin
-                    inst_count += longint'(1);
+            if (itf.valid[channel]) begin
+                inst_count += longint'(1);
+                if (itf.inst[channel] == 32'h00102013) begin
+                    inst_count = longint'(0);
+                    cycle_count = longint'(0);
+                    start_time = $time;
+                    power_start_time = $time;
+                    $display("Monitor: Segment Start time is %t", $time);
                 end
-            end
-            if ((!itf.rst && itf.valid[channel]) && (itf.inst[channel] == 32'h00202013)) begin
-                $display("Monitor: Segment Stop time is %t",$time); 
-                done_print_ipc = 1'b1;
-                ipc = real'(inst_count) / cycle_count;
-                total_time = $time - start_time;
-                $display("Monitor: Segment IPC: %f", ipc);
-                $display("Monitor: Segment Time: %t", total_time);
+                if (itf.inst[channel] == 32'h00202013) begin
+                    $display("Monitor: Segment Stop time is %t", $time);
+                    done_print_ipc = 1'b1;
+                    ipc = real'(inst_count) / cycle_count;
+                    total_time = $time - start_time;
+                    $display("Monitor: Segment IPC: %f", ipc);
+                    $display("Monitor: Segment Time: %t", total_time);
+                    if (!done_print_power) begin
+                        done_print_power = 1'b1;
+                        $fwrite(time_fd, "%0t\n", power_start_time);
+                        $fwrite(time_fd, "%0t", $time);
+                    end
+                end
+                if (itf.inst[channel] == 32'h00302013) begin
+                    $display("Monitor: Power Start time is %t", $time);
+                    power_start_time = $time;
+                end
+                if (itf.inst[channel] == 32'h00402013) begin
+                    $display("Monitor: Power Stop time is %t", $time);
+                    done_print_power = 1'b1;
+                    $fwrite(time_fd, "%0t\n", power_start_time);
+                    $fwrite(time_fd, "%0t", $time);
+                end
             end
         end
     end
 
     final begin
         if (!done_print_ipc) begin
+            done_print_ipc = 1'b1;
             ipc = real'(inst_count) / cycle_count;
             total_time = $time - start_time;
             $display("Monitor: Total IPC: %f", ipc);
             $display("Monitor: Total Time: %t", total_time);
         end
+        if (!done_print_power) begin
+            done_print_power = 1'b1;
+            $fwrite(time_fd, "%0t\n", power_start_time);
+            $fwrite(time_fd, "%0t", $time);
+        end
+        $fclose(time_fd);
     end
 
     riscv_formal_monitor_rv32imc monitor(
@@ -236,27 +263,27 @@ module monitor (
         .errcode            (errcode)
     );
 
-    int fd;
-    initial fd = $fopen("./commit.log", "w");
-    final $fclose(fd);
+    int spike_fd;
+    initial spike_fd = $fopen("./commit.log", "w");
+    final $fclose(spike_fd);
 
-    always @ (posedge itf.clk) begin
+    always @ (posedge itf.clk iff !itf.rst) begin
         for (int unsigned channel=0; channel < 8; ++channel) begin
             if(itf.valid[channel]) begin
                 if (itf.order[channel] % 1000 == 0) begin
                     $display("dut commit No.%d, rd_s: x%02d, rd: 0x%h", itf.order[channel], itf.rd_addr[channel], itf.rd_addr[channel] ? itf.rd_wdata[channel] : 5'd0);
                 end
                 if (itf.inst[channel][1:0] == 2'b11) begin
-                    $fwrite(fd, "core   0: 3 0x%h (0x%h)", itf.pc_rdata[channel], itf.inst[channel]);
+                    $fwrite(spike_fd, "core   0: 3 0x%h (0x%h)", itf.pc_rdata[channel], itf.inst[channel]);
                 end else begin
-                    $fwrite(fd, "core   0: 3 0x%h (0x%h)", itf.pc_rdata[channel], itf.inst[channel][15:0]);
+                    $fwrite(spike_fd, "core   0: 3 0x%h (0x%h)", itf.pc_rdata[channel], itf.inst[channel][15:0]);
                 end
                 if (itf.rd_addr[channel] != 0) begin
                     if (itf.rd_addr[channel] < 10)
-                        $fwrite(fd, " x%0d  ", itf.rd_addr[channel]);
+                        $fwrite(spike_fd, " x%0d  ", itf.rd_addr[channel]);
                     else
-                        $fwrite(fd, " x%0d ", itf.rd_addr[channel]);
-                    $fwrite(fd, "0x%h", itf.rd_wdata[channel]);
+                        $fwrite(spike_fd, " x%0d ", itf.rd_addr[channel]);
+                    $fwrite(spike_fd, "0x%h", itf.rd_wdata[channel]);
                 end
                 if (itf.mem_rmask[channel] != 0) begin
                     automatic int first_1 = 0;
@@ -266,7 +293,7 @@ module monitor (
                             break;
                         end
                     end
-                    $fwrite(fd, " mem 0x%h", {itf.mem_addr[channel][31:2], 2'b0} + first_1);
+                    $fwrite(spike_fd, " mem 0x%h", {itf.mem_addr[channel][31:2], 2'b0} + first_1);
                 end
                 if (itf.mem_wmask[channel] != 0) begin
                     automatic int amount_o_1 = 0;
@@ -282,21 +309,21 @@ module monitor (
                             break;
                         end
                     end
-                    $fwrite(fd, " mem 0x%h", {itf.mem_addr[channel][31:2], 2'b0} + first_1);
+                    $fwrite(spike_fd, " mem 0x%h", {itf.mem_addr[channel][31:2], 2'b0} + first_1);
                     case (amount_o_1)
                         1: begin
                             automatic logic[7:0] wdata_byte = itf.mem_wdata[channel][8*first_1 +: 8];
-                            $fwrite(fd, " 0x%h", wdata_byte);
+                            $fwrite(spike_fd, " 0x%h", wdata_byte);
                         end
                         2: begin
                             automatic logic[15:0] wdata_half = itf.mem_wdata[channel][8*first_1 +: 16];
-                            $fwrite(fd, " 0x%h", wdata_half);
+                            $fwrite(spike_fd, " 0x%h", wdata_half);
                         end
                         4:
-                            $fwrite(fd, " 0x%h", itf.mem_wdata[channel]);
+                            $fwrite(spike_fd, " 0x%h", itf.mem_wdata[channel]);
                     endcase
                 end
-                $fwrite(fd, "\n");
+                $fwrite(spike_fd, "\n");
             end
         end
     end

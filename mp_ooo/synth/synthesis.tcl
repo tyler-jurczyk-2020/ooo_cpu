@@ -1,3 +1,6 @@
+# You requested %d cores. However, load on host %s is %0.2y
+suppress_message UIO-231
+
 set hdlin_ff_always_sync_set_reset true
 set hdlin_ff_always_async_set_reset true
 set hdlin_infer_multibit default_all
@@ -6,8 +9,6 @@ set_host_options -max_cores 4
 set_app_var report_default_significant_digits 6
 set design_toplevel cpu
 
-# You requested %d cores. However, load on host %s is %0.2y
-suppress_message UIO-231
 # output port '%s' is connected directly to output port '%s'
 suppress_message LINT-31
 # In design '%s', output port '%s' is connected directly to '%s'.
@@ -68,7 +69,13 @@ set alib_library_analysis_path [getenv STD_CELL_ALIB]
 set symbol_library [list generic.sdb]
 set synthetic_library [list dw_foundation.sldb]
 set target_library [getenv STD_CELL_LIB]
-set link_library   [list "*" $target_library $synthetic_library [getenv SRAM_LIB]]
+set sram_library [getenv SRAM_LIB]
+
+if {$sram_library eq ""} {
+   set link_library [list "*" $target_library $synthetic_library]
+} else {
+   set link_library [list "*" $target_library $synthetic_library $sram_library]
+}
 
 set design_clock_pin clk
 set design_reset_pin rst
@@ -82,13 +89,18 @@ foreach module $modules {
 
 elaborate $design_toplevel
 current_design $design_toplevel
+
+define_name_rules nameRules -restricted "!@#$%^&*()\\-" -case_insensitive
+change_names -rules verilog -hierarchy
+change_names -rules nameRules -hierarchy
+
 check_design
 
 set_wire_load_model -name "5K_hvratio_1_1"
 set_wire_load_mode enclosed
 
 set clk_name $design_clock_pin
-set clk_period 2
+set clk_period [expr [getenv CLOCK_PERIOD_PS] / 1000.0]
 create_clock -period $clk_period -name my_clk $clk_name
 set_fix_hold [get_clocks my_clk]
 

@@ -10,3 +10,8 @@ if {$sram_library eq ""} {
 }
 
 read_file -format ddc outputs/synth.ddc
+
+read_saif -input ../sim/sim/dump.fsdb.saif -instance top_tb/dut
+report_power -analysis_effort high -hierarchy > reports/power.rpt
+report_power -analysis_effort high > reports/power2.rpt
+exit

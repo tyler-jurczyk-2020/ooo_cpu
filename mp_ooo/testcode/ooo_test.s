@@ -1,4 +1,4 @@
-ooo_test.s: 
+ooo_test.s:
 .align 4
 .section .text
 .globl _start
@@ -37,7 +37,5 @@ xor x7, x8, x9
 sll x10, x11, x12
 and x13, x14, x15
 
-
-halt:                 
+halt:
     slti x0, x0, -256
-                       
