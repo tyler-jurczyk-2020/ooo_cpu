@@ -124,14 +124,14 @@ module dispatcher
                 rs_rob_entry[i].rs_entry.rs2_source = dispatch_reg_data[i].rs2_v.ROB_ID;
                 rs_rob_entry[i].rs_entry.full = 1'b0; // Mark as effectively empty
 
-                if(~inst[i].execute_operand1[0]) begin
+                if(~inst[i].execute_operand1[0] || inst[i].is_branch) begin
                     rs_rob_entry[i].rs_entry.input1_met = ~dispatch_reg_data[i].rs1_v.dependency; 
                 end
                 else begin
                     rs_rob_entry[i].rs_entry.input1_met = '1;  
                 end
 
-                if(~inst[i].execute_operand2[0]) begin
+                if(~inst[i].execute_operand2[0] || inst[i].is_branch) begin
                     rs_rob_entry[i].rs_entry.input2_met = ~dispatch_reg_data[i].rs2_v.dependency; 
                 end
                 else begin
