@@ -1,14 +1,14 @@
-module circular_queue
+module freelist
 import rv32i_types::*;
 #(
-    type QUEUE_TYPE = instruction_info_reg_t,
+    type QUEUE_TYPE = logic[5:0],
     parameter SS = 2,
     parameter IN_WIDTH = SS, 
     parameter SEL_IN = 2,
     parameter SEL_OUT = 2,
-    parameter DEPTH = 4
+    parameter DEPTH = 32
 )(
-    input logic clk, rst, 
+    input logic clk, rst,
     input logic push, pop,
     input QUEUE_TYPE in [IN_WIDTH], // Values pushed in
     input QUEUE_TYPE reg_in [SEL_IN], // Values used to modify entries
@@ -17,10 +17,16 @@ import rv32i_types::*;
     input logic [SEL_IN-1:0] in_bitmask,
     input logic [SEL_OUT-1:0] out_bitmask,
  
+    input logic flush,
+
+    input logic [$clog2(DEPTH):0] extendo_tail_in,
+    input logic [$clog2(DEPTH):0] extendo_head_in,
+
     // Need to consider potentially how partial pushes/pops may work in superscalar context
     output logic empty,
     output logic full,
     output logic [$clog2(DEPTH)-1:0] head_out, tail_out,
+    output logic [$clog2(DEPTH):0] extendo_head_out, extendo_tail_out,
     output QUEUE_TYPE out [SS], // Values pushed out
     output QUEUE_TYPE reg_out [SEL_OUT] // Values selected to be observed
     );
@@ -31,6 +37,8 @@ logic [31:0] sext_head, sext_tail, sext_amount, sext_amount_in, sext_amount_out;
 
 assign head_out = head[$clog2(DEPTH)-1:0];
 assign tail_out = tail[$clog2(DEPTH)-1:0];
+assign extendo_head_out = head[$clog2(DEPTH):0];
+assign extendo_tail_out = tail[$clog2(DEPTH):0];
 
 assign head_spec = head + SS[$clog2(DEPTH):0]; // Need to make superscalar
 
@@ -45,19 +53,19 @@ assign head_next = head + {sext_amount_in[$clog2(DEPTH):0]};
 assign tail_next = tail + {sext_amount[$clog2(DEPTH):0]};
 
 always_comb begin
-    //if(~push)
-    //    full = (head[$clog2(DEPTH)-1:0] == tail[$clog2(DEPTH)-1:0]) && (head[$clog2(DEPTH)] != tail[$clog2(DEPTH)]);
-    //else
-    // Always use speculative full?
+    if(~push)
+        full = (head[$clog2(DEPTH)-1:0] == tail[$clog2(DEPTH)-1:0]) && (head[$clog2(DEPTH)] != tail[$clog2(DEPTH)]);
+    else
         full = (head_spec[$clog2(DEPTH)-1:0] == tail[$clog2(DEPTH)-1:0]) && (head_spec[$clog2(DEPTH)] != tail[$clog2(DEPTH)]);
 end
 
 always_ff @(posedge clk) begin
     if(rst) begin
-            head <= '0;
-            tail <= '0;
-            for(int i = 0; i < DEPTH; i++) 
-                entries[i] <= '0;
+        head <= 6'b100000;
+        tail <= '0;
+        for(int unsigned i = 32; i < 32 + unsigned'(DEPTH); i++) begin
+            entries[i-32] <= ($bits(QUEUE_TYPE))'(i);
+        end
     end
     else begin
         if(push) begin           
@@ -67,6 +75,14 @@ always_ff @(posedge clk) begin
                     entries[i] <= in[i - sext_head];
             end
         end
+        
+        if(flush) begin
+            tail <= extendo_tail_in;
+            head <= extendo_head_in;
+            for(int i = 0; i < DEPTH; i++) 
+                entries[i] <= reg_in[i];
+        end
+        
         if(pop)  begin
             tail <= tail_next;
             for(int unsigned i = 0; i < DEPTH; i++) begin
@@ -95,4 +111,4 @@ always_comb begin
     end
 end
 
-endmodule : circular_queue
+endmodule : freelist

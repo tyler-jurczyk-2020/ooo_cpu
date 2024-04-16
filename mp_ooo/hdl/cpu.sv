@@ -71,6 +71,8 @@ fetch_output_reg_t if_id_reg, if_id_reg_next;
 // Parsed out decoded cacheline
 instruction_info_reg_t decoded_inst [SS];
 
+super_dispatch_t rob_entries_to_commit1[SS]; 
+
 logic valid_request; 
 
 
@@ -80,12 +82,13 @@ always_ff @ (posedge clk) begin
     if(rst) begin
         flush_reg <= '0; 
     end
-    else if(imem_resp) begin
-        flush_reg <= '0; 
-    end
     else if(flush) begin
         flush_reg <= '1; 
     end
+    else if(imem_resp) begin
+        flush_reg <= '0; 
+    end
+    
     
 end
 
@@ -148,6 +151,7 @@ instruction_info_reg_t instruction [SS];
 logic inst_q_empty, pop_inst_q;
 
 instruction_info_reg_t view_inst_tail [1];
+
 logic [$clog2(ROB_DEPTH)-1:0] inst_tail;
 logic [$clog2(ROB_DEPTH)-1:0] sel_out_inst [1];
 assign sel_out_inst[0] = inst_tail;
@@ -163,11 +167,10 @@ logic active_store;
 circular_queue #(.SS(SS), .IN_WIDTH(SS), .SEL_IN(SS), .SEL_OUT(1), .DEPTH(ROB_DEPTH)) instruction_queue
                 (.clk(clk), .rst(rst || flush),
                  .full(inst_queue_full), .in(decoded_inst),
-                 .out(instruction), .flush(flush),
+                 .out(instruction),
                  .push(valid_request && ~active_store), .pop(pop_inst_q), .empty(inst_q_empty),
                  .out_bitmask('1), .in_bitmask(d_bitmask), .tail_out(inst_tail),
                  .reg_out(view_inst_tail),
-                 .extendo_tail_in('0), .extendo_head_in('0),
                  .reg_select_in(d_reg_sel), .reg_select_out(sel_out_inst), .reg_in(d_reg_in)
                  );
                 // planning on passing dummy shit or 0 into reg_select shit
@@ -184,7 +187,9 @@ fetch_stage #(.SS(SS)) fetch_stage_i (
     .pc_reg(pc_reg),
     .imem_rmask(imem_rmask),
     .imem_addr(imem_addr), 
-    .decoded_inst(decoded_inst)
+    .decoded_inst(decoded_inst), 
+    .valid_request(valid_request), 
+    .rob_entries_to_commit1(rob_entries_to_commit1)
 );
 
 
@@ -364,12 +369,13 @@ always_comb begin
 end
 
 // free list 
-circular_queue #( .SS(SS), .SEL_IN(32), .SEL_OUT(SS), .QUEUE_TYPE(logic [5:0]), .INIT_TYPE(FREE_LIST), .DEPTH(32))
-      free_list(.clk(clk), .rst(rst), .in(retire_to_free_list), .push(push_to_free_list), 
+freelist #( .SS(SS), .SEL_IN(32), .SEL_OUT(SS), .DEPTH(32))
+      free_list(.clk(clk), .rst(rst), .in(retire_to_free_list), 
+      .push(push_to_free_list), 
       .pop(pop_inst_q),
     //.pop(pop_inst_q && next_inst_has_rd),
       .flush(flush),
-      .reg_in(backup_freelist), .reg_select_in(d_backup_reg_sel), .reg_select_out(d_free_reg_sel),      
+      .reg_in(backup_freelist), .reg_select_in(d_backup_reg_sel), .reg_select_out(d_free_reg_sel),
       .out_bitmask(d_bitmask), .in_bitmask('0),
       .extendo_tail_in(tail_backup), .extendo_head_in(head_backup),
       // outputs
@@ -382,12 +388,10 @@ circular_queue #( .SS(SS), .SEL_IN(32), .SEL_OUT(SS), .QUEUE_TYPE(logic [5:0]), 
 
 
 // back up freelist
-circular_queue #( .SS(SS), .SEL_IN(SS), .SEL_OUT(32), .QUEUE_TYPE(logic [5:0]), .INIT_TYPE(BACKUP_FREE_LIST), .DEPTH(32))
-      backup_free_list(.clk(clk), .rst(rst), .in(retire_to_free_list), .push(push_to_free_list), 
-      .pop(push_to_free_list),
-      .flush(flush),
-      .reg_in(d_free_reg_in), .reg_select_in(d_free_reg_sel), .reg_select_out(select_backup_freelist),      
-      .out_bitmask('1), .in_bitmask(d_bitmask),
+freelist #( .SS(SS), .SEL_IN(SS), .SEL_OUT(32), .DEPTH(32))
+      backup_free_list(.clk(clk), .rst(rst), .in(retire_to_free_list), .push(push_to_free_list), .pop(push_to_free_list),
+      .reg_in(d_free_reg_in), .reg_select_in(d_free_reg_sel), .reg_select_out(select_backup_freelist),
+      .out_bitmask('1), .in_bitmask(d_bitmask), .flush('0),
       .extendo_tail_in('0), .extendo_head_in('0),
       // outputs
       .empty(), .full(), 
@@ -410,7 +414,8 @@ rob #(.SS(SS), .ROB_DEPTH(ROB_DEPTH)) rb(.clk(clk), .rst(rst),
                                          .rob_id_next(rob_id_next), 
                                          .rob_entries_to_commit(rob_entries_to_commit),
                                          .rob_full(rob_full),
-                                         .pop_from_rob(pop_from_rob)
+                                         .pop_from_rob(pop_from_rob), 
+                                         .rob_entries_to_commit1(rob_entries_to_commit1)
                                         );
 
 // Cycle 1: 

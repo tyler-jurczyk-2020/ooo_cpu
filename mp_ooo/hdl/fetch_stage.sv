@@ -15,7 +15,9 @@ module fetch_stage
         // PC to fetch
         output logic [31:0] pc_reg,
         output logic imem_rmask,
-        output logic [31:0] imem_addr
+        output logic [31:0] imem_addr, 
+        input logic valid_request, 
+        input super_dispatch_t rob_entries_to_commit1[SS]
     );
 
 
@@ -67,11 +69,21 @@ module fetch_stage
                 // else, start fetching from pc + 4
             
                 pc_reg <= pc_reg + 4;
-                if(rob_entries_to_commit[i].rob.branch_enable && rob_entries_to_commit[i].rob.commit) begin
-                    pc_reg <= rob_entries_to_commit[i].rvfi.pc_wdata;
-                    branch <= '1; 
-                    // pc_updated = '1; 
-                    break;
+                if(valid_request) begin
+                    if(rob_entries_to_commit[i].rob.branch_enable && rob_entries_to_commit[i].rob.commit) begin
+                        pc_reg <= rob_entries_to_commit[i].rvfi.pc_wdata; 
+                        branch <= '1; 
+                        // pc_updated = '1; 
+                        break;
+                    end
+                end
+                else begin
+                    if(rob_entries_to_commit1[i].rob.branch_enable && rob_entries_to_commit1[i].rob.commit) begin
+                        pc_reg <= rob_entries_to_commit1[i].rvfi.pc_wdata; 
+                        branch <= '1; 
+                        // pc_updated = '1; 
+                        break;
+                    end
                 end
             end
 

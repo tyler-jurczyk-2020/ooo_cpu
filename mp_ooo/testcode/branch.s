@@ -26,9 +26,9 @@ brA: addi x3, x3, 4
      lui x6, 0x3
 
 top: addi x5, x5, 4
-     beq x0, x0, brB
-brB: beq x0, x0, brC
-brC: beq x0, x0, brD
+#     beq x0, x0, brB
+#brB: beq x0, x0, brC
+#brC: beq x0, x0, brD
 brD: bltu x6, x5, top
 
 halt:                 # Infinite loop to keep the processor

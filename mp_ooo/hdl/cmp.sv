@@ -13,6 +13,7 @@ import rv32i_types::*;
 
     assign as =   signed'(a);
     assign bs =   signed'(b);
+    
     assign au = unsigned'(a);
     assign bu = unsigned'(b);
 
