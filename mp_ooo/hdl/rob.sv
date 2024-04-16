@@ -38,8 +38,8 @@ module rob
     super_dispatch_t rob_entry_in [CDB];
     logic [(CDB)-1:0] bitmask;
     // ROB receives data from cdb and updates commit flag in circular queue
-    circular_queue #(.SS(SS), .SEL_IN(CDB), .SEL_OUT(SS), .QUEUE_TYPE(super_dispatch_t), .DEPTH(ROB_DEPTH)) rob_dut(.clk(clk), .rst(rst || flush), .flush(flush), .in(dispatch_info), .push(avail_inst), .pop(pop_from_rob), 
-    .reg_select_out(rob_id_out), .extendo_head_in('0), .extendo_tail_in('0),
+    circular_queue #(.SS(SS), .SEL_IN(CDB), .SEL_OUT(SS), .QUEUE_TYPE(super_dispatch_t), .DEPTH(ROB_DEPTH)) rob_dut(.clk(clk), .rst(rst || flush), .in(dispatch_info), .push(avail_inst), .pop(pop_from_rob), 
+    .reg_select_out(rob_id_out),
     .reg_out(inspect_queue), .reg_select_in(rob_id_reg_select), .reg_in(rob_entry_in), .in_bitmask(bitmask), .out_bitmask('1),// One hot bitmask
     .head_out(head), .tail_out(tail), .full(rob_full), .empty(rob_empty));
 
