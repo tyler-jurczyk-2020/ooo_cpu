@@ -66,14 +66,26 @@ always_ff @(posedge clk) begin
         end
     end
     else begin
+        if(flush) begin
+            if(push) begin
+                head <= head_backup + 1'b1;
+                tail <= tail_backup + 1'b1;
+            end
+            else begin
+                head <= head_backup;
+                tail <= tail_backup;
+            end
+        end
+        else begin
+            if(push)
+                head <= head_next;
+            if(pop)
+                tail <= tail_next;
+        end
+
         if(push) begin           
             head_backup <= head_backup + 1'b1;
             tail_backup <= tail_backup + 1'b1;
-            if(flush)
-                head <= head_backup;
-            else
-                head <= head_next;
-
             for(int unsigned i = 0; i < DEPTH; i++) begin
                 if(i < sext_head + sext_amount_in && i >= sext_head)
                     entries[i] <= in[i - sext_head];
@@ -81,11 +93,6 @@ always_ff @(posedge clk) begin
         end
         
         if(pop) begin
-            if(flush)
-                tail <= tail_backup;
-            else
-                tail <= tail_next;
-
             for(int unsigned i = 0; i < DEPTH; i++) begin
                 if(i < sext_tail + sext_amount && i >= sext_tail)
                     out[i - sext_tail] <= entries[i];
