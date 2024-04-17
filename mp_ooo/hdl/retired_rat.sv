@@ -24,7 +24,7 @@ always_comb begin
     for(int i = 0; i < SS; i++) begin
         if(retire_we && rob_info[i].inst.rd_s != 5'b0) begin
             // update retired rat based on instr's reg mapping
-            backup_retired_rat[rob_info[i].inst.rd_s] <= rob_info[i].rat.rd;
+            backup_retired_rat[rob_info[i].inst.rd_s] = rob_info[i].rat.rd;
         end
     end
 end

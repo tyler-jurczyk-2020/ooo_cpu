@@ -224,7 +224,7 @@ end
 
 
 // Latches for response
-logic [31:0] dmem_rdata_masked_reg, dmem_rdata_reg;
+logic [31:0] dmem_rdata_out_reg, dmem_rdata_reg;
 // Latches for sending out to dram (load)
 logic [31:0] cdb_rs1_register_value_reg, immediate_reg;
 // Latches for sending out to dram (store)
@@ -243,7 +243,7 @@ assign dmem_comb_addr_load = lsq_reg_data.rs1_v.register_value + load_out[load_t
 
 always_ff @(posedge clk) begin
     if(rst) begin
-        dmem_rdata_masked_reg <= '0;
+        dmem_rdata_out_reg <= '0;
         dmem_rdata_reg <= '0;
         dmem_rmask_reg <= '0;
         dmem_wmask_reg <= '0;
@@ -256,7 +256,7 @@ always_ff @(posedge clk) begin
     end
     else begin
         if(dmem_resp) begin
-            dmem_rdata_masked_reg <= dmem_rdata_out;
+            dmem_rdata_out_reg <= dmem_rdata_out;
             dmem_rdata_reg <= dmem_rdata;
         end
 
@@ -276,15 +276,17 @@ always_ff @(posedge clk) begin
 end
 
 logic [31:0] shift_amt;
+logic signed [31:0] dmem_rdata_signed;
 assign shift_amt =  8*(dmem_addr_latched[1:0]);
+assign dmem_rdata_signed = signed'(dmem_rdata_masked);
 
 // Used on data response
 always_comb begin
     if(~load_out[load_tail].inst.is_signed) begin
-        dmem_rdata_out = (dmem_rdata_masked >> shift_amt);
+        dmem_rdata_out = unsigned'(dmem_rdata_signed >> shift_amt);
     end
     else begin
-        dmem_rdata_out = (dmem_rdata_masked >>> shift_amt);
+        dmem_rdata_out = unsigned'(dmem_rdata_signed >>> shift_amt);
     end
     for(int i = 0; i < 4; i++) begin
         // Differentiate between signed and unsigned
@@ -377,7 +379,7 @@ always_comb begin
         cdb_out.inst_info = load_queue_out[0];
         cdb_out.register_value = dmem_rdata_out;
         cdb_out.ready_for_writeback = 1'b1;
-        cdb_out.inst_info.rvfi.rd_wdata = dmem_rdata_out;
+        cdb_out.inst_info.rvfi.rd_wdata = dmem_rdata_out_reg;
         cdb_out.inst_info.rvfi.rs1_rdata = cdb_rs1_register_value_reg;
         cdb_out.inst_info.rvfi.rs2_rdata = '0;
         cdb_out.inst_info.rvfi.mem_rdata = dmem_rdata_reg;

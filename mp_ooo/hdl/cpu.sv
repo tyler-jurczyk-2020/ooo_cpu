@@ -399,11 +399,11 @@ always_comb begin
         rs_rob_entry1[i] = rs_rob_entry[i]; 
         for(int j = 0; j < CDB; j++) begin
             if(cdb[j].ready_for_writeback && rs_rob_entry[i].rs_entry.rs1_source == cdb[j].inst_info.rob.rob_id) begin
-                rs_rob_entry1[i].rs_entry.input1_met <= '1; 
+                rs_rob_entry1[i].rs_entry.input1_met = '1; 
             end
                   
             if(cdb[j].ready_for_writeback && rs_rob_entry[i].rs_entry.rs2_source == cdb[j].inst_info.rob.rob_id) begin
-                rs_rob_entry1[i].rs_entry.input2_met <= '1; 
+                rs_rob_entry1[i].rs_entry.input2_met = '1; 
             end
         end
     end
