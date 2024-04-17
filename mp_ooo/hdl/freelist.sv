@@ -19,14 +19,10 @@ import rv32i_types::*;
  
     input logic flush,
 
-    input logic [$clog2(DEPTH):0] extendo_tail_in,
-    input logic [$clog2(DEPTH):0] extendo_head_in,
-
     // Need to consider potentially how partial pushes/pops may work in superscalar context
     output logic empty,
     output logic full,
     output logic [$clog2(DEPTH)-1:0] head_out, tail_out,
-    output logic [$clog2(DEPTH):0] extendo_head_out, extendo_tail_out,
     output QUEUE_TYPE out [SS], // Values pushed out
     output QUEUE_TYPE reg_out [SEL_OUT] // Values selected to be observed
     );
@@ -34,11 +30,10 @@ import rv32i_types::*;
 QUEUE_TYPE entries [DEPTH];
 logic [$clog2(DEPTH):0] head, tail, head_next, tail_next, head_spec; // One bit to differentiate between full/empty
 logic [31:0] sext_head, sext_tail, sext_amount, sext_amount_in, sext_amount_out;
+logic [$clog2(DEPTH):0] head_backup, tail_backup;
 
 assign head_out = head[$clog2(DEPTH)-1:0];
 assign tail_out = tail[$clog2(DEPTH)-1:0];
-assign extendo_head_out = head[$clog2(DEPTH):0];
-assign extendo_tail_out = tail[$clog2(DEPTH):0];
 
 assign head_spec = head + SS[$clog2(DEPTH):0]; // Need to make superscalar
 
@@ -62,29 +57,34 @@ end
 always_ff @(posedge clk) begin
     if(rst) begin
         head <= 6'b100000;
+        head_backup <= 6'b100000;
         tail <= '0;
+        tail_backup <= '0;
         for(int unsigned i = 32; i < 32 + unsigned'(DEPTH); i++) begin
             entries[i-32] <= ($bits(QUEUE_TYPE))'(i);
         end
     end
     else begin
         if(push) begin           
-            head <= head_next;
+            head_backup <= head_backup + 1'b1;
+            tail_backup <= tail_backup + 1'b1;
+            if(flush)
+                head <= head_backup;
+            else
+                head <= head_next;
+
             for(int unsigned i = 0; i < DEPTH; i++) begin
                 if(i < sext_head + sext_amount_in && i >= sext_head)
                     entries[i] <= in[i - sext_head];
             end
         end
         
-        if(flush) begin
-            tail <= extendo_tail_in;
-            head <= extendo_head_in;
-            for(int i = 0; i < DEPTH; i++) 
-                entries[i] <= reg_in[i];
-        end
-        
-        if(pop)  begin
-            tail <= tail_next;
+        if(pop) begin
+            if(flush)
+                tail <= tail_backup;
+            else
+                tail <= tail_next;
+
             for(int unsigned i = 0; i < DEPTH; i++) begin
                 if(i < sext_tail + sext_amount && i >= sext_tail)
                     out[i - sext_tail] <= entries[i];

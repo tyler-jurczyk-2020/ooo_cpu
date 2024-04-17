@@ -108,11 +108,17 @@ module dispatcher
                 // We get the phys. eg. to read from by the RAT
                 dispatch_request[i].rs1_s = rat_rs1[i];
                 dispatch_request[i].rs2_s = rat_rs2[i];
-                dispatch_request[i].rd_s = free_rat_rds[i];
+                if(inst[0].has_rd) begin
+                    dispatch_request[i].rd_s = free_rat_rds[i];
+                    dispatch_request[i].rd_en = 1'b1;
+                end
+                else begin
+                    dispatch_request[i].rd_s = '0;
+                    dispatch_request[i].rd_en = 1'b0;
+                end
                 dispatch_request[i].rd_v.register_value = 'x;
                 dispatch_request[i].rd_v.ROB_ID = rob_id_next[i];
                 dispatch_request[i].rd_v.dependency = 'x;
-                dispatch_request[i].rd_en = 1'b1;
 
 
                 // ROB Setup

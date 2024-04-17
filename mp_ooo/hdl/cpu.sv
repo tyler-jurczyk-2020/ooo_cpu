@@ -157,7 +157,8 @@ logic [$clog2(ROB_DEPTH)-1:0] sel_out_inst [1];
 assign sel_out_inst[0] = inst_tail;
 
 // Check if next inst has rd
-logic next_inst_has_rd = view_inst_tail[0].has_rd;
+logic next_inst_has_rd;
+assign next_inst_has_rd = view_inst_tail[0].alu_en;
 
 // if we have a pop_from_rob, then we set a flag high (because that is the closest thing to knowing when pc is updated to some shit)
 // if we have a flush, we set that flag low, meaning we shouldn't push 
@@ -354,41 +355,16 @@ always_comb begin
     end
 end
 
-logic [5:0] backup_freelist [32];
-logic [5:0] dummy_backup_freelist [32];
-logic [$clog2(32)-1:0] d_backup_reg_sel [32];
-
-logic [$clog2(32):0] tail_backup, head_backup;
-logic [$clog2(32)-1:0] select_backup_freelist [32];
-
-always_comb begin
-    for(int i = 0; i < 32; i++) begin
-        select_backup_freelist[i] = ($clog2(32))'(i);
-        d_backup_reg_sel[i] = '0;
-    end
-end
-
-logic [5:0] backup_freelist1 [32];
-
-// THIS NEEDS TO BE UPDATED FOR SUPERSCALAR. THE RETIRE_TO_FREE_LIST IS SUPERSCALAR
-// AND THUS WE NEED TO UPDATE THIS 
-always_comb begin
-    backup_freelist1 = backup_freelist; 
-    if(push_to_free_list) begin
-        backup_freelist1[tail_backup] = retire_to_free_list[0];
-    end
-end
-
+// Need to consider what happens when flushing at the same time as updating
+// the pointers
 // free list 
-freelist #( .SS(SS), .SEL_IN(32), .SEL_OUT(SS), .DEPTH(freelistdepth))
+freelist #( .SS(SS), .SEL_IN(SS), .SEL_OUT(SS), .DEPTH(freelistdepth))
       free_list(.clk(clk), .rst(rst), .in(retire_to_free_list), 
       .push(push_to_free_list), 
-      .pop(pop_inst_q),
-    //.pop(pop_inst_q && next_inst_has_rd),
+      .pop(pop_inst_q && next_inst_has_rd),
       .flush(flush),
-      .reg_in(backup_freelist1), .reg_select_in(select_backup_freelist), .reg_select_out(d_free_reg_sel),
-      .out_bitmask(d_bitmask), .in_bitmask('0),
-      .extendo_tail_in(tail_backup), .extendo_head_in(head_backup),
+      .reg_in(d_free_reg_in), .reg_select_in(d_free_reg_sel), .reg_select_out(d_free_reg_sel),
+      .out_bitmask('0), .in_bitmask('0),
       // outputs
       .empty(), .full(),
       .head_out(), .tail_out(),
@@ -396,19 +372,6 @@ freelist #( .SS(SS), .SEL_IN(32), .SEL_OUT(SS), .DEPTH(freelistdepth))
       .reg_out()
 );
 
-// back up freelist
-freelist #( .SS(SS), .SEL_IN(SS), .SEL_OUT(32), .DEPTH(freelistdepth))
-      backup_free_list(.clk(clk), .rst(rst), .in(retire_to_free_list), .push(push_to_free_list), .pop(push_to_free_list),
-      .reg_in(d_free_reg_in), .reg_select_in(d_free_reg_sel), .reg_select_out(select_backup_freelist),
-      .out_bitmask('1), .in_bitmask(d_bitmask), .flush('0),
-      .extendo_tail_in('0), .extendo_head_in('0),
-      // outputs
-      .empty(), .full(), 
-      .extendo_head_out(head_backup), .extendo_tail_out(tail_backup),
-      .reg_out(backup_freelist)
-    );
-
-    
 // Cycle 0: 
 ///////////////////// Rename/Dispatch: ROB /////////////////////
 // MODULE INPUTS DECLARATION 

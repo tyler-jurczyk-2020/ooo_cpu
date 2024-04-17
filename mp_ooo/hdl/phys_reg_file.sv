@@ -52,7 +52,7 @@ import rv32i_types::*;
             // Dispatch updates rob dependencies now
             for (int i = 0; i < SS; i++) begin
             // for the given source register, is it NOT R0?
-                if(dispatch_request[i].rd_en) begin
+                if(dispatch_request[i].rd_en && dispatch_request[i].rd_s != '0) begin
                     data[dispatch_request[i].rd_s].ROB_ID <= dispatch_request[i].rd_v.ROB_ID; 
                     data[dispatch_request[i].rd_s].dependency <= '1; 
                 end
