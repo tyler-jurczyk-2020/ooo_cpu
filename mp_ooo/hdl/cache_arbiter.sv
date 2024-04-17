@@ -49,6 +49,10 @@ logic   [255:0]      data_bmem_wdata;
 logic   [255:0]      data_bmem_rdata;
 logic               data_bmem_rvalid;
 
+// Mux select dfp_resp on data cache
+logic dmem_resp_from_bmem;
+logic [31:0] dmem_writeback_addr;
+
 cache #(.READ_SIZE(32*SS), .OFFSET(3)) inst_cache
 (
     .clk(clk),
@@ -86,21 +90,39 @@ cache data_cache
     .dfp_write(data_bmem_write),
     .dfp_rdata(data_bmem_rdata),
     .dfp_wdata(data_bmem_wdata),
-    .dfp_resp(data_bmem_rvalid)
+    .dfp_resp(dmem_resp_from_bmem)
 );
 
 logic [63:0] dword_buffer [3]; // No need to buffer fourth entry since we can forward it immediately
 logic [2:0] counter;
+logic is_writing;
 
 always_ff @(posedge clk)begin
-    if(rst)
+    if(rst) begin
         counter <= '0;
+        is_writing <= '0;
+        dmem_writeback_addr <= '0;
+    end
     else if(bmem_itf_rvalid && counter < 3'h3) begin
         counter <= counter + 1'd1;
         dword_buffer[counter] <= bmem_itf_rdata;
     end
-    else
+    else if(data_bmem_write) begin
+        is_writing <= 1'b1;
+        dmem_writeback_addr <= data_bmem_addr;
+        counter <= counter + 1'd1;
+        for(int i = 0; i < 3; i++) begin // can forward first entry immediately
+            dword_buffer[i] <= data_bmem_wdata[64*(i+1)+:64];
+        end
+    end
+    else if(counter !='0 && counter <= 3'h3) begin
+        if(counter == 3'h3)
+            is_writing <= '0;
+        counter <= counter + 1'd1;  
+    end
+    else begin
         counter <= '0;
+    end
 end
 
 logic inst_request;
@@ -150,6 +172,14 @@ always_ff @(posedge clk) begin
             break;
         end
     end
+end
+
+always_comb begin
+    // Select out dmem_resp to drive data cache
+    if(is_writing)
+        dmem_resp_from_bmem = (counter == 3'h3);
+    else
+        dmem_resp_from_bmem = data_bmem_rvalid;
 end
 
 // Send out data to correct cache once we receive it back
@@ -213,18 +243,24 @@ always_comb begin
         bmem_itf_write = '0;
     end
     // Otherwise service data request
-    else if(data_request && bmem_itf_ready) begin
-        bmem_itf_addr = data_bmem_addr;
+    else if((data_request || is_writing) && bmem_itf_ready) begin
+        if(is_writing)
+            bmem_itf_addr = dmem_writeback_addr;
+        else
+            bmem_itf_addr = data_bmem_addr;
         // reading & writing data
         if(data_bmem_read) begin
             bmem_itf_wdata = 'x;
             bmem_itf_read = data_bmem_read;
             bmem_itf_write = '0;
         end
-        else if(data_bmem_write) begin
-            bmem_itf_wdata = '1; // Need to actually set write data
+        else if(data_bmem_write || is_writing) begin
+            if(is_writing)
+                bmem_itf_wdata = dword_buffer[counter - 1'b1]; // Need to actually set write data
+            else
+                bmem_itf_wdata = data_bmem_wdata[63:0]; // Immediately send out lowest double word
             bmem_itf_read = '0;
-            bmem_itf_write = data_bmem_write;
+            bmem_itf_write = 1'b1;
         end
         // Should never hit this
         else begin
@@ -240,6 +276,7 @@ always_comb begin
         bmem_itf_read = '0;
         bmem_itf_write = '0;
     end
+
 end
 
 endmodule : cache_arbiter
