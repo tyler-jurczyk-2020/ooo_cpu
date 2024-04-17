@@ -158,7 +158,7 @@ assign sel_out_inst[0] = inst_tail;
 
 // Check if next inst has rd
 logic next_inst_has_rd;
-assign next_inst_has_rd = view_inst_tail[0].alu_en;
+assign next_inst_has_rd = view_inst_tail[0].has_rd;
 
 // if we have a pop_from_rob, then we set a flag high (because that is the closest thing to knowing when pc is updated to some shit)
 // if we have a flush, we set that flag low, meaning we shouldn't push 
