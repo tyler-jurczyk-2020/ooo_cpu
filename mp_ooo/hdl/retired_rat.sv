@@ -30,7 +30,7 @@ always_comb begin
 end
 
 // NOT CORRECT FOR SS > 1 !!!
-assign push_to_free_list = retire_we && (rob_info[0].inst.rd_s != 5'b0);
+assign push_to_free_list = retire_we && (rob_info[0].rat.rd != '0);
 
 always_ff @(posedge clk) begin
     for(int i = 0; i < SS; i++) begin
@@ -50,6 +50,10 @@ always_comb begin
     for(int i = 0; i < SS; i++) begin
         if(retire_we && rob_info[i].inst.rd_s != 5'b0) begin
             free_list_entry[i] = data[rob_info[i].inst.rd_s];
+        end
+        // Free the allocated register in case of nops
+        else if(retire_we && rob_info[i].rat.rd != '0) begin
+            free_list_entry[i] = rob_info[i].rat.rd;
         end
         else
             free_list_entry[i] = 'x;
