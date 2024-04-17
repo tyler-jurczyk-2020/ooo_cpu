@@ -17,13 +17,16 @@ import cache_types::*;
 );
 
 logic mem_resp_reg;
+logic pulse_write;
 
 always_ff @(posedge clk) begin
     if(rst) begin
         mem_resp_reg <= 1'b0;
         tag_eviction <= 23'b0;
+        pulse_write <= 1'b0;
     end
     else begin
+        pulse_write <= active_wb;
         mem_resp_reg <= mem_resp;
         if(state == compare_tag_s)
             tag_eviction <= tag_to_evict;
@@ -33,7 +36,10 @@ end
 always_comb begin
     if(active_wb && !mem_resp_reg) begin
         mem_line_wb = mem_line_to_wb;
-        mem_write = 1'b1;
+        if(~pulse_write)
+            mem_write = 1'b1;
+        else
+            mem_write = 1'b0;
     end
     else begin
         mem_line_wb = 'x;

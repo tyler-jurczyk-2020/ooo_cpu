@@ -377,7 +377,7 @@ always_comb begin
         lsq_request.rd_en = 1'b0;
         lsq_request.rd_v = 'x;
         cdb_out.inst_info = load_queue_out[0];
-        cdb_out.register_value = dmem_rdata_out;
+        cdb_out.register_value = dmem_rdata_out_reg;
         cdb_out.ready_for_writeback = 1'b1;
         cdb_out.inst_info.rvfi.rd_wdata = dmem_rdata_out_reg;
         cdb_out.inst_info.rvfi.rs1_rdata = cdb_rs1_register_value_reg;
