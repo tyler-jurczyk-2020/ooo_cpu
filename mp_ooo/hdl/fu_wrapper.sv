@@ -11,6 +11,7 @@ module fu_wrapper
     );
 
     fu_input_t internal_operand; 
+    fu_output_t alu_cmp_out_driver;
 
 
     always_comb begin
@@ -84,11 +85,19 @@ module fu_wrapper
                     .b(cmp_input_b),
                     .br_en(cmp_res));
     
+    // Assign output such that we don't issue if flush is occurring
+    always_comb begin
+        alu_cmp_output = alu_cmp_out_driver;
+        if(flush) begin
+            alu_cmp_output.ready_for_writeback = 1'b0;
+            alu_cmp_output.inst_info.rvfi.valid = 1'b0;
+        end
+    end
 
     // Select register to push out
     always_ff @(posedge clk) begin
         if(rst || flush) begin
-            alu_cmp_output <= '0; 
+            alu_cmp_out_driver <= '0; 
         end
         else begin
 
@@ -101,50 +110,47 @@ module fu_wrapper
         // rd_v = PC + 4
         // pc = rs1 + offset &  & 32'hfffffffe
 
-
-
-
-        alu_cmp_output.inst_info <= internal_operand.inst_info;
+        alu_cmp_out_driver.inst_info <= internal_operand.inst_info;
 
         if(internal_operand.inst_info.inst.is_branch) begin
-            alu_cmp_output.inst_info.rvfi.rd_wdata  <= '0;
-            alu_cmp_output.register_value <= '0;
+            alu_cmp_out_driver.inst_info.rvfi.rd_wdata  <= '0;
+            alu_cmp_out_driver.register_value <= '0;
             if(cmp_res) begin
-                alu_cmp_output.inst_info.inst.pc_next <= alu_res; 
+                alu_cmp_out_driver.inst_info.inst.pc_next <= alu_res; 
             end
-            // alu_cmp_output.rvfi.pc_wdata <= alu_res;
+            // alu_cmp_out_driver.rvfi.pc_wdata <= alu_res;
         end
         else if(internal_operand.inst_info.inst.is_jump) begin
-            alu_cmp_output.register_value <= internal_operand.inst_info.inst.pc_curr + 32'd4;
-            alu_cmp_output.inst_info.inst.pc_next <= alu_res; 
-            alu_cmp_output.inst_info.rvfi.rd_wdata  <= internal_operand.inst_info.inst.pc_curr + 32'd4;
-            // alu_cmp_output.rvfi.pc_wdata <= alu_res;
+            alu_cmp_out_driver.register_value <= internal_operand.inst_info.inst.pc_curr + 32'd4;
+            alu_cmp_out_driver.inst_info.inst.pc_next <= alu_res; 
+            alu_cmp_out_driver.inst_info.rvfi.rd_wdata  <= internal_operand.inst_info.inst.pc_curr + 32'd4;
+            // alu_cmp_out_driver.rvfi.pc_wdata <= alu_res;
         end
         else if(internal_operand.inst_info.inst.is_jumpr) begin
-            alu_cmp_output.register_value <= internal_operand.inst_info.inst.pc_curr + 32'd4;
-            alu_cmp_output.inst_info.inst.pc_next <= alu_res & 32'hfffffffe; 
-            alu_cmp_output.inst_info.rvfi.rd_wdata  <= internal_operand.inst_info.inst.pc_curr + 32'd4;
-            // alu_cmp_output.rvfi.pc_wdata <= alu_res & 32'hfffffffe;
+            alu_cmp_out_driver.register_value <= internal_operand.inst_info.inst.pc_curr + 32'd4;
+            alu_cmp_out_driver.inst_info.inst.pc_next <= alu_res & 32'hfffffffe; 
+            alu_cmp_out_driver.inst_info.rvfi.rd_wdata  <= internal_operand.inst_info.inst.pc_curr + 32'd4;
+            // alu_cmp_out_driver.rvfi.pc_wdata <= alu_res & 32'hfffffffe;
         end
         else if(~internal_operand.inst_info.inst.alu_en) begin
-            alu_cmp_output.inst_info.rvfi.rd_wdata  <= {31'd0, cmp_res};
-            alu_cmp_output.register_value <= {31'd0, cmp_res};
+            alu_cmp_out_driver.inst_info.rvfi.rd_wdata  <= {31'd0, cmp_res};
+            alu_cmp_out_driver.register_value <= {31'd0, cmp_res};
         end 
         else begin
-            alu_cmp_output.inst_info.rvfi.rd_wdata <= alu_res;
-            alu_cmp_output.register_value <= alu_res;
+            alu_cmp_out_driver.inst_info.rvfi.rd_wdata <= alu_res;
+            alu_cmp_out_driver.register_value <= alu_res;
         end
 
-        alu_cmp_output.ready_for_writeback <= internal_operand.inst_info.rob.commit;
+        alu_cmp_out_driver.ready_for_writeback <= internal_operand.inst_info.rob.commit;
         if(internal_operand.inst_info.inst.is_jump || internal_operand.inst_info.inst.is_jumpr) begin
-            alu_cmp_output.branch_result <= '1; 
+            alu_cmp_out_driver.branch_result <= '1; 
         end
         else begin
-            alu_cmp_output.branch_result <= cmp_res; 
+            alu_cmp_out_driver.branch_result <= cmp_res; 
         end
         
-        alu_cmp_output.inst_info.rvfi.rs1_rdata <= fu_reg_data.rs1_v.register_value;
-        alu_cmp_output.inst_info.rvfi.rs2_rdata <= fu_reg_data.rs2_v.register_value;
+        alu_cmp_out_driver.inst_info.rvfi.rs1_rdata <= fu_reg_data.rs1_v.register_value;
+        alu_cmp_out_driver.inst_info.rvfi.rs2_rdata <= fu_reg_data.rs2_v.register_value;
         end
     end
         
