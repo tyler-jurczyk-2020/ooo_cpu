@@ -261,7 +261,7 @@ module id_stage
             op_b_store : begin
                 instruction_info.rd_s = '0;
                 instruction_info.execute_operand1 = 2'b00; 
-                instruction_info.execute_operand2 = 2'b11; 
+                instruction_info.execute_operand2 = 2'b00; 
                 instruction_info.immediate = s_imm; 
                 instruction_info.cmp_en = '1;  
                 instruction_info.has_rd ='0;

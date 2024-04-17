@@ -158,7 +158,7 @@ assign sel_out_inst[0] = inst_tail;
 
 // Check if next inst has rd
 logic next_inst_has_rd;
-assign next_inst_has_rd = view_inst_tail[0].has_rd;
+assign next_inst_has_rd = view_inst_tail[0].has_rd && view_inst_tail[0].rd_s != '0;
 
 // if we have a pop_from_rob, then we set a flag high (because that is the closest thing to knowing when pc is updated to some shit)
 // if we have a flush, we set that flag low, meaning we shouldn't push 
@@ -291,6 +291,8 @@ dispatcher #(.SS(SS), .PR_ENTRIES(PR_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) dispatcher
             
              // Free List Popped Inst
              .free_rat_rds(free_rat_rds), 
+
+             .flush(flush),
 
              // Identify Dependencies for Curr Inst
              .dispatch_request(dispatch_request), .dispatch_reg_data(dispatch_reg_data),

@@ -38,6 +38,8 @@ module dispatcher
         // Free list is popped same time that the inst queue is popped
         input logic [5:0] free_rat_rds [SS], 
 
+        input logic flush,
+
         // Physical register ports 
         output physical_reg_request_t dispatch_request [SS],
         input physical_reg_response_t dispatch_reg_data [SS],
@@ -77,9 +79,11 @@ module dispatcher
     always_ff @(posedge clk) begin
         if(rst)
             active_store <= 1'b0;
-        else if(inst[0].wmask != 4'b0 && avail_inst)
+        else if(inst[0].wmask != 4'b0 && avail_inst && ~flush)
             active_store <= 1'b1;
         else if(snipe_rvfi.valid && snipe_rvfi.mem_wmask != 4'b0)
+            active_store <= 1'b0;
+        else if(flush)
             active_store <= 1'b0;
     end
 
@@ -108,7 +112,7 @@ module dispatcher
                 // We get the phys. eg. to read from by the RAT
                 dispatch_request[i].rs1_s = rat_rs1[i];
                 dispatch_request[i].rs2_s = rat_rs2[i];
-                if(inst[0].has_rd) begin
+                if(inst[0].has_rd && inst[0].rd_s != '0) begin
                     dispatch_request[i].rd_s = free_rat_rds[i];
                     dispatch_request[i].rd_en = 1'b1;
                 end
@@ -174,7 +178,7 @@ module dispatcher
                 rs_rob_entry[i].rat.rs1 = rat_rs1[i];
                 rs_rob_entry[i].rat.rs2 = rat_rs2[i];
                 // Don't need to save the mapping we are overwritting because that is in the RRAT
-                if(inst[0].has_rd)
+                if(inst[0].has_rd && inst[0].rd_s != '0)
                     rs_rob_entry[i].rat.rd = free_rat_rds[i];
                 else
                     rs_rob_entry[i].rat.rd = '0;

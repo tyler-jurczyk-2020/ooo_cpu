@@ -58,6 +58,8 @@ always_ff @(posedge clk) begin
             tail <= '0;
             for(int i = 0; i < DEPTH; i++) 
                 entries[i] <= '0;
+            for(int i = 0; i < SS; i++)
+                out[i] <= '0;
     end
     else begin
         if(push) begin           
