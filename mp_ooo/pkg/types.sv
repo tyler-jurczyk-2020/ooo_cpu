@@ -10,7 +10,8 @@ package rv32i_types;
     localparam LD_ST = 8;
     localparam N_MUL = 1;
     localparam N_ALU = 1;
-    localparam CDB = N_ALU + N_MUL + 1;
+    localparam CDB = N_ALU + N_MUL + 1; // Don't touch this, + 1 is for LSQ
+    localparam freelistdepth = 32;
 
     typedef enum logic [6:0] {
         op_b_lui   = 7'b0110111, // U load upper immediate 

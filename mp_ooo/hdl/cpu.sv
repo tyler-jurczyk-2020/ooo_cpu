@@ -362,20 +362,31 @@ logic [$clog2(32):0] tail_backup, head_backup;
 logic [$clog2(32)-1:0] select_backup_freelist [32];
 
 always_comb begin
-    for (int i = 0; i < 32; i++) begin
+    for(int i = 0; i < 32; i++) begin
         select_backup_freelist[i] = ($clog2(32))'(i);
         d_backup_reg_sel[i] = '0;
     end
 end
 
+logic [5:0] backup_freelist1 [32];
+
+// THIS NEEDS TO BE UPDATED FOR SUPERSCALAR. THE RETIRE_TO_FREE_LIST IS SUPERSCALAR
+// AND THUS WE NEED TO UPDATE THIS 
+always_comb begin
+    backup_freelist1 = backup_freelist; 
+    if(push_to_free_list) begin
+        backup_freelist1[tail_backup] = retire_to_free_list[0];
+    end
+end
+
 // free list 
-freelist #( .SS(SS), .SEL_IN(32), .SEL_OUT(SS), .DEPTH(32))
+freelist #( .SS(SS), .SEL_IN(32), .SEL_OUT(SS), .DEPTH(freelistdepth))
       free_list(.clk(clk), .rst(rst), .in(retire_to_free_list), 
       .push(push_to_free_list), 
       .pop(pop_inst_q),
     //.pop(pop_inst_q && next_inst_has_rd),
       .flush(flush),
-      .reg_in(backup_freelist), .reg_select_in(d_backup_reg_sel), .reg_select_out(d_free_reg_sel),
+      .reg_in(backup_freelist1), .reg_select_in(select_backup_freelist), .reg_select_out(d_free_reg_sel),
       .out_bitmask(d_bitmask), .in_bitmask('0),
       .extendo_tail_in(tail_backup), .extendo_head_in(head_backup),
       // outputs
@@ -385,10 +396,8 @@ freelist #( .SS(SS), .SEL_IN(32), .SEL_OUT(SS), .DEPTH(32))
       .reg_out()
 );
 
-
-
 // back up freelist
-freelist #( .SS(SS), .SEL_IN(SS), .SEL_OUT(32), .DEPTH(32))
+freelist #( .SS(SS), .SEL_IN(SS), .SEL_OUT(32), .DEPTH(freelistdepth))
       backup_free_list(.clk(clk), .rst(rst), .in(retire_to_free_list), .push(push_to_free_list), .pop(push_to_free_list),
       .reg_in(d_free_reg_in), .reg_select_in(d_free_reg_sel), .reg_select_out(select_backup_freelist),
       .out_bitmask('1), .in_bitmask(d_bitmask), .flush('0),
@@ -421,6 +430,21 @@ rob #(.SS(SS), .ROB_DEPTH(ROB_DEPTH)) rb(.clk(clk), .rst(rst),
 // Cycle 1: 
 ///////////////////// Issue: ALU Reservation Station /////////////////////
 // MODULE INPUTS DECLARATION 
+super_dispatch_t rs_rob_entry1 [SS];
+always_comb begin
+    for(int i = 0; i < SS; i++) begin
+        rs_rob_entry1[i] = rs_rob_entry[i]; 
+        for(int j = 0; j < CDB; j++) begin
+            if(cdb[j].ready_for_writeback && rs_rob_entry[i].rs_entry.rs1_source == cdb[j].inst_info.rob.rob_id) begin
+                rs_rob_entry1[i].rs_entry.input1_met <= '1; 
+            end
+                  
+            if(cdb[j].ready_for_writeback && rs_rob_entry[i].rs_entry.rs2_source == cdb[j].inst_info.rob.rob_id) begin
+                rs_rob_entry1[i].rs_entry.input2_met <= '1; 
+            end
+        end
+    end
+end
 
 // MODULE OUTPUT DECLARATION
 
@@ -436,7 +460,7 @@ end
 // MODULE INSTANTIATION
 reservation_table #(.SS(SS), .REQUEST(N_ALU), .TABLE_TYPE(ALU_T), .reservation_table_size(reservation_table_size), 
     .ROB_DEPTH(ROB_DEPTH)) alu_table(.clk(clk), .rst(rst || flush),
-                                        .dispatched(rs_rob_entry), // Dispatched shit
+                                        .dispatched(rs_rob_entry1), // Dispatched shit
                                         .avail_inst(avail_inst), // Thing
                                         .cdb_rob_ids(cdb), // CDB 
                                         .inst_for_fu(inst_for_fu_alu), // send instruction to be caluclated to fu
@@ -477,7 +501,7 @@ fu_input_t inst_for_fu_mult [N_MUL];
 // MODULE INSTANTIATION
 reservation_table #(.SS(SS), .REQUEST(N_MUL), .reservation_table_size(reservation_table_size), 
         .ROB_DEPTH(ROB_DEPTH), .TABLE_TYPE(MUL_T)) mult_table(.clk(clk), .rst(rst),
-                                                            .dispatched(rs_rob_entry), // Dispatched shit
+                                                            .dispatched(rs_rob_entry1), // Dispatched shit
                                                             .avail_inst(avail_inst), // Thing
                                                             .cdb_rob_ids(cdb), // CDB 
                                                             .inst_for_fu(inst_for_fu_mult), // send instruction to be caluclated to fu

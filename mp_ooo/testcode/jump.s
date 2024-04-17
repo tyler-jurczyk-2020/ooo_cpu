@@ -19,5 +19,5 @@ _start:
 .section .text
 .globl some_label
 some_label:
-    addi x5, x5, 1        # Increment x5 at the jump target, x5 = 2
+    addi x5, x5, 2        # Increment x5 at the jump target, x5 = 2
     jalr x0, x2, 0        # Return to the address in x2

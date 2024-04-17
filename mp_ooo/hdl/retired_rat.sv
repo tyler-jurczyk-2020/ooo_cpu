@@ -19,7 +19,15 @@ import rv32i_types::*;
 
 logic [5:0] data [32]; // array of rats in the retired rat state
 
-assign backup_retired_rat = data;
+always_comb begin
+    backup_retired_rat = data;
+    for(int i = 0; i < SS; i++) begin
+        if(retire_we && rob_info[i].inst.rd_s != 5'b0) begin
+            // update retired rat based on instr's reg mapping
+            backup_retired_rat[rob_info[i].inst.rd_s] <= rob_info[i].rat.rd;
+        end
+    end
+end
 
 // NOT CORRECT FOR SS > 1 !!!
 assign push_to_free_list = retire_we && (rob_info[0].inst.rd_s != 5'b0);
