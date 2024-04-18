@@ -35,7 +35,7 @@ module verilator_tb
         .bmem_rvalid (bmem_resp),
         .bmem_raddr  (raddr),
 
-        .bmem_rdy    (rdy)
+        .bmem_ready  (rdy)
     );
 
    `include "../../hvl/rvfi_reference.svh"

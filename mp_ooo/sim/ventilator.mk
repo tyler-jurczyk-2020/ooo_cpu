@@ -27,18 +27,17 @@ sim/vent_exhaust/Vverilator_tb: $(SRCS) $(VEN_SRC) ../hvl/rvfi_reference.svh
 	cd sim/vent_exhaust ;\
 	$(MAKE) -f Vverilator_tb.mk
 
-sim/vent_exhaust/memory_8.lst: $(PROG)
+sim/memory_8.lst: $(PROG)
 	mkdir -p sim/vent_exhaust
 	../bin/generate_memory_file.sh $(PROG)
-	mv sim/memory_8.lst sim/vent_exhaust/memory_8.lst
 
 .PHONY: ventilate
-ventilate: sim/vent_exhaust/Vverilator_tb sim/vent_exhaust/memory_8.lst
+ventilate: sim/vent_exhaust/Vverilator_tb sim/memory_8.lst
 	cd sim ;\
 	./vent_exhaust/Vverilator_tb $(CLOCK_PERIOD_PS) memory_8.lst $(START_CYCLE) $(END_CYCLE)
 
 .PHONY: ventilate_manual
-ventilate_manual: sim/vent_exhaust/Vverilator_tb sim/vent_exhaust/memory_8.lst
+ventilate_manual: sim/vent_exhaust/Vverilator_tb
 	cd sim ;\
 	./vent_exhaust/Vverilator_tb $(CLOCK_PERIOD_PS) $(MEMFILE) $(START_CYCLE) $(END_CYCLE)
 
