@@ -36,6 +36,7 @@ import rv32i_types::*;
 logic push_load, push_store, pop_load_ready, pop_store_ready, pop_load, pop_store;
 logic [$clog2(LD_ST_DEPTH)-1:0] load_tail, store_tail, load_head, store_head;
 logic load_full, store_full;
+logic block_cdb;
 
 // Hardcoded reg select
 logic [$clog2(LD_ST_DEPTH)-1:0] reg_select_queue [LD_ST_DEPTH];
@@ -247,6 +248,18 @@ assign dmem_addr_latched = cdb_rs1_register_value_reg + immediate_reg;
 assign dmem_comb_addr_store = lsq_reg_data.rs1_v.register_value + store_out[store_tail].inst.immediate;
 assign dmem_comb_addr_load = lsq_reg_data.rs1_v.register_value + load_out[load_tail].inst.immediate;
 
+// Logic to block the cdb if a flush
+always_ff @(posedge clk) begin
+    if(rst)
+        block_cdb <= 1'b0;
+    else begin
+        if(flush && (state == request_load_s || state == request_store_s))
+            block_cdb <= 1'b1;
+        else if(state != request_load_s && state != request_store_s)
+            block_cdb <= 1'b0;
+    end
+end
+
 always_ff @(posedge clk) begin
     if(rst) begin
         dmem_rdata_out_reg <= '0;
@@ -266,14 +279,14 @@ always_ff @(posedge clk) begin
             dmem_rdata_reg <= dmem_rdata;
         end
 
-        if(move_to_load) begin
+        if(move_to_load && ~flush) begin
             cdb_rs1_register_value_reg <= lsq_reg_data.rs1_v.register_value;
             immediate_reg <= load_out[load_tail].inst.immediate;
             dmem_rmask_reg <= load_out[load_tail].inst.rmask << dmem_comb_addr_load[1:0];
             entry_latch <= load_out[load_tail];
         end
 
-        if(move_to_store) begin
+        if(move_to_store && ~flush) begin
             cdb_rs1_register_value_reg <= lsq_reg_data.rs1_v.register_value;
             cdb_rs2_register_value_reg <= lsq_reg_data.rs2_v.register_value;
             immediate_reg <= store_out[store_tail].inst.immediate;
@@ -358,7 +371,7 @@ always_comb begin
     end
 
     // Send out regfile requests
-    if(move_to_load) begin
+    if(move_to_load && ~flush) begin
         lsq_request.rs1_s = load_out[load_tail].rat.rs1;
         lsq_request.rs2_s = 'x;
         lsq_request.rd_s = 'x;
@@ -368,7 +381,7 @@ always_comb begin
         cdb_out.register_value = 'x;
         cdb_out.ready_for_writeback = 1'b0;
     end
-    else if(move_to_store) begin
+    else if(move_to_store && ~flush) begin
         lsq_request.rs1_s = store_out[store_tail].rat.rs1;
         lsq_request.rs2_s = store_out[store_tail].rat.rs2;
         lsq_request.rd_s = 'x;
@@ -378,7 +391,7 @@ always_comb begin
         cdb_out.register_value = 'x;
         cdb_out.ready_for_writeback = 1'b0;
     end
-    else if(state == latch_load_s) begin
+    else if(state == latch_load_s && ~block_cdb) begin
         lsq_request.rs1_s = 'x;
         lsq_request.rs2_s = 'x;
         lsq_request.rd_s = 'x;
@@ -395,7 +408,7 @@ always_comb begin
         cdb_out.inst_info.rvfi.mem_rmask = dmem_rmask_reg; 
         cdb_out.inst_info.rvfi.mem_addr = cdb_rs1_register_value_reg + immediate_reg;
     end
-    else if(state == latch_store_s) begin
+    else if(state == latch_store_s && ~block_cdb) begin
         lsq_request.rs1_s = 'x;
         lsq_request.rs2_s = 'x;
         lsq_request.rd_s = 'x;

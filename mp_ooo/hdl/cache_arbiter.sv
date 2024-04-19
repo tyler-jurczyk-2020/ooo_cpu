@@ -231,17 +231,17 @@ end
 always_comb begin
     // Data on the previous cycle that wasn't serviced
     if(latch_data_bmem && bmem_itf_ready) begin
-        bmem_itf_addr = data_bmem_addr;
+        bmem_itf_addr = data_bmem_addr_reg;
         // reading & writing data
-        if(data_bmem_read) begin
+        if(data_bmem_read_reg) begin
             bmem_itf_wdata = 'x;
-            bmem_itf_read = data_bmem_read;
+            bmem_itf_read = data_bmem_read_reg;
             bmem_itf_write = '0;
         end
-        else if(data_bmem_write) begin
+        else if(data_bmem_write_reg) begin
             bmem_itf_wdata = '1; // Need to actually set write data
             bmem_itf_read = '0;
-            bmem_itf_write = data_bmem_write;
+            bmem_itf_write = data_bmem_write_reg;
         end
         // Should never hit this
         else begin
