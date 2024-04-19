@@ -76,6 +76,7 @@ module dispatcher
     assign update_rat = avail_inst && inst[0].has_rd;
 
     // Temporary logic to stall the entire cpu when a store comes through until it commits
+    /*
     always_ff @(posedge clk) begin
         if(rst)
             active_store <= 1'b0;
@@ -86,6 +87,9 @@ module dispatcher
         else if(flush)
             active_store <= 1'b0;
     end
+    */
+
+    assign active_store = '0;
 
     always_comb begin
         if(avail_inst) begin

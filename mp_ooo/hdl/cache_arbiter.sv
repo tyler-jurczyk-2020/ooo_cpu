@@ -96,6 +96,12 @@ cache data_cache
 logic [63:0] dword_buffer [3]; // No need to buffer fourth entry since we can forward it immediately
 logic [2:0] counter;
 logic is_writing;
+logic inst_request;
+logic data_request;
+logic latch_data_bmem;
+logic simultaneous_requests;
+
+assign simultaneous_requests = inst_request && data_request;
 
 always_ff @(posedge clk)begin
     if(rst) begin
@@ -107,7 +113,7 @@ always_ff @(posedge clk)begin
         counter <= counter + 1'd1;
         dword_buffer[counter] <= bmem_itf_rdata;
     end
-    else if(data_bmem_write) begin
+    else if((data_bmem_write && ~simultaneous_requests) || latch_data_bmem) begin
         is_writing <= 1'b1;
         dmem_writeback_addr <= data_bmem_addr;
         counter <= counter + 1'd1;
@@ -116,10 +122,10 @@ always_ff @(posedge clk)begin
         end
     end
     else if(counter !='0 && counter <= 3'h3) begin
-        if(counter == 3'h3)
+        if(counter == 3'h3) begin
             is_writing <= '0;
-        if(counter ==  3'h3)
-            counter <= '0;  
+            counter <= '0;
+        end
         else
             counter <= counter + 1'b1;
     end
@@ -128,8 +134,6 @@ always_ff @(posedge clk)begin
     end
 end
 
-logic inst_request;
-logic data_request;
 logic delayed_inst_request;
 
 assign inst_request = instr_bmem_read;
@@ -138,7 +142,6 @@ assign data_request = data_bmem_read || data_bmem_write;
 logic   [31:0]      data_bmem_addr_reg;
 logic               data_bmem_read_reg;
 logic               data_bmem_write_reg;
-logic               latch_data_bmem;
 
 
 always_ff @(posedge clk)begin
@@ -238,10 +241,13 @@ always_comb begin
             bmem_itf_read = data_bmem_read_reg;
             bmem_itf_write = '0;
         end
-        else if(data_bmem_write_reg) begin
-            bmem_itf_wdata = '1; // Need to actually set write data
+        else if(data_bmem_write_reg || is_writing) begin
+            if(is_writing)
+                bmem_itf_wdata = dword_buffer[counter - 1'b1]; // Need to actually set write data
+            else
+                bmem_itf_wdata = data_bmem_wdata[63:0]; // Immediately send out lowest double word
             bmem_itf_read = '0;
-            bmem_itf_write = data_bmem_write_reg;
+            bmem_itf_write = 1'b1;
         end
         // Should never hit this
         else begin
