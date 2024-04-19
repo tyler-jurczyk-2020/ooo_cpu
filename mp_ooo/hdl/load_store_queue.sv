@@ -26,7 +26,10 @@ import rv32i_types::*;
     output fu_output_t cdb_out,
     
     // Read off cdb
-    input cdb_t cdb_in
+    input cdb_t cdb_in,
+
+    // Rob comm on when to commit a store
+    input logic commit_store
 
 );
 
@@ -56,7 +59,8 @@ assign push_store = avail_inst && ~store_full && dispatch_entry[0].inst.wmask !=
 assign pop_load_ready = load_out[load_tail].cross_entry.cross_dep_met && load_out[load_tail].rs_entry.input1_met
                     && load_out[load_tail].rs_entry.input2_met && load_out[load_tail].cross_entry.valid;
 assign pop_store_ready = store_out[store_tail].cross_entry.cross_dep_met && store_out[store_tail].rs_entry.input1_met
-                      && store_out[store_tail].rs_entry.input2_met && store_out[store_tail].cross_entry.valid;
+                      && store_out[store_tail].rs_entry.input2_met && store_out[store_tail].cross_entry.valid
+                      && commit_store;
 
 // Setup inputs to queues
 always_comb begin

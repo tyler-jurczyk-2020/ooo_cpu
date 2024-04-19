@@ -379,7 +379,7 @@ freelist #( .SS(SS), .SEL_IN(SS), .SEL_OUT(SS), .DEPTH(freelistdepth))
 // MODULE INPUTS DECLARATION 
 
 // MODULE OUTPUT DECLARATION
-
+logic commit_store;
 // MODULE INSTANTIATION
 rob #(.SS(SS), .ROB_DEPTH(ROB_DEPTH)) rb(.clk(clk), .rst(rst), 
                                          .avail_inst(avail_inst), .dispatch_info(rs_rob_entry), 
@@ -389,7 +389,8 @@ rob #(.SS(SS), .ROB_DEPTH(ROB_DEPTH)) rb(.clk(clk), .rst(rst),
                                          .rob_entries_to_commit(rob_entries_to_commit),
                                          .rob_full(rob_full),
                                          .pop_from_rob(pop_from_rob), 
-                                         .rob_entries_to_commit1(rob_entries_to_commit1)
+                                         .rob_entries_to_commit1(rob_entries_to_commit1),
+                                         .commit_store(commit_store)
                                         );
 
 // Cycle 1: 
@@ -516,7 +517,8 @@ load_store_queue #(.SS(SS)) lsq(
     .dmem_wdata(dmem_wdata),
     .dmem_resp(dmem_resp),
     .cdb_in(cdb),
-    .cdb_out(lsq_output)
+    .cdb_out(lsq_output),
+    .commit_store(commit_store)
 );
 
 // //RVFI Signals

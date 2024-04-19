@@ -23,7 +23,9 @@ module rob
         output logic rob_full,
         // pop from rob queue
         output logic pop_from_rob, 
-        output super_dispatch_t rob_entries_to_commit1 [SS]
+        output super_dispatch_t rob_entries_to_commit1 [SS],
+        // Inform LSQ when to commit a store
+        output logic commit_store
     );
     
     // head & tail pointers for ROB entries
@@ -74,6 +76,15 @@ module rob
                     rob_entry_in[i].rob.mispredict = '0; 
                 end
             end
+        end
+    end
+
+    // Inform lsq when to commit a store
+    always_comb begin
+        commit_store = 1'b0; 
+        for(int i = 0; i < SS; i++) begin
+            if(inspect_queue[i].inst.opcode == op_b_store)
+                commit_store |= 1'b1; 
         end
     end
 
