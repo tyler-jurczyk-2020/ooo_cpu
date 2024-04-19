@@ -127,6 +127,7 @@ end
 
 logic inst_request;
 logic data_request;
+logic delayed_inst_request;
 
 assign inst_request = instr_bmem_read;
 assign data_request = data_bmem_read || data_bmem_write;
@@ -138,11 +139,22 @@ logic               latch_data_bmem;
 
 
 always_ff @(posedge clk)begin
-    latch_data_bmem <= inst_request && data_request;
-    if(inst_request && data_request) begin
-        data_bmem_addr_reg <= data_bmem_addr;
-        data_bmem_read_reg <= data_bmem_read;
-        data_bmem_write_reg <= data_bmem_write;
+    if(rst) begin
+        delayed_inst_request <= 1'b0;
+    end
+    else begin
+        latch_data_bmem <= inst_request && data_request;
+        if(inst_request && data_request) begin
+            data_bmem_addr_reg <= data_bmem_addr;
+            data_bmem_read_reg <= data_bmem_read;
+            data_bmem_write_reg <= data_bmem_write;
+        end
+        if(inst_request && is_writing) begin
+            delayed_inst_request <= 1'b1;
+        end
+        else if(~is_writing) begin
+            delayed_inst_request <= 1'b0;
+        end
     end
 end
 
@@ -156,18 +168,18 @@ always_ff @(posedge clk) begin
         if(rst)begin
             address_table[i] <= '0;
         end
-        else if(~address_table[i][33] && bmem_itf_read && counter == 3'h0) begin
+        else if(~address_table[i][33] && (bmem_itf_read || delayed_inst_request) && counter == 3'h0 || counter == 3'h4) begin
             if(latch_data_bmem)begin
                address_table[i] <= {1'b1, 1'b1, data_bmem_addr};
             end
-            else if(inst_request)begin
+            else if(inst_request || (delayed_inst_request && ~is_writing)) begin
                 address_table[i] <= {1'b1, 1'b0, instr_bmem_addr};
             end
             else if(data_request)
                 address_table[i] <= {1'b1, 1'b1, data_bmem_addr};
             break;
         end
-        else if(address_table[i][33] && address_table[i][31:0] == bmem_itf_raddr && counter == 3'h3) begin
+        else if(address_table[i][33] && address_table[i][31:0] == bmem_itf_raddr && counter == 3'h3 && bmem_itf_rvalid) begin
             address_table[i][33] <= 1'b0;
             break;
         end
@@ -236,10 +248,11 @@ always_comb begin
         end
     end
     // Otherwise always service instruction request first
-    else if(inst_request && bmem_itf_ready) begin
+    // Cannot interrupt a write
+    else if(((inst_request || delayed_inst_request) && ~is_writing) && bmem_itf_ready) begin
         bmem_itf_wdata = 'x;
         bmem_itf_addr = instr_bmem_addr;
-        bmem_itf_read = instr_bmem_read;
+        bmem_itf_read = 1'b1;
         bmem_itf_write = '0;
     end
     // Otherwise service data request
