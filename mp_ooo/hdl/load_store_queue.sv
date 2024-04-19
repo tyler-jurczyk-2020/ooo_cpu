@@ -298,7 +298,7 @@ always_comb begin
     end
     for(int i = 0; i < 4; i++) begin
         // Differentiate between signed and unsigned
-        if(~load_out[load_tail].inst.is_signed) begin
+        if(~entry_latch.inst.is_signed) begin
             dmem_rdata_masked[8*i+:8] = dmem_rdata[8*i+:8] & {8{dmem_rmask_reg[i]}}; 
         end
         else begin

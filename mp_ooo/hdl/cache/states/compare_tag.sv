@@ -24,7 +24,7 @@ logic valid_hit_way [WAYS];
 logic [31:0] way_hit_val, aligned_mask;
 assign set_tag = target_tag;
 assign dirty = ways_tags[set_way][TAG_SIZE-1];
-assign aligned_mask = wmask << offset;
+assign aligned_mask = wmask << {offset[4:2],2'b0};
 
 always_comb begin
     valid_hit = 1'b0;

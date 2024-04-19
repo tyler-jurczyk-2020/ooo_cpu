@@ -73,7 +73,7 @@ import cache_types::*;
 
     control control_unit(.*, .mem_resp(dfp_resp), .write(dfp_write));
     cache_logic #(.READ_SIZE(READ_SIZE)) cache_logic(.*, .wmask(ufp_wmask), .rmask(ufp_rmask), .mem_read(dfp_read), .mem_write(dfp_write),
-                .mem_line(dfp_rdata), .mem_line_wb(dfp_wdata), .mem_resp(dfp_resp), .cpu_data(ufp_rdata), .cpu_wdata(ufp_wdata), .cpu_resp(ufp_resp), .offset({ufp_addr[4:2], 2'b0}));
+                .mem_line(dfp_rdata), .mem_line_wb(dfp_wdata), .mem_resp(dfp_resp), .cpu_data(ufp_rdata), .cpu_wdata(ufp_wdata), .cpu_resp(ufp_resp), .offset(ufp_addr[4:0]));
 
     ff_array #(.WIDTH(3)) plru_array(
         .clk0       (clk),
