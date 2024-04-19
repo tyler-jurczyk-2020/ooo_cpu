@@ -63,7 +63,7 @@ always_comb begin
         if(wmask != 4'b0)
             cpu_data = 'x;
         else
-            cpu_data = ways_lines[way_hit][(8*{offset[4:2],2'b0})+:READ_SIZE];
+            cpu_data = ways_lines[way_hit][(8*offset)+:READ_SIZE];
         cpu_resp = 1'b1;
         update_plru = 1'b1;
     end
