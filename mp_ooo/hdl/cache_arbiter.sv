@@ -118,7 +118,10 @@ always_ff @(posedge clk)begin
     else if(counter !='0 && counter <= 3'h3) begin
         if(counter == 3'h3)
             is_writing <= '0;
-        counter <= counter + 1'd1;  
+        if(counter ==  3'h3)
+            counter <= '0;  
+        else
+            counter <= counter + 1'b1;
     end
     else begin
         counter <= '0;
@@ -168,7 +171,7 @@ always_ff @(posedge clk) begin
         if(rst)begin
             address_table[i] <= '0;
         end
-        else if(~address_table[i][33] && (bmem_itf_read || delayed_inst_request) && counter == 3'h0 || counter == 3'h4) begin
+        else if(~address_table[i][33] && (bmem_itf_read || delayed_inst_request) && counter == 3'h0) begin
             if(latch_data_bmem)begin
                address_table[i] <= {1'b1, 1'b1, data_bmem_addr};
             end
