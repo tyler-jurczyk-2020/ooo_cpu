@@ -229,11 +229,13 @@ logic [31:0] dmem_rdata_out_reg, dmem_rdata_reg;
 logic [31:0] cdb_rs1_register_value_reg, immediate_reg;
 // Latches for sending out to dram (store)
 logic [31:0] cdb_rs2_register_value_reg;
-logic [3:0] store_out_wmask_reg;
 
 // Masked read data returned from memory appropriately
 logic [31:0] dmem_rdata_masked, dmem_rdata_out, dmem_addr_latched, dmem_comb_addr_load, dmem_comb_addr_store;
 logic [3:0] dmem_rmask_reg, dmem_wmask_reg;
+
+// Info for latched instructions
+super_dispatch_t entry_latch;
 
 // Addr that held during request states
 assign dmem_addr_latched = cdb_rs1_register_value_reg + immediate_reg;
@@ -250,9 +252,9 @@ always_ff @(posedge clk) begin
 
         cdb_rs1_register_value_reg <= '0;
         immediate_reg <= '0;
-
         cdb_rs2_register_value_reg <= '0;
-        store_out_wmask_reg <= '0;
+
+        entry_latch <= '0;
     end
     else begin
         if(dmem_resp) begin
@@ -264,6 +266,7 @@ always_ff @(posedge clk) begin
             cdb_rs1_register_value_reg <= lsq_reg_data.rs1_v.register_value;
             immediate_reg <= load_out[load_tail].inst.immediate;
             dmem_rmask_reg <= load_out[load_tail].inst.rmask << dmem_comb_addr_load[1:0];
+            entry_latch <= load_out[load_tail];
         end
 
         if(move_to_store) begin
@@ -271,6 +274,7 @@ always_ff @(posedge clk) begin
             cdb_rs2_register_value_reg <= lsq_reg_data.rs2_v.register_value;
             immediate_reg <= store_out[store_tail].inst.immediate;
             dmem_wmask_reg <= store_out[store_tail].inst.wmask << dmem_comb_addr_store[1:0];
+            entry_latch <= store_out[store_tail];
         end
     end
 end
@@ -336,11 +340,11 @@ always_comb begin
     end
     endcase
 
-    if(state == request_load_s && dmem_resp) begin
+    if(move_to_load) begin
         pop_load = 1'b1;
         pop_store = 1'b0;
     end
-    else if (state == request_store_s && dmem_resp) begin
+    else if (move_to_store) begin
         pop_load = 1'b0;
         pop_store = 1'b1;
     end
@@ -376,7 +380,7 @@ always_comb begin
         lsq_request.rd_s = 'x;
         lsq_request.rd_en = 1'b0;
         lsq_request.rd_v = 'x;
-        cdb_out.inst_info = load_queue_out[0];
+        cdb_out.inst_info = entry_latch;
         cdb_out.register_value = dmem_rdata_out_reg;
         cdb_out.ready_for_writeback = 1'b1;
         cdb_out.inst_info.rvfi.rd_wdata = dmem_rdata_out_reg;
@@ -384,8 +388,8 @@ always_comb begin
         cdb_out.inst_info.rvfi.rs2_rdata = '0;
         cdb_out.inst_info.rvfi.mem_rdata = dmem_rdata_reg;
         cdb_out.inst_info.rvfi.mem_wdata = 'x;
-        cdb_out.inst_info.rvfi.mem_rmask = load_queue_out[0].inst.rmask << dmem_addr_latched[1:0];
-        cdb_out.inst_info.rvfi.mem_addr = cdb_rs1_register_value_reg + load_queue_out[0].inst.immediate;
+        cdb_out.inst_info.rvfi.mem_rmask = dmem_rmask_reg; 
+        cdb_out.inst_info.rvfi.mem_addr = cdb_rs1_register_value_reg + immediate_reg;
     end
     else if(state == latch_store_s) begin
         lsq_request.rs1_s = 'x;
@@ -393,7 +397,7 @@ always_comb begin
         lsq_request.rd_s = 'x;
         lsq_request.rd_en = 1'b0;
         lsq_request.rd_v = 'x;
-        cdb_out.inst_info = store_queue_out[0];
+        cdb_out.inst_info = entry_latch;
         cdb_out.register_value = 'x;
         cdb_out.ready_for_writeback = 1'b1;
         cdb_out.inst_info.rvfi.rd_addr = '0;
@@ -402,8 +406,8 @@ always_comb begin
         cdb_out.inst_info.rvfi.rs2_rdata = cdb_rs2_register_value_reg;
         cdb_out.inst_info.rvfi.mem_rdata = 'x;
         cdb_out.inst_info.rvfi.mem_wdata = cdb_rs2_register_value_reg << 8*dmem_addr_latched[1:0];
-        cdb_out.inst_info.rvfi.mem_wmask = store_queue_out[0].inst.wmask << dmem_addr_latched[1:0];
-        cdb_out.inst_info.rvfi.mem_addr = cdb_rs1_register_value_reg + store_queue_out[0].inst.immediate;
+        cdb_out.inst_info.rvfi.mem_wmask = dmem_wmask_reg;
+        cdb_out.inst_info.rvfi.mem_addr = cdb_rs1_register_value_reg + immediate_reg;
     end
     else begin
         lsq_request.rs1_s = 'x;
