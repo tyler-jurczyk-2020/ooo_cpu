@@ -8,16 +8,23 @@ import cache_types::*;
 
 state_t next_state;
 logic mem_resp_reg;
+logic write_reg;
 
 always_ff @(posedge clk) begin
     if(rst) begin
        state <= idle_s; 
        mem_resp_reg <= 1'b0;
+       write_reg <= 1'b0;
     end
     else begin
         state <= next_state;
-        if(!write)
+        if(!write && !write_reg)
             mem_resp_reg <= mem_resp;
+
+        if(write)
+            write_reg <= 1'b1;
+        else if(state != writeback_s)        
+            write_reg <= 1'b0;
     end
 end
 
