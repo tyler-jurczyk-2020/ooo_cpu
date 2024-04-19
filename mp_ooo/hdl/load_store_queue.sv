@@ -290,7 +290,7 @@ assign dmem_rdata_signed = signed'(dmem_rdata_masked);
 
 // Used on data response
 always_comb begin
-    if(~load_out[load_tail].inst.is_signed) begin
+    if(~entry_latch.inst.is_signed) begin
         dmem_rdata_out = unsigned'(dmem_rdata_signed >> shift_amt);
     end
     else begin
