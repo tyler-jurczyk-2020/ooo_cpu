@@ -20,6 +20,7 @@ import rv32i_types::*;
     // Need to consider potentially how partial pushes/pops may work in superscalar context
     output logic empty,
     output logic full,
+    output logic full_inst,
     output logic [$clog2(DEPTH)-1:0] head_out, tail_out,
     output QUEUE_TYPE out [SS], // Values pushed out
     output QUEUE_TYPE reg_out [SEL_OUT] // Values selected to be observed
@@ -44,12 +45,7 @@ assign sext_amount_in = 32'(IN_WIDTH);
 assign head_next = head + {sext_amount_in[$clog2(DEPTH):0]};
 assign tail_next = tail + {sext_amount[$clog2(DEPTH):0]};
 
-logic [$clog2(DEPTH)-1:0]head_lower, tail_lower;
-logic head_upper, tail_upper;
-assign head_lower = head[$clog2(DEPTH)-1:0];
-assign tail_lower = tail[$clog2(DEPTH)-1:0];
-assign head_upper = head[$clog2(DEPTH)];
-assign tail_upper = tail[$clog2(DEPTH)];
+assign full_inst = (head[$clog2(DEPTH)-1:0] == tail[$clog2(DEPTH)-1:0]) && (head[$clog2(DEPTH)] != tail[$clog2(DEPTH)]);
 
 always_comb begin
     if(~push)

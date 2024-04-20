@@ -75,7 +75,6 @@ super_dispatch_t rob_entries_to_commit1[SS];
 
 logic valid_request; 
 
-
 logic flush_reg; 
 
 always_ff @ (posedge clk) begin
@@ -88,10 +87,7 @@ always_ff @ (posedge clk) begin
     else if(imem_resp) begin
         flush_reg <= '0; 
     end
-    
-    
 end
-
 always_comb begin
     if(flush) begin
         valid_request = '0; 
@@ -167,9 +163,9 @@ logic active_store;
 
 circular_queue #(.SS(SS), .IN_WIDTH(SS), .SEL_IN(SS), .SEL_OUT(1), .DEPTH(ROB_DEPTH)) instruction_queue
                 (.clk(clk), .rst(rst || flush),
-                 .full(inst_queue_full), .in(decoded_inst),
+                 .full_inst(inst_queue_full), .in(decoded_inst),
                  .out(instruction),
-                 .push(valid_request && ~active_store), .pop(pop_inst_q), .empty(inst_q_empty),
+                 .push(valid_request && ~inst_queue_full), .pop(pop_inst_q), .empty(inst_q_empty),
                  .out_bitmask('1), .in_bitmask(d_bitmask), .tail_out(inst_tail),
                  .reg_out(view_inst_tail),
                  .reg_select_in(d_reg_sel), .reg_select_out(sel_out_inst), .reg_in(d_reg_in)
@@ -182,7 +178,7 @@ fetch_stage #(.SS(SS)) fetch_stage_i (
     .clk(clk),
     .rst(rst),
     .predict_branch('0), // Change this later
-    .stall_inst(inst_queue_full || active_store), 
+    .stall_inst(inst_queue_full), 
     .imem_resp(imem_resp), 
     .rob_entries_to_commit(rob_entries_to_commit), // passing branch target from rob
     .pc_reg(pc_reg),
