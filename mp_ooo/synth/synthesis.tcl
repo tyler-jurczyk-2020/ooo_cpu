@@ -51,6 +51,12 @@ suppress_message VO-2
 suppress_message VO-4
 # Verilog writer has added %d nets to module %s using %s as prefix.
 suppress_message VO-11
+# In  the  design  %s,  net '%s' is connecting multiple ports.
+suppress_message UCN-1
+# The replacement character (%c) is conflicting with the allowed or restricted character.
+suppress_message UCN-4
+# Design '%s' was renamed to '%s' to avoid a conflict with another design that has the same name but different parameters.
+suppress_message LINK-17
 
 # %s DEFAULT branch of CASE statement cannot be reached.
 suppress_message ELAB-311
@@ -90,9 +96,7 @@ foreach module $modules {
 elaborate $design_toplevel
 current_design $design_toplevel
 
-define_name_rules nameRules -restricted "!@#$%^&*()\\-" -case_insensitive
 change_names -rules verilog -hierarchy
-change_names -rules nameRules -hierarchy
 
 check_design
 

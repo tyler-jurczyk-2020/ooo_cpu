@@ -8,14 +8,17 @@ HDL_SRCS  := $(shell find $(PWD)/../hdl -name '*.sv')
 HVL_SRCS  := $(shell find $(PWD)/../hvl -name '*.sv' -o -name '*.v')
 SRAM_SRCS := $(shell find $(PWD)/../sram/output -name '*.v')
 HDRS      := $(shell find $(PWD)/../hvl -name '*.svh')
-SRCS 	  := $(PKG_SRCS) $(HDL_SRCS) $(HVL_SRCS) $(SRAM_SRCS)
+DW_IP     :=
+SRCS      := $(PKG_SRCS) $(HDL_SRCS) $(HVL_SRCS) $(SRAM_SRCS) $(DW_IP)
 
 export VCS_ARCH_OVERRIDE=linux
-VCS_FLAGS= -full64 -lca -sverilog +lint=all,noNS -timescale=1ns/1ns -debug_acc+all -kdb -fsdb -suppress=LCA_FEATURES_ENABLED -suppress=UII-L
+VCS_FLAGS= -full64 -lca -sverilog -timescale=1ns/1ns -debug_acc+all -kdb -fsdb -suppress=LCA_FEATURES_ENABLED +incdir+$(DW)/sim_ver
 
 sim/top_tb: $(SRCS) $(HDRS)
 	mkdir -p sim
+	python3 check_sus.py
 	python3 ../bin/rvfi_reference.py
+	python3 set_dw_ip.py
 	python3 get_bmem_x.py | xargs -I {} perl -i -pe 's/^(.*?DRAM_RETURN_0_ON_X +?= *?)\d(.*?)$$/$${1}{}$$2/' ../hvl/banked_memory.sv
 	cd sim && vcs $(SRCS) $(VCS_FLAGS) -msg_config=../vcs_warn.config -l compile.log -top top_tb -o top_tb
 	bash check_compile_error.sh
@@ -38,11 +41,13 @@ verdi:
 
 .PHONY: spike
 spike: $(ELF)
-	spike --isa=rv32im -m0x60000000:0x20000000 --log-commits $(ELF) |& tail -n +6 > sim/spike.log
+	mkdir -p sim
+	spike --isa=rv32imc -m0x60000000:0x20000000 --log-commits $(ELF) |& tail -n +6 > sim/spike.log
 
 .PHONY: interactive_spike
 interactive_spike: $(ELF)
-	spike --isa=rv32i -m0x60000000:0x20000000 --log-commits -d $(ELF)
+	mkdir -p sim
+	spike --isa=rv32imc -m0x60000000:0x20000000 --log-commits -d $(ELF)
 
 .PHONY: clean
 clean:

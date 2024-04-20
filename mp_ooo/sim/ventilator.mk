@@ -27,6 +27,7 @@ sim/vent_exhaust/Vverilator_tb: $(SRCS) $(VEN_SRC) ../hvl/rvfi_reference.svh
 	cd sim/vent_exhaust ;\
 	$(MAKE) -f Vverilator_tb.mk
 
+.PHONY: sim/memory_8.lst
 sim/memory_8.lst: $(PROG)
 	mkdir -p sim/vent_exhaust
 	../bin/generate_memory_file.sh $(PROG)
