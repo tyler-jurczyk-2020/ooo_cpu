@@ -44,10 +44,17 @@ assign sext_amount_in = 32'(IN_WIDTH);
 assign head_next = head + {sext_amount_in[$clog2(DEPTH):0]};
 assign tail_next = tail + {sext_amount[$clog2(DEPTH):0]};
 
+logic [$clog2(DEPTH)-1:0]head_lower, tail_lower;
+logic head_upper, tail_upper;
+assign head_lower = head[$clog2(DEPTH)-1:0];
+assign tail_lower = tail[$clog2(DEPTH)-1:0];
+assign head_upper = head[$clog2(DEPTH)];
+assign tail_upper = tail[$clog2(DEPTH)];
+
 always_comb begin
-    //if(~push)
-    //    full = (head[$clog2(DEPTH)-1:0] == tail[$clog2(DEPTH)-1:0]) && (head[$clog2(DEPTH)] != tail[$clog2(DEPTH)]);
-    //else
+    if(~push)
+        full = (head[$clog2(DEPTH)-1:0] == tail[$clog2(DEPTH)-1:0]) && (head[$clog2(DEPTH)] != tail[$clog2(DEPTH)]);
+    else
     // Always use speculative full?
         full = (head_spec[$clog2(DEPTH)-1:0] == tail[$clog2(DEPTH)-1:0]) && (head_spec[$clog2(DEPTH)] != tail[$clog2(DEPTH)]);
 end
