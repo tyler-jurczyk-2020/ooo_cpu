@@ -63,8 +63,6 @@ assign pop_store_ready = store_out[store_tail].cross_entry.cross_dep_met && stor
                       && store_out[store_tail].rs_entry.input2_met && store_out[store_tail].cross_entry.valid
                       && commit_store;
 
-logic sanity_check;
-assign sanity_check = cdb_in[0].inst_info.rat.rd == dispatch_entry[0].rat.rs2;
 // Setup inputs to queues
 always_comb begin
     for(int i = 0; i < SS; i++) begin

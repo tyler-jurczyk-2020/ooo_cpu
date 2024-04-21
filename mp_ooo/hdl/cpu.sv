@@ -297,8 +297,6 @@ dispatcher #(.SS(SS), .PR_ENTRIES(PR_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) dispatcher
 
              // Snipe rvfi
              .snipe_rvfi(rob_entries_to_commit[0].rvfi)
-
-             // Active store
             ); 
 
 

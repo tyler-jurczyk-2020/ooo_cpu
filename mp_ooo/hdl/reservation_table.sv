@@ -162,9 +162,9 @@ always_comb begin
             end
         end
         // Table full
-        table_full = '0; 
-        if(32'(counter) >= unsigned'(ROB_DEPTH-SS)) begin // Probably need to fix width
-            table_full = '1;
+        table_full = '1; 
+        for(int i = 0; i < reservation_table_size; i++) begin
+            table_full &= reservation_table[i].rs_entry.full;
         end
     end
     
