@@ -63,6 +63,8 @@ assign pop_store_ready = store_out[store_tail].cross_entry.cross_dep_met && stor
                       && store_out[store_tail].rs_entry.input2_met && store_out[store_tail].cross_entry.valid
                       && commit_store;
 
+logic sanity_check;
+assign sanity_check = cdb_in[0].inst_info.rat.rd == dispatch_entry[0].rat.rs2;
 // Setup inputs to queues
 always_comb begin
     for(int i = 0; i < SS; i++) begin
@@ -75,7 +77,20 @@ always_comb begin
         store_queue_in[i].cross_entry.pointer = load_head;
         store_queue_in[i].cross_entry.cross_dep_met = 1'b0;
         store_queue_in[i].cross_entry.valid = 1'b1;
-    end
+
+        // Transparency for dependencies
+        // for(int j = 0; j < CDB; j++) begin
+            if(cdb_in[0].ready_for_writeback && (cdb_in[0].inst_info.rat.rd == dispatch_entry[0].rat.rs1)) begin
+                load_queue_in[0].rs_entry.input1_met = 1'b1;
+                store_queue_in[0].rs_entry.input1_met = 1'b1;
+            end
+            
+            if(cdb_in[0].ready_for_writeback && (cdb_in[0].inst_info.rat.rd == dispatch_entry[0].rat.rs2)) begin
+                load_queue_in[0].rs_entry.input2_met = 1'b1;
+                store_queue_in[0].rs_entry.input2_met = 1'b1;
+            end
+         end
+    //end
 end
 
 circular_queue #(.QUEUE_TYPE(super_dispatch_t), .SS(SS), .SEL_IN(LD_ST_DEPTH), .SEL_OUT(LD_ST_DEPTH),
