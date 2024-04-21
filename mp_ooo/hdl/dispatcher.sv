@@ -38,8 +38,6 @@ module dispatcher
         // Free list is popped same time that the inst queue is popped
         input logic [5:0] free_rat_rds [SS], 
 
-        input logic flush,
-
         // Physical register ports 
         output physical_reg_request_t dispatch_request [SS],
         input physical_reg_response_t dispatch_reg_data [SS],
@@ -89,16 +87,8 @@ module dispatcher
     end
     */
 
-    assign active_store = '0;
 
-    always_comb begin
-        if(avail_inst) begin
-            pop_inst_q = ~rs_full && ~inst_q_empty && ~rob_full && ~active_store && inst[0].wmask == 4'b0; 
-        end 
-        else begin
-            pop_inst_q = ~rs_full && ~inst_q_empty && ~rob_full && ~active_store; 
-        end
-    end
+    assign pop_inst_q = ~rs_full && ~inst_q_empty && ~rob_full; 
     
     
     always_comb begin
