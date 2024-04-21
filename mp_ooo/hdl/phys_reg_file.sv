@@ -76,7 +76,7 @@ import rv32i_types::*;
         for(int i = 0; i < CDB; i++)begin
             // Default RS1
             lsq_reg_data.rs1_v = data[lsq_request.rs1_s];
-            if(cdb[i].ready_for_writeback && (lsq_request.rs1_s == cdb[i].inst_info.rat.rd)) begin
+            if(cdb[i].inst_info.rat.rd != '0 && cdb[i].ready_for_writeback && (lsq_request.rs1_s == cdb[i].inst_info.rat.rd)) begin
                 lsq_reg_data.rs1_v.register_value = cdb[i].register_value;
                 lsq_reg_data.rs1_v.dependency = ~cdb[i].inst_info.rs_entry.input1_met;
                 lsq_reg_data.rs1_v.ROB_ID = cdb[i].inst_info.rob.rob_id;
@@ -84,7 +84,7 @@ import rv32i_types::*;
 
             // Default RS2
             lsq_reg_data.rs2_v = data[lsq_request.rs2_s];
-            if(cdb[i].ready_for_writeback && (lsq_request.rs2_s == cdb[i].inst_info.rat.rd)) begin
+            if(cdb[i].inst_info.rat.rd != '0 && cdb[i].ready_for_writeback && (lsq_request.rs2_s == cdb[i].inst_info.rat.rd)) begin
                 lsq_reg_data.rs2_v.register_value = cdb[i].register_value;
                 lsq_reg_data.rs2_v.dependency = ~cdb[i].inst_info.rs_entry.input2_met;
                 lsq_reg_data.rs2_v.ROB_ID = cdb[i].inst_info.rob.rob_id;
@@ -102,7 +102,7 @@ import rv32i_types::*;
             for(int i = 0; i < CDB; i++) begin
                 // RS1 Default
                 dispatch_reg_data[s].rs1_v = data[dispatch_request[s].rs1_s];
-                if(cdb[i].ready_for_writeback && (dispatch_request[s].rs1_s == cdb[i].inst_info.rat.rd)) begin
+                if(cdb[i].inst_info.rat.rd != '0 && cdb[i].ready_for_writeback && (dispatch_request[s].rs1_s == cdb[i].inst_info.rat.rd)) begin
                     dispatch_reg_data[s].rs1_v.register_value = cdb[i].register_value;
                     dispatch_reg_data[s].rs1_v.dependency = ~cdb[i].inst_info.rs_entry.input1_met;
                     dispatch_reg_data[s].rs1_v.ROB_ID = cdb[i].inst_info.rob.rob_id;
@@ -110,7 +110,7 @@ import rv32i_types::*;
 
                 // RS2 Default
                 dispatch_reg_data[s].rs2_v = data[dispatch_request[s].rs2_s];
-                if(cdb[i].ready_for_writeback && (dispatch_request[s].rs2_s == cdb[i].inst_info.rat.rd)) begin
+                if(cdb[i].inst_info.rat.rd != '0 && cdb[i].ready_for_writeback && (dispatch_request[s].rs2_s == cdb[i].inst_info.rat.rd)) begin
                     dispatch_reg_data[s].rs2_v.register_value = cdb[i].register_value;
                     dispatch_reg_data[s].rs2_v.dependency = ~cdb[i].inst_info.rs_entry.input2_met;
                     dispatch_reg_data[s].rs2_v.ROB_ID = cdb[i].inst_info.rob.rob_id;
@@ -125,14 +125,14 @@ import rv32i_types::*;
             for(int i = 0; i < CDB; i++) begin
                 // RS1 Default
                 alu_reg_data[r].rs1_v = data[alu_request[r].rs1_s];
-                if(cdb[i].ready_for_writeback && (alu_request[r].rs1_s == cdb[i].inst_info.rat.rd)) begin
+                if(cdb[i].inst_info.rat.rd != '0 && cdb[i].ready_for_writeback && (alu_request[r].rs1_s == cdb[i].inst_info.rat.rd)) begin
                     alu_reg_data[r].rs1_v.register_value = cdb[i].register_value;
                     alu_reg_data[r].rs1_v.dependency = ~cdb[i].inst_info.rs_entry.input1_met;
                     alu_reg_data[r].rs1_v.ROB_ID = cdb[i].inst_info.rob.rob_id;
                 end
                 // RS2 Default
                 alu_reg_data[r].rs2_v = data[alu_request[r].rs2_s];
-                if(cdb[i].ready_for_writeback && (alu_request[r].rs2_s == cdb[i].inst_info.rat.rd)) begin
+                if(cdb[i].inst_info.rat.rd != '0 && cdb[i].ready_for_writeback && (alu_request[r].rs2_s == cdb[i].inst_info.rat.rd)) begin
                     alu_reg_data[r].rs2_v.register_value = cdb[i].register_value;
                     alu_reg_data[r].rs2_v.dependency = ~cdb[i].inst_info.rs_entry.input2_met;
                     alu_reg_data[r].rs2_v.ROB_ID = cdb[i].inst_info.rob.rob_id;
@@ -147,7 +147,7 @@ import rv32i_types::*;
             for(int i = 0; i < CDB; i++) begin
                 // RS1 Default
                 mul_reg_data[r].rs1_v = data[mul_request[r].rs1_s];
-                if(cdb[i].ready_for_writeback && (mul_request[r].rs1_s == cdb[i].inst_info.rat.rd)) begin
+                if(cdb[i].inst_info.rat.rd != '0 && cdb[i].ready_for_writeback && (mul_request[r].rs1_s == cdb[i].inst_info.rat.rd)) begin
                     mul_reg_data[r].rs1_v.register_value = cdb[i].register_value;
                     mul_reg_data[r].rs1_v.dependency = ~cdb[i].inst_info.rs_entry.input1_met;
                     mul_reg_data[r].rs1_v.ROB_ID = cdb[i].inst_info.rob.rob_id;
@@ -155,7 +155,7 @@ import rv32i_types::*;
 
                 // RS2 Default
                 mul_reg_data[r].rs2_v = data[mul_request[r].rs2_s];
-                if(cdb[i].ready_for_writeback && (mul_request[r].rs2_s == cdb[i].inst_info.rat.rd)) begin
+                if(cdb[i].inst_info.rat.rd != '0 && cdb[i].ready_for_writeback && (mul_request[r].rs2_s == cdb[i].inst_info.rat.rd)) begin
                     mul_reg_data[r].rs2_v.register_value = cdb[i].register_value;
                     mul_reg_data[r].rs2_v.dependency = ~cdb[i].inst_info.rs_entry.input2_met;
                     mul_reg_data[r].rs2_v.ROB_ID = cdb[i].inst_info.rob.rob_id;
