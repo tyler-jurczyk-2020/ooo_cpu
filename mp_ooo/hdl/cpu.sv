@@ -288,8 +288,6 @@ dispatcher #(.SS(SS), .PR_ENTRIES(PR_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) dispatcher
              // Free List Popped Inst
              .free_rat_rds(free_rat_rds), 
 
-             .flush(flush),
-
              // Identify Dependencies for Curr Inst
              .dispatch_request(dispatch_request), .dispatch_reg_data(dispatch_reg_data),
              
