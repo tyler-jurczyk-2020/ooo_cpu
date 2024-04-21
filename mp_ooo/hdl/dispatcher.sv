@@ -51,10 +51,7 @@ module dispatcher
         output logic update_rat, 
 
         // Snipe rvfi to check when store commits
-        input rvfi_t snipe_rvfi,
-
-        // Active store so stall bb
-        output logic active_store
+        input rvfi_t snipe_rvfi
     ); 
 
     // We want to gain new input every clock cycle from the free list and inst queues

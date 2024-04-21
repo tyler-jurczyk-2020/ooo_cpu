@@ -158,8 +158,6 @@ assign next_inst_has_rd = view_inst_tail[0].has_rd && view_inst_tail[0].rd_s != 
 
 // if we have a pop_from_rob, then we set a flag high (because that is the closest thing to knowing when pc is updated to some shit)
 // if we have a flush, we set that flag low, meaning we shouldn't push 
-// 
-logic active_store;
 
 circular_queue #(.SS(SS), .IN_WIDTH(SS), .SEL_IN(SS), .SEL_OUT(1), .DEPTH(ROB_DEPTH)) instruction_queue
                 (.clk(clk), .rst(rst || flush),
@@ -298,10 +296,9 @@ dispatcher #(.SS(SS), .PR_ENTRIES(PR_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) dispatcher
              .update_rat(update_rat),
 
              // Snipe rvfi
-             .snipe_rvfi(rob_entries_to_commit[0].rvfi),
+             .snipe_rvfi(rob_entries_to_commit[0].rvfi)
 
              // Active store
-             .active_store(active_store)
             ); 
 
 
