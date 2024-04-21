@@ -99,6 +99,9 @@ logic is_writing;
 logic inst_request;
 logic data_request;
 logic latch_data_bmem;
+logic   [31:0]      data_bmem_addr_reg;
+logic               data_bmem_read_reg;
+logic               data_bmem_write_reg;
 logic simultaneous_requests;
 
 assign simultaneous_requests = inst_request && data_request;
@@ -113,7 +116,7 @@ always_ff @(posedge clk)begin
         counter <= counter + 1'd1;
         dword_buffer[counter] <= bmem_itf_rdata;
     end
-    else if((data_bmem_write && ~simultaneous_requests) || latch_data_bmem) begin
+    else if((data_bmem_write && ~simultaneous_requests) || (latch_data_bmem && data_bmem_write_reg)) begin
         is_writing <= 1'b1;
         dmem_writeback_addr <= data_bmem_addr;
         counter <= counter + 1'd1;
@@ -138,11 +141,6 @@ logic delayed_inst_request;
 
 assign inst_request = instr_bmem_read;
 assign data_request = data_bmem_read || data_bmem_write;
-
-logic   [31:0]      data_bmem_addr_reg;
-logic               data_bmem_read_reg;
-logic               data_bmem_write_reg;
-
 
 always_ff @(posedge clk)begin
     if(rst) begin
@@ -174,7 +172,7 @@ always_ff @(posedge clk) begin
         if(rst)begin
             address_table[i] <= '0;
         end
-        else if(~address_table[i][33] && (bmem_itf_read || delayed_inst_request) && counter == 3'h0) begin
+        else if(~address_table[i][33] && (bmem_itf_read || delayed_inst_request)) begin
             if(latch_data_bmem)begin
                address_table[i] <= {1'b1, 1'b1, data_bmem_addr};
             end
