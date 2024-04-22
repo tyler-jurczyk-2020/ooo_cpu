@@ -163,7 +163,7 @@ package rv32i_types;
        logic commit;
        logic mispredict; 
        logic branch_enable; 
-       logic [31:0] fu_value; 
+       //logic [31:0] fu_value; 
        // Hardcoded ROB depth so it compiles
        // ROB entries to refer to for dependency
     } rob_t;
@@ -171,13 +171,13 @@ package rv32i_types;
     typedef struct packed {
        logic input1_met; 
        logic input2_met; 
-       logic [$clog2(ROB_D)-1:0] rs1_source; 
-       logic [$clog2(ROB_D)-1:0] rs2_source; 
+       logic [$clog2(ROB_D)-1:0] rs1_source;
+       logic [$clog2(ROB_D)-1:0] rs2_source;
        logic full; 
     } reservation_entry_t; 
 
     typedef struct packed {
-       logic [$clog2(LD_ST)-1:0] pointer;     
+       logic [$clog2(LD_ST)-1:0] pointer;
        logic cross_dep_met;
        logic valid;
     } cross_t;

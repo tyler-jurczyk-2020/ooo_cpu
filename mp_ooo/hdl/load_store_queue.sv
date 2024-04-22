@@ -229,11 +229,11 @@ always_comb begin
         end
 
         // Invalidate old entries
-        if(move_to_load && (($clog2(LD_ST_DEPTH))'(d) == load_tail)) begin
+        if(move_to_load && (unsigned'(($clog2(LD_ST_DEPTH))'(d)) == load_tail)) begin
             load_in[d].cross_entry.valid = 1'b0;
             load_in_bit[d] = 1'b1;
         end
-        if(move_to_store && (($clog2(LD_ST_DEPTH))'(d)) == store_tail) begin
+        if(move_to_store && (unsigned'(($clog2(LD_ST_DEPTH))'(d))) == store_tail) begin
             store_in[d].cross_entry.valid = 1'b0;
             store_in_bit[d] = 1'b1;
         end
@@ -393,6 +393,7 @@ always_comb begin
         cdb_out.inst_info = 'x;
         cdb_out.register_value = 'x;
         cdb_out.ready_for_writeback = 1'b0;
+        cdb_out.branch_result = '0;
     end
     else if(move_to_store && ~flush) begin
         lsq_request.rs1_s = store_out[store_tail].rat.rs1;
@@ -403,6 +404,7 @@ always_comb begin
         cdb_out.inst_info = 'x;
         cdb_out.register_value = 'x;
         cdb_out.ready_for_writeback = 1'b0;
+        cdb_out.branch_result = '0;
     end
     else if(state == latch_load_s && ~block_cdb) begin
         lsq_request.rs1_s = 'x;
@@ -420,6 +422,7 @@ always_comb begin
         cdb_out.inst_info.rvfi.mem_wdata = 'x;
         cdb_out.inst_info.rvfi.mem_rmask = dmem_rmask_reg; 
         cdb_out.inst_info.rvfi.mem_addr = cdb_rs1_register_value_reg + immediate_reg;
+        cdb_out.branch_result = '0;
     end
     else if(state == latch_store_s && ~block_cdb) begin
         lsq_request.rs1_s = 'x;
@@ -438,6 +441,7 @@ always_comb begin
         cdb_out.inst_info.rvfi.mem_wdata = cdb_rs2_register_value_reg << 8*dmem_addr_latched[1:0];
         cdb_out.inst_info.rvfi.mem_wmask = dmem_wmask_reg;
         cdb_out.inst_info.rvfi.mem_addr = cdb_rs1_register_value_reg + immediate_reg;
+        cdb_out.branch_result = '0;
     end
     else begin
         lsq_request.rs1_s = 'x;
@@ -448,6 +452,7 @@ always_comb begin
         cdb_out.inst_info = 'x;
         cdb_out.register_value = 'x;
         cdb_out.ready_for_writeback = 1'b0;
+        cdb_out.branch_result = '0;
     end
 end
 

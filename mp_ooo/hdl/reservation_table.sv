@@ -170,7 +170,7 @@ always_comb begin
     end
 
     // Table full spec
-    if((avail_inst && (32'(counter) == (reservation_table_size - 1))) || (32'(counter) == reservation_table_size))begin
+    if((avail_inst && (32'(counter) == unsigned'(reservation_table_size - 1))) || (32'(counter) == unsigned'(reservation_table_size)))begin
         table_full = 1'b1;
     end
     else begin
