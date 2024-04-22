@@ -152,10 +152,10 @@ always_comb begin
             default : next_state = state;
         endcase
     end
-    else if(pop_load_ready && (state == wait_s_load_p || state == wait_s_store_p)) begin
+    else if(pop_load_ready && (state == wait_s_load_p || state == wait_s_store_p) && ~flush) begin
         next_state = request_load_s;
     end
-    else if(pop_store_ready && (state == wait_s_load_p || state == wait_s_store_p)) begin
+    else if(pop_store_ready && (state == wait_s_load_p || state == wait_s_store_p) && ~flush) begin
         next_state = request_store_s;
     end
     else if((state == request_load_s || state == request_store_s) && dmem_resp) begin
