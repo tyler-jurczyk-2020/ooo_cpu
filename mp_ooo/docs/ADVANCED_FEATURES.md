@@ -42,17 +42,20 @@ If you are interested in this feature, you should start by considering how to ha
 
 ### Memory Execution:
 
-- Memory Disambiguation [1-15]
-  - There's a lot here
-- Post-Commit Store Buffer [5]
-  - Write Coalescing
-- Fire and Forget [15]
+### Memory Execution:
 
+- Memory Disambiguation
+  - Load ordering, store ordering (AMD K6 style) [5]
+  - Partial ordering (including OoO load issue, like MIPS R1000) [10]
+    - With complex store-forwarding (cache request and update with mask from conflicting store) [5]
+  - Store ordering (speculative loads with rollback) (Alpha 21264 or Fire and Forget) [20]
+- Post-Commit Store Buffer [5]
+  - With write Coalescing [1]
 ### Cache:
 
 - Multibanked Cache [4]
 - Pipelined Cache ([4] read-only, [6] read/write)
-- Non-Blocking Cache [7]
+- Non-Blocking Data Cache [10]
 - Fully Parametrized Cache ([2] sets, [4] ways if PLRU)
 
 ### Prefetchers:

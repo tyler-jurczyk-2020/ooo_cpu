@@ -33,17 +33,22 @@ perf_counters = [
     'Test Weight',
     'Weighted Benchmark Score', 
 ]
-
+weighting_const = 9926.12616
 # test, weight
 benchmarks = {
-    'fft.elf' : 1,
-    'graph.elf' : 1,
-    'rsa.elf' : 1,
-    'compression.elf' : 1,
-    'dna.elf' : 1,
-    'mergesort.elf' : 1,
-    'physics.elf' : 1,
-    'sudoku.elf' : 1,
+    # all benchmark weights are computed as:
+    # 1 or 2 depending on test importance
+    # divided by number of instructions for that test without the full M extension
+    # times a constant so the sum of weights is close to 1
+    'fft.elf' : weighting_const * 2 / 134941,
+    'graph.elf' : weighting_const * 1 / 115028,
+    'rsa.elf' : weighting_const * 1 / 158470,
+    'compression.elf' : weighting_const * 2 / 90633,
+    'dna.elf' : weighting_const * 1 / 104740,
+    'mergesort.elf' : weighting_const * 1 / 92136,
+    'physics.elf' : weighting_const * 2 / 226354,
+    'sudoku.elf' : weighting_const * 1 / 76170,
+    '../coremarks/coremark_im.elf': weighting_const * 2 / 308350,
     # uncomment these if you have div/rem instructions working
     # 'physics_d.elf' : 1,
     # 'rsa_d.elf': 1
@@ -110,7 +115,7 @@ def main():
         print(f'Running power on {benchmark}')
         power = run_power(prog)
         if sim_passed:
-            test_score = weight * math.sqrt(AREA) * power * (float(info['Segment Time']))**2
+            test_score = weight * math.sqrt(AREA) * power * (float(info['Segment Time']))**3
         else:
             print(f"{FAIL}Sim failed on program {prog}, please investigate{ENDC}")
             test_score = 1e50

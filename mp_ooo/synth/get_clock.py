@@ -7,4 +7,8 @@ os.chdir("..")
 with open("options.json") as f:
     j = json.load(f)
 
-print(j["clock"])
+if "clock" not in j:
+    print('key "clock" not in options.json')
+    exit(1)
+
+print(int(j["clock"]))

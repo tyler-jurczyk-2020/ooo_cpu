@@ -12,7 +12,7 @@ DW_IP     :=
 SRCS      := $(PKG_SRCS) $(HDL_SRCS) $(HVL_SRCS) $(SRAM_SRCS) $(DW_IP)
 
 export VCS_ARCH_OVERRIDE=linux
-VCS_FLAGS= -full64 -lca -sverilog -timescale=1ns/1ns -debug_acc+all -kdb -fsdb -suppress=LCA_FEATURES_ENABLED +incdir+$(DW)/sim_ver
+VCS_FLAGS= -full64 -lca -sverilog -timescale=1ns/1ns -debug_acc+all -kdb -fsdb -suppress=LCA_FEATURES_ENABLED +incdir+$(DW)/sim_ver +define+DW_SUPPRESS_WARN
 
 sim/top_tb: $(SRCS) $(HDRS)
 	mkdir -p sim

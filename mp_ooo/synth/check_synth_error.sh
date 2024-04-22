@@ -18,7 +18,7 @@ if grep -iq 'warning' reports/synthesis.log; then
     grep -i 'warning' reports/synthesis.log
     exit 2
 else
-    echo -e "\033[0;32mSynthesis Successful* \033[0m"
+    echo -e "\033[0;32mSynthesis Successful \033[0m"
 fi
 
 exit 0
