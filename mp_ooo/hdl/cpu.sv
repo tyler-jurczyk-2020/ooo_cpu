@@ -293,10 +293,7 @@ dispatcher #(.SS(SS), .PR_ENTRIES(PR_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) dispatcher
              .rob_id_next(rob_id_next), 
              
              .rs_rob_entry(rs_rob_entry),
-             .update_rat(update_rat),
-
-             // Snipe rvfi
-             .snipe_rvfi(rob_entries_to_commit[0].rvfi)
+             .update_rat(update_rat)
             ); 
 
 

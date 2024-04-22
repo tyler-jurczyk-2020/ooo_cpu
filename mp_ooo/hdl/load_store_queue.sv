@@ -106,7 +106,7 @@ load_queue(
     .reg_out(load_out),
     .in_bitmask(load_in_bit),
     .out_bitmask('1),
-    .full(load_full),
+    .full_inst(load_full),
     .push(push_load),
     .pop(pop_load)
 );
@@ -126,7 +126,7 @@ store_queue(
     .reg_out(store_out),
     .in_bitmask(store_in_bit),
     .out_bitmask('1),
-    .full(store_full),
+    .full_inst(store_full),
     .push(push_store),
     .pop(pop_store)
 );

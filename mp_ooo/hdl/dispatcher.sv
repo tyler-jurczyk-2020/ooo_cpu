@@ -48,10 +48,7 @@ module dispatcher
         
         // Build a super dispatch struct to feed into the ROB and the Reservation Station
         output super_dispatch_t rs_rob_entry [SS],
-        output logic update_rat, 
-
-        // Snipe rvfi to check when store commits
-        input rvfi_t snipe_rvfi
+        output logic update_rat
     ); 
 
     // We want to gain new input every clock cycle from the free list and inst queues
@@ -69,21 +66,6 @@ module dispatcher
     end
 
     assign update_rat = avail_inst && inst[0].has_rd;
-
-    // Temporary logic to stall the entire cpu when a store comes through until it commits
-    /*
-    always_ff @(posedge clk) begin
-        if(rst)
-            active_store <= 1'b0;
-        else if(inst[0].wmask != 4'b0 && avail_inst && ~flush)
-            active_store <= 1'b1;
-        else if(snipe_rvfi.valid && snipe_rvfi.mem_wmask != 4'b0)
-            active_store <= 1'b0;
-        else if(flush)
-            active_store <= 1'b0;
-    end
-    */
-
 
     assign pop_inst_q = ~rs_full && ~inst_q_empty && ~rob_full; 
     
