@@ -93,7 +93,7 @@ cache data_cache
     .dfp_resp(dmem_resp_from_bmem)
 );
 
-logic [63:0] dword_buffer [3]; // No need to buffer fourth entry since we can forward it immediately
+logic [63:0] read_dword_buffer [3], write_dword_buffer [3]; // No need to buffer fourth entry since we can forward it immediately
 logic [2:0] read_counter, write_counter;
 logic is_writing;
 logic inst_request;
@@ -116,7 +116,7 @@ always_ff @(posedge clk)begin
     else begin
         if(bmem_itf_rvalid && read_counter < 3'h3) begin
             read_counter <= read_counter + 1'd1;
-            dword_buffer[read_counter] <= bmem_itf_rdata;
+            read_dword_buffer[read_counter] <= bmem_itf_rdata;
         end
         else begin
             read_counter <= '0;
@@ -127,7 +127,7 @@ always_ff @(posedge clk)begin
             dmem_writeback_addr <= data_bmem_addr;
             write_counter <= write_counter + 1'd1;
             for(int i = 0; i < 3; i++) begin // can forward first entry immediately
-                dword_buffer[i] <= data_bmem_wdata[64*(i+1)+:64];
+                write_dword_buffer[i] <= data_bmem_wdata[64*(i+1)+:64];
             end
         end
         else if(write_counter !='0 && write_counter <= 3'h3) begin
@@ -212,7 +212,7 @@ always_comb begin
            && read_counter == 3'h3) begin
                 // Goes to data cache
                 if(address_table[i][32]) begin
-                    data_bmem_rdata = {bmem_itf_rdata, dword_buffer[2], dword_buffer[1], dword_buffer[0]};
+                    data_bmem_rdata = {bmem_itf_rdata, read_dword_buffer[2], read_dword_buffer[1], read_dword_buffer[0]};
                     data_bmem_rvalid = 1'b1;
                     instr_bmem_rdata = 'x;
                     instr_bmem_rvalid = 1'b0;
@@ -221,7 +221,7 @@ always_comb begin
                 else begin
                     data_bmem_rdata = 'x;
                     data_bmem_rvalid = 1'b0;
-                    instr_bmem_rdata = {bmem_itf_rdata, dword_buffer[2], dword_buffer[1], dword_buffer[0]};
+                    instr_bmem_rdata = {bmem_itf_rdata, read_dword_buffer[2], read_dword_buffer[1], read_dword_buffer[0]};
                     instr_bmem_rvalid = 1'b1;
                 end
                 break;
@@ -248,7 +248,7 @@ always_comb begin
         end
         else if(data_bmem_write_reg || is_writing) begin
             if(is_writing)
-                bmem_itf_wdata = dword_buffer[write_counter - 1'b1]; // Need to actually set write data
+                bmem_itf_wdata = write_dword_buffer[write_counter - 1'b1]; // Need to actually set write data
             else
                 bmem_itf_wdata = data_bmem_wdata[63:0]; // Immediately send out lowest double word
             bmem_itf_read = '0;
@@ -283,7 +283,7 @@ always_comb begin
         end
         else if(data_bmem_write || is_writing) begin
             if(is_writing)
-                bmem_itf_wdata = dword_buffer[write_counter - 1'b1]; // Need to actually set write data
+                bmem_itf_wdata = write_dword_buffer[write_counter - 1'b1]; // Need to actually set write data
             else
                 bmem_itf_wdata = data_bmem_wdata[63:0]; // Immediately send out lowest double word
             bmem_itf_read = '0;
