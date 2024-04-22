@@ -6,7 +6,7 @@ module rob
     )(
     ////// INPUTS:
         input clk,
-        input rst, 
+        input rst,
         // dispatched instructions
         input logic avail_inst,
         input super_dispatch_t dispatch_info [SS],
@@ -70,10 +70,10 @@ module rob
                 end
 
                 if((cdb[i].inst_info.inst.is_branch && (cdb[i].branch_result ^ cdb[i].inst_info.inst.predict_branch)) || (cdb[i].inst_info.inst.is_jump || cdb[i].inst_info.inst.is_jumpr)) begin
-                    rob_entry_in[i].rob.mispredict = '1; 
+                    rob_entry_in[i].rob.mispredict = '1;
                 end
                 else begin
-                    rob_entry_in[i].rob.mispredict = '0; 
+                    rob_entry_in[i].rob.mispredict = '0;
                 end
             end
         end
@@ -81,10 +81,13 @@ module rob
 
     // Inform lsq when to commit a store
     always_comb begin
-        commit_store = 1'b0; 
+        commit_store = 1'b0;
         for(int i = 0; i < SS; i++) begin
-            if(inspect_queue[i].inst.opcode == op_b_store)
-                commit_store |= 1'b1; 
+            if(inspect_queue[i].inst.opcode == op_b_store && !rob_entries_to_commit[i].rvfi.valid)
+                commit_store |= 1'b1;
+            else if(inspect_queue[i].inst.opcode == op_b_store && rob_entries_to_commit[i].rvfi.valid
+                   && rob_entries_to_commit[i].rvfi.order != inspect_queue[i].rvfi.order)
+                    commit_store |= 1'b1;
         end
     end
 
@@ -104,7 +107,7 @@ module rob
     // Determine whether any are ready to be committed 
     // Build a array of structs of size SS of what you would like to commit
 
-  
+
     // counting order when we commit 
     logic [63:0] order_counter;
     // logic internal_prev_flush;
@@ -115,9 +118,8 @@ module rob
                 rob_entries_to_commit[i] = inspect_queue[i];
                 // based on whether the i'th instruction is valid or not AND
                 // whether a previous instruction was a mispredict or not, set valid
-                rob_entries_to_commit[i].rvfi.valid = valid_commit[i]; 
-                rob_entries_to_commit[i].rvfi.pc_wdata = inspect_queue[i].inst.pc_next; 
-
+                rob_entries_to_commit[i].rvfi.valid = valid_commit[i];
+                rob_entries_to_commit[i].rvfi.pc_wdata = inspect_queue[i].inst.pc_next;
                 rob_entries_to_commit[i].rvfi.order = order_counter + {32'b0, i};
                 // Send some signal to tell rrat to commit above entries
             end
@@ -128,7 +130,7 @@ module rob
         end
     end
 
-    
+
 
     always_ff @ (posedge clk) begin
         if(pop_from_rob) begin
