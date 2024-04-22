@@ -175,24 +175,30 @@ logic [33:0] address_table [16];
 
 // Update address table entry 
 always_ff @(posedge clk) begin
-    for(int i = 0; i < 16; i++)begin
-        if(rst)begin
+    if(rst)begin
+        for(int i = 0; i < 16; i++)begin
             address_table[i] <= '0;
         end
-        else if(~address_table[i][33] && (bmem_itf_read || delayed_inst_request)) begin
-            if(latch_data_bmem)begin
-               address_table[i] <= {1'b1, 1'b1, data_bmem_addr};
+    end
+    else begin
+        for(int i = 0; i < 16; i++) begin
+            if(~address_table[i][33] && (bmem_itf_read || delayed_inst_request)) begin
+                if(latch_data_bmem)begin
+                   address_table[i] <= {1'b1, 1'b1, data_bmem_addr};
+                end
+                else if(inst_request || (delayed_inst_request && ~is_writing)) begin
+                    address_table[i] <= {1'b1, 1'b0, instr_bmem_addr};
+                end
+                else if(data_request)
+                    address_table[i] <= {1'b1, 1'b1, data_bmem_addr};
+                break;
             end
-            else if(inst_request || (delayed_inst_request && ~is_writing)) begin
-                address_table[i] <= {1'b1, 1'b0, instr_bmem_addr};
-            end
-            else if(data_request)
-                address_table[i] <= {1'b1, 1'b1, data_bmem_addr};
-            break;
         end
-        else if(address_table[i][33] && address_table[i][31:0] == bmem_itf_raddr && read_counter == 3'h3 && bmem_itf_rvalid) begin
-            address_table[i][33] <= 1'b0;
-            break;
+        for(int i = 0; i < 16; i++) begin
+            if(address_table[i][33] && address_table[i][31:0] == bmem_itf_raddr && read_counter == 3'h3 && bmem_itf_rvalid) begin
+                address_table[i][33] <= 1'b0;
+                break;
+            end
         end
     end
 end
