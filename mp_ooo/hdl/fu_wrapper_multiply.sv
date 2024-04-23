@@ -36,10 +36,7 @@ module fu_wrapper_mult
     multiply_FUs_t multiplication; 
 
     always_ff @ (posedge clk) begin
-        if(rst) begin
-            multiplication <= '0; 
-        end
-        else if(to_be_multiplied.start_calculate) begin
+        if(to_be_multiplied.start_calculate) begin
             multiplication.start <= '1; 
             multiplication.mul_type <= to_be_multiplied.inst_info.inst.mul_type; 
             multiplication.a <= fu_reg_data.rs1_v.register_value; 
