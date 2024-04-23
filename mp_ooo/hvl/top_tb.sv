@@ -12,7 +12,7 @@ module top_tb;
 
     bit rst;
 
-    int timeout = 1000000000; // in cycles, change according to your needs
+    int timeout = 10000000; // in cycles, change according to your needs
 
     // Explicit dual port connections when caches are not integrated into design yet (Before CP3)
     // mem_itf mem_itf_i(.*);
