@@ -15,6 +15,7 @@ export PYTHONPATH=$(OPENRAM_HOME)
 all: $(OBJECTS)
 
 %:
+	python3 $(PWD)/test_sram_sus.py $(PWD)/config/$@.py
 	source $(CONDA_HOME)/bin/activate ;\
 	python3 $(OPENRAM_HOME)/../sram_compiler.py $(PWD)/config/$@.py
 	sed -i -E 's/falling_edge/rising_edge/g' $(PWD)/output/$(basename $@)/$(basename $@)_TT_1p0V_25C.lib
