@@ -10,12 +10,14 @@ import cache_types::*;
     input state_t state,
     input logic [CACHE_LINE_SIZE-1:0] mem_line_to_wb,
     input logic [TAG_SIZE-2:0] tag_to_evict,
+    input logic in_service,
 
     output logic [CACHE_LINE_SIZE-1:0] mem_line_wb,
     output logic [TAG_SIZE-2:0] tag_eviction,
     output logic mem_write
 );
 
+logic service_counter;
 logic mem_resp_reg;
 logic pulse_write;
 
@@ -24,17 +26,23 @@ always_ff @(posedge clk) begin
         mem_resp_reg <= 1'b0;
         tag_eviction <= 23'b0;
         pulse_write <= 1'b0;
+        service_counter <= 1'b0;
     end
     else begin
         pulse_write <= active_wb;
         mem_resp_reg <= mem_resp;
         if(state == compare_tag_s)
             tag_eviction <= tag_to_evict;
+
+        if(active_wb && in_service && service_counter < 1'b1)
+            service_counter <= service_counter + 1'b1;
+        else if(~active_wb)
+            service_counter <= 1'b0;
     end
 end
 
 always_comb begin
-    if(active_wb && !mem_resp_reg) begin
+    if(active_wb && !mem_resp_reg && service_counter == 1'b0) begin
         mem_line_wb = mem_line_to_wb;
         if(~pulse_write)
             mem_write = 1'b1;

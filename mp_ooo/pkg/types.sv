@@ -255,6 +255,20 @@ package rv32i_types;
         latch_store_s
     } ld_st_controller_t;
 
+    typedef struct packed {
+        logic valid;
+        logic is_for_data_cache;
+        logic prefetch;
+        logic [31:0] addr;
+    } address_entry_t;
+
+    typedef enum logic [1:0] {
+        inst_t,
+        second_inst_t,
+        data_t,
+        second_data_t
+    } servicing_t;
+
 endpackage
 
 package cache_types;

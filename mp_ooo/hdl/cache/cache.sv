@@ -24,7 +24,11 @@ import cache_types::*;
     output  logic           dfp_write,
     input   logic   [255:0] dfp_rdata,
     output  logic   [255:0] dfp_wdata,
-    input   logic           dfp_resp
+    input   logic           dfp_resp,
+    input logic in_service,
+    input logic [255:0] prefetch_rdata,
+    input logic prefetch_rvalid,
+    output logic prefetch
 );
 
     // 3-bit PLRU per set
@@ -45,6 +49,7 @@ import cache_types::*;
     logic [CACHE_LINE_SIZE-1:0] set_ways_lines [WAYS];
     // Memory signals
     logic mem_resp;
+    logic [31:0] allocate_addr;
     // Aliases
     logic [3:0] index;
     logic [TAG_SIZE-2:0] target_tag;
@@ -64,7 +69,7 @@ import cache_types::*;
             data_mask = 'x;
 
         if(state == allocate_s)
-            dfp_addr = { ufp_addr[31:5], 5'b0 }; // 32-byte aligned
+            dfp_addr = allocate_addr;
         else if(state == writeback_s)
             dfp_addr = { tag_eviction, index, 5'b0 };
         else

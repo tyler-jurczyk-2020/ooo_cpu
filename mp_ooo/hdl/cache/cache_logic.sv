@@ -19,6 +19,11 @@ import cache_types::*;
     input logic [3:0] wmask,
     input logic [2:0] plru_bits,
     input logic [4:0] offset,
+    input logic [31:0] ufp_addr,
+    // Indicates the current cache is being serviced
+    input logic in_service,
+    input logic [255:0] prefetch_rdata,
+    input logic prefetch_rvalid,
 
     // PLRU drivers
     output logic [2:0] set_plru_bits,
@@ -28,6 +33,9 @@ import cache_types::*;
     //Memory signals
     output logic mem_read, mem_write,
     output logic [CACHE_LINE_SIZE-1:0] mem_line_wb,
+    output logic [31:0] allocate_addr,
+    output logic prefetch,
+
     //Cache signals
     output logic set_ways_valid [WAYS], set_ways_valid_we [WAYS], set_ways_data_we [WAYS], set_ways_tags_we [WAYS],
     output logic [CACHE_LINE_SIZE-1:0] set_ways_lines [WAYS],
