@@ -8,7 +8,7 @@ HDL_SRCS  := $(shell find $(PWD)/../hdl -name '*.sv')
 HVL_SRCS  := $(shell find $(PWD)/../hvl -name '*.sv' -o -name '*.v')
 SRAM_SRCS := $(shell find $(PWD)/../sram/output -name '*.v')
 HDRS      := $(shell find $(PWD)/../hvl -name '*.svh')
-DW_IP     :=
+DW_IP     := 
 SRCS      := $(PKG_SRCS) $(HDL_SRCS) $(HVL_SRCS) $(SRAM_SRCS) $(DW_IP)
 
 export VCS_ARCH_OVERRIDE=linux
