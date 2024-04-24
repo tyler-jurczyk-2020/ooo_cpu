@@ -22,7 +22,7 @@ module dadda_multiplier
     localparam int OP_WIDTH_LOG = $clog2(OPERAND_WIDTH);
     logic neg_result;
     logic [OPERAND_WIDTH-1:0] product_terms [OPERAND_WIDTH-1:0];
-    
+    logic [3:0] reduce_level;
     logic [2*OPERAND_WIDTH-1:0] accumulator;
     logic [2*OPERAND_WIDTH-1:0] next_terms[OPERAND_WIDTH/2-1:0]; // Half the rows
         
@@ -65,9 +65,9 @@ module dadda_multiplier
             curr_state <= IDLE;
             accumulator <= '0;
             neg_result <= '0;
+            reduce_level <= '0;
             for (int i = 0; i < OPERAND_WIDTH; i++)
                 product_terms[i] <= '0;
-            
         end
         else begin
             curr_state <= next_state;
@@ -86,22 +86,52 @@ module dadda_multiplier
                 // products already generated 
                 GENERATE_PP: ;
                 
+
                 // tree reduction stage
                 REDUCE:
                 begin
-                    // reducing from 32 rows to 16, then to 8 rows
-                    
-                    for (int i = 0; i < OPERAND_WIDTH/2; i++) 
-                        next_terms[i] = product_terms[2*i] + product_terms[2*i+1]; // Sum pairs of rows
-                    
-                    for (int i = 0; i < OPERAND_WIDTH/2; i++) begin
-                        product_terms[i] = next_terms[i]; // Write back reduced rows
+                    // 32 to 16 rows
+                    if (reduce_level == 0) begin
+                        for (int i = 0; i < 16; i++) begin
+                            next_terms[i] = product_terms[2*i] + product_terms[2*i+1];
+                        end
+                        reduce_level++;
                     end
-                    // Zero out the unused terms
-                    for (int i = OPERAND_WIDTH/2; i < OPERAND_WIDTH; i++) begin
-                        product_terms[i] = '0;
+                    // 16 to 8 rows
+                    else if (reduce_level == 1) begin
+                        for (int i = 0; i < 8; i++) begin
+                            next_terms[i] = product_terms[2*i] + product_terms[2*i+1];
+                        end
+                        reduce_level++;
+                    end
+                    // 8 to 4 rows
+                    else if (reduce_level == 2) begin
+                        for (int i = 0; i < 4; i++) begin
+                            next_terms[i] = product_terms[2*i] + product_terms[2*i+1];
+                        end
+                        reduce_level++;
+                    end
+                    // 4 to 2 rows
+                    else if (reduce_level == 3) begin
+                        next_terms[0] = product_terms[0] + product_terms[1];
+                        next_terms[1] = product_terms[2] + product_terms[3];
+                        reduce_level++;
+                    end
+
+                    // writeback for whatever level
+                    for (int i = 0; i < OPERAND_WIDTH; i++) begin
+                        if (i < (1 << (4 - reduce_level))) 
+                            product_terms[i] = next_terms[i];
+                        else
+                            product_terms[i] = '0; 
+                    end
+
+                    // check if the tree reduct is done
+                    if (reduce_level == 4) begin
+                        next_state = FINAL_ADD;
                     end
                 end
+            
 
                 FINAL_ADD:
                 begin
@@ -111,8 +141,10 @@ module dadda_multiplier
                         accumulator <= accumulator + product_terms[j];
                     end
                 end
+                
                 DONE: ;
                 default: ;
+
             endcase
         end
     end
