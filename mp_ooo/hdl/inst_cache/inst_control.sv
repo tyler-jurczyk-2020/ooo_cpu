@@ -1,7 +1,8 @@
-module control
+module inst_control
 import cache_types::*;
 (
     input logic clk, rst, valid_cpu_rqst, valid_hit, dirty, mem_resp, write,
+    input [4:0] offset,
     
     output state_t state
 );
@@ -34,7 +35,12 @@ always_comb begin
     end
     else if(state == compare_tag_s) begin
         unique case(valid_hit)
-            1'b1: next_state = idle_s;
+            1'b1: begin
+                if(offset == 5'b0)
+                    next_state = prefetch_s;
+                else
+                    next_state = idle_s;
+            end
             1'b0: begin 
                 if(dirty)
                     next_state = writeback_s;
@@ -59,4 +65,4 @@ always_comb begin
         next_state = state;
 end
 
-endmodule : control
+endmodule : inst_control

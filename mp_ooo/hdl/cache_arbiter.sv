@@ -54,16 +54,16 @@ logic data_request;
 // Mux select dfp_resp on data cache
 logic dmem_resp_from_bmem;
 logic [31:0] dmem_writeback_addr;
-logic inst_prefetch, data_prefetch;
-logic [255:0] instr_bmem_prefetch_rdata, data_bmem_prefetch_rdata;
-logic instr_bmem_prefetch_rvalid, data_bmem_prefetch_rvalid;
+logic inst_prefetch;
+logic [255:0] instr_bmem_prefetch_rdata;
+logic instr_bmem_prefetch_rvalid;
 
 servicing_t service_state, next_service_state;
 logic in_service_instr, in_service_data;
 assign in_service_instr = service_state == inst_t;
 assign in_service_data = service_state == data_t || service_state == inst_t && data_request && ~inst_request;
 
-cache #(.READ_SIZE(32*SS), .OFFSET(3)) inst_cache
+inst_cache #(.READ_SIZE(32*SS), .OFFSET(3)) inst_cache
 (
     .clk(clk),
     .rst(rst),
@@ -104,11 +104,8 @@ cache data_cache
     .dfp_write(data_bmem_write),
     .dfp_rdata(data_bmem_rdata),
     .dfp_wdata(data_bmem_wdata),
-    .dfp_resp(dmem_resp_from_bmem),
-    .prefetch(data_prefetch),
-    .in_service(in_service_data),
-    .prefetch_rdata(data_bmem_prefetch_rdata),
-    .prefetch_rvalid(data_bmem_prefetch_rvalid)
+    .dfp_resp(dmem_resp_from_bmem)
+    // .in_service(in_service_data), // Need to add this back
 );
 
 logic [63:0] read_dword_buffer [3], write_dword_buffer [3]; // No need to buffer fourth entry since we can forward it immediately
@@ -205,7 +202,7 @@ always_ff @(posedge clk) begin
                 else if(service_state == data_t)
                     address_table[i].valid <= 1'b1;
                     address_table[i].is_for_data_cache <= 1'b1;
-                    address_table[i].prefetch <= data_prefetch;
+                    address_table[i].prefetch <= 1'b0;
                     address_table[i].addr <= data_bmem_addr;
                 break;
             end
@@ -231,8 +228,6 @@ end
 always_comb begin
     data_bmem_rdata = 'x;
     data_bmem_rvalid = 1'b0;
-    data_bmem_prefetch_rdata = 'x;
-    data_bmem_prefetch_rvalid = 1'b0;
     instr_bmem_rdata = 'x;
     instr_bmem_rvalid = 1'b0;
     instr_bmem_prefetch_rdata = 'x;
@@ -244,10 +239,6 @@ always_comb begin
             if(address_table[i].is_for_data_cache && ~address_table[i].prefetch) begin
                 data_bmem_rdata = {bmem_itf_rdata, read_dword_buffer[2], read_dword_buffer[1], read_dword_buffer[0]};
                 data_bmem_rvalid = 1'b1;
-            end
-            else if(address_table[i].is_for_data_cache && address_table[i].prefetch) begin
-                data_bmem_prefetch_rdata = {bmem_itf_rdata, read_dword_buffer[2], read_dword_buffer[1], read_dword_buffer[0]};
-                data_bmem_prefetch_rvalid = 1'b1;
             end
             // Goes to instruction cache
             else if(~address_table[i].is_for_data_cache && ~address_table[i].prefetch) begin
