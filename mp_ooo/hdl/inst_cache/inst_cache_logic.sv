@@ -21,7 +21,7 @@ import cache_types::*;
     input logic [4:0] offset,
     input logic [31:0] ufp_addr,
     // Indicates the current cache is being serviced
-    input logic in_service,
+    input logic ack,
     input logic [255:0] prefetch_rdata,
     input logic prefetch_rvalid,
 

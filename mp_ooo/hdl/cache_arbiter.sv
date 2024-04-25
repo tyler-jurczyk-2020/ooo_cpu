@@ -59,9 +59,7 @@ logic [255:0] instr_bmem_prefetch_rdata;
 logic instr_bmem_prefetch_rvalid;
 
 servicing_t service_state, next_service_state;
-logic in_service_instr, in_service_data;
-assign in_service_instr = service_state == inst_t;
-assign in_service_data = service_state == data_t || service_state == inst_t && data_request && ~inst_request;
+logic ack_instr, ack_data;
 
 inst_cache #(.READ_SIZE(32*SS), .OFFSET(3)) inst_cache
 (
@@ -82,7 +80,7 @@ inst_cache #(.READ_SIZE(32*SS), .OFFSET(3)) inst_cache
     .dfp_wdata(instr_bmem_wdata),
     .dfp_resp(instr_bmem_rvalid),
     .prefetch(inst_prefetch),
-    .in_service(in_service_instr),
+    .ack(ack_instr),
     .prefetch_rdata(instr_bmem_prefetch_rdata),
     .prefetch_rvalid(instr_bmem_prefetch_rvalid)
 );
@@ -199,11 +197,12 @@ always_ff @(posedge clk) begin
                    address_table[i].prefetch <= inst_prefetch;
                    address_table[i].addr <= instr_bmem_addr;
                 end
-                else if(service_state == data_t)
+                else if(service_state == data_t) begin
                     address_table[i].valid <= 1'b1;
                     address_table[i].is_for_data_cache <= 1'b1;
                     address_table[i].prefetch <= 1'b0;
                     address_table[i].addr <= data_bmem_addr;
+                end
                 break;
             end
         end
@@ -260,11 +259,13 @@ always_comb begin
     bmem_itf_addr = 'x;
     bmem_itf_read = 1'b0;
     bmem_itf_write = 1'b0;
+    ack_instr = 1'b0;
     if(service_state == inst_t && bmem_itf_ready) begin
         bmem_itf_wdata = 'x;
         bmem_itf_addr = instr_bmem_addr;
-        bmem_itf_read = 1'b1;
+        bmem_itf_read = instr_bmem_read;
         bmem_itf_write = '0;
+        ack_instr = 1'b1;
     end
     // Otherwise service data request
     else if(service_state == data_t && bmem_itf_ready) begin

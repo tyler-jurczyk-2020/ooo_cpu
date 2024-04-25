@@ -25,7 +25,7 @@ import cache_types::*;
     input   logic   [255:0] dfp_rdata,
     output  logic   [255:0] dfp_wdata,
     input   logic           dfp_resp,
-    input logic in_service,
+    input logic ack,
     input logic [255:0] prefetch_rdata,
     input logic prefetch_rvalid,
     output logic prefetch
