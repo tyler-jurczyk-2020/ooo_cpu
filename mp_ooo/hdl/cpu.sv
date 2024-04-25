@@ -1,7 +1,7 @@
 module cpu
 import rv32i_types::*;
 #(
-    parameter SS = 2,
+    parameter SS = 1,
     parameter PR_ENTRIES = 64,
     parameter reservation_table_size = 4,
     parameter DEPTH = 4,
