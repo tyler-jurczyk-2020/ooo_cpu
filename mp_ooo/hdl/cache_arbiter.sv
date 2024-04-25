@@ -127,17 +127,13 @@ assign data_request = data_bmem_read || data_bmem_write;
 
 // Next service state logic
 always_comb begin
-    if(inst_request && service_state == inst_t)
-        next_service_state = second_inst_t;
-    else if(data_request && service_state == data_t)
-        next_service_state = second_data_t;
+    if(inst_request && data_request)
+        next_service_state = data_t;
     else if(inst_request)
         next_service_state = inst_t;
-    else if(data_request)
-        next_service_state = data_t;
     else
         next_service_state = service_state;
-end
+    end
 
 always_ff @(posedge clk) begin
     if(rst) begin

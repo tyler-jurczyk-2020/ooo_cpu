@@ -33,7 +33,7 @@ import cache_types::*;
     //Memory signals
     output logic mem_read, mem_write,
     output logic [CACHE_LINE_SIZE-1:0] mem_line_wb,
-    output logic [31:0] allocate_addr,
+    output logic [31:0] prefetch_addr,
     output logic prefetch,
 
     //Cache signals
@@ -78,13 +78,46 @@ always_comb begin
     else begin
         cpu_data = 'x; 
         cpu_resp = 1'b0;
-        update_plru = 1'b0;
+        if(state == idle_s && prefetch_rvalid)
+            update_plru = 1'b1;
+        else
+            update_plru = 1'b0;
     end
 end
 
 // Cache memory drivers
 always_comb begin
     // Compare tag signals
+    if(state == idle_s) begin
+        if(prefetch_rvalid) begin
+            for(int i = 0; i < WAYS; i++) begin
+                if(i == signed'(set_way)) begin
+                    set_ways_tags[i] = {1'b0, set_tag};
+                    set_ways_tags_we[i] = 1'b0; // Low Active
+                    // Update to valid so when we get back to this state we get
+                    // cache hit
+                    set_ways_valid[i] = 1'b1;
+                    set_ways_valid_we[i] = 1'b0;
+                    set_ways_lines[i] = prefetch_rdata;
+                    set_ways_data_we[i] = 1'b0;
+                end
+                else begin
+                    set_ways_lines[i] = 'x;
+                    set_ways_data_we[i] = 1'b1;
+                    set_ways_tags[i] = 'x;
+                    set_ways_tags_we[i] = 1'b1;
+                    set_ways_valid[i] = 'x;
+                    set_ways_valid_we[i] = 1'b1;
+                end
+            end
+        end
+        else begin
+            set_ways_tags[i] = 'x;
+            set_ways_tags_we[i] = 1'b1;
+            set_ways_valid[i] = 'x;
+            set_ways_valid_we[i] = 1'b1;
+        end
+    end
     if(state == compare_tag_s) begin
         for(int i = 0; i < WAYS; i++) begin
             if(i == signed'(set_way) && !valid_hit) begin
@@ -159,6 +192,16 @@ always_comb begin
     else begin
         active_wb = 1'b0;
         mem_line_to_wb = 'x;
+    end
+
+    // Prefetch signals
+    if(state == prefetch_s) begin
+        prefetch_addr = ufp_addr + 6'h20; 
+        prefetch = 1'b1;
+    end
+    else begin
+        prefetch_addr = 'x;
+        prefetch = 1'b0;
     end
 end
 
