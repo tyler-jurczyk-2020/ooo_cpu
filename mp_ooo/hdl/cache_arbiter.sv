@@ -49,6 +49,8 @@ logic   [255:0]      data_bmem_wdata;
 logic   [255:0]      data_bmem_rdata;
 logic               data_bmem_rvalid;
 
+logic inst_request;
+logic data_request;
 // Mux select dfp_resp on data cache
 logic dmem_resp_from_bmem;
 logic [31:0] dmem_writeback_addr;
@@ -58,8 +60,8 @@ logic instr_bmem_prefetch_rvalid, data_bmem_prefetch_rvalid;
 
 servicing_t service_state, next_service_state;
 logic in_service_instr, in_service_data;
-assign in_service_instr = service_state == inst_t || service_state == second_inst_t;
-assign in_service_data = service_state == data_t || service_state == second_data_t;
+assign in_service_instr = service_state == inst_t;
+assign in_service_data = service_state == data_t || service_state == inst_t && data_request && ~inst_request;
 
 cache #(.READ_SIZE(32*SS), .OFFSET(3)) inst_cache
 (
@@ -112,8 +114,6 @@ cache data_cache
 logic [63:0] read_dword_buffer [3], write_dword_buffer [3]; // No need to buffer fourth entry since we can forward it immediately
 logic [2:0] read_counter, write_counter;
 logic is_writing;
-logic inst_request;
-logic data_request;
 logic latch_data_bmem;
 logic   [31:0]      data_bmem_addr_reg;
 logic               data_bmem_read_reg;

@@ -264,19 +264,18 @@ package rv32i_types;
 
     typedef enum logic [1:0] {
         inst_t,
-        second_inst_t,
-        data_t,
-        second_data_t
+        data_t
     } servicing_t;
 
 endpackage
 
 package cache_types;
-    typedef enum bit [1:0] {
+    typedef enum bit [2:0] {
         idle_s,
         compare_tag_s,
         allocate_s,
-        writeback_s
+        writeback_s,
+        prefetch_s
     } state_t;
 
     typedef enum bit [2:0] {

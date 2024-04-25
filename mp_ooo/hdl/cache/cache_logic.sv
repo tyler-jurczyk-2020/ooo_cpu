@@ -89,8 +89,8 @@ end
 always_comb begin
     // Compare tag signals
     if(state == idle_s) begin
-        if(prefetch_rvalid) begin
-            for(int i = 0; i < WAYS; i++) begin
+        for(int i = 0; i < WAYS; i++) begin
+            if(prefetch_rvalid) begin
                 if(i == signed'(set_way)) begin
                     set_ways_tags[i] = {1'b0, set_tag};
                     set_ways_tags_we[i] = 1'b0; // Low Active
@@ -110,12 +110,12 @@ always_comb begin
                     set_ways_valid_we[i] = 1'b1;
                 end
             end
-        end
-        else begin
-            set_ways_tags[i] = 'x;
-            set_ways_tags_we[i] = 1'b1;
-            set_ways_valid[i] = 'x;
-            set_ways_valid_we[i] = 1'b1;
+            else begin
+                set_ways_tags[i] = 'x;
+                set_ways_tags_we[i] = 1'b1;
+                set_ways_valid[i] = 'x;
+                set_ways_valid_we[i] = 1'b1;
+            end
         end
     end
     if(state == compare_tag_s) begin

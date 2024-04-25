@@ -35,6 +35,7 @@ import cache_types::*;
     logic [2:0] plru_bits;
     logic [2:0] set_plru_bits;
     logic plru_we;
+    logic [4:0] offset;
     // Control unit inputs
     logic dirty, valid_hit, valid_cpu_rqst;
     // Control unit outputs
@@ -49,7 +50,7 @@ import cache_types::*;
     logic [CACHE_LINE_SIZE-1:0] set_ways_lines [WAYS];
     // Memory signals
     logic mem_resp;
-    logic [31:0] allocate_addr;
+    logic [31:0] prefetch_addr;
     // Aliases
     logic [3:0] index;
     logic [TAG_SIZE-2:0] target_tag;
@@ -58,6 +59,7 @@ import cache_types::*;
 
     assign index = ufp_addr[8:5];
     assign target_tag = ufp_addr[31:9];
+    assign offset = ufp_addr[4:0];
 
     // Address/mask computations
     always_comb begin
@@ -69,7 +71,7 @@ import cache_types::*;
             data_mask = 'x;
 
         if(state == allocate_s)
-            dfp_addr = allocate_addr;
+            dfp_addr = { ufp_addr[31:5], 5'b0};
         else if(state == writeback_s)
             dfp_addr = { tag_eviction, index, 5'b0 };
         else
