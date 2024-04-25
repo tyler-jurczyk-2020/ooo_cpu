@@ -1,5 +1,5 @@
 {
-    "clock"       : 5000,
+    "clock"       : 3000,
     "m_ext"       : true,
     "c_ext"       : false,
     "f_ext"       : false,
