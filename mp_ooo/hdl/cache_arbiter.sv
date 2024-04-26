@@ -118,9 +118,14 @@ logic   [31:0]      data_bmem_addr_reg;
 logic               data_bmem_read_reg;
 logic               data_bmem_write_reg;
 logic simultaneous_requests;
+logic serve_inst_cache;
+logic serve_data_cache;
+
+assign serve_inst_cache = service_state == inst_t && inst_request;
+assign serve_data_cache = (service_state == data_t || (service_state == inst_t && ~inst_request)) && data_request;
 
 assign simultaneous_requests = inst_request && data_request;
-assign inst_request = instr_bmem_read;
+assign inst_request = instr_bmem_read || inst_prefetch;
 assign data_request = data_bmem_read || data_bmem_write;
 
 
@@ -195,7 +200,7 @@ always_ff @(posedge clk) begin
     else begin
         for(int i = 0; i < 16; i++) begin
             if(~address_table[i].valid && bmem_itf_read) begin
-                if(service_state == inst_t) begin
+                if(serve_inst_cache) begin
                    address_table[i].valid <= 1'b1;
                    address_table[i].is_for_data_cache <= 1'b0;
                    address_table[i].prefetch <= inst_prefetch;
@@ -204,7 +209,7 @@ always_ff @(posedge clk) begin
                    else
                        address_table[i].addr <= instr_bmem_addr;
                 end
-                else if(service_state == data_t) begin
+                else if(serve_data_cache) begin
                     address_table[i].valid <= 1'b1;
                     address_table[i].is_for_data_cache <= 1'b1;
                     address_table[i].prefetch <= 1'b0;
@@ -268,8 +273,7 @@ always_comb begin
     bmem_itf_addr = 'x;
     bmem_itf_read = 1'b0;
     bmem_itf_write = 1'b0;
-    ack_instr = 1'b0;
-    if(service_state == inst_t && bmem_itf_ready) begin
+    if(serve_inst_cache && bmem_itf_ready) begin
         if(inst_prefetch) begin
             bmem_itf_addr = instr_bmem_prefetch_addr;
             bmem_itf_read = inst_prefetch;
@@ -278,10 +282,9 @@ always_comb begin
             bmem_itf_addr = instr_bmem_addr;
             bmem_itf_read = instr_bmem_read;
         end
-        ack_instr = 1'b1;
     end
     // Otherwise service data request
-    else if(service_state == data_t && bmem_itf_ready) begin
+    else if(serve_data_cache && bmem_itf_ready) begin
         if(is_writing)
             bmem_itf_addr = dmem_writeback_addr;
         else
@@ -298,6 +301,13 @@ always_comb begin
             bmem_itf_write = 1'b1;
         end
     end
+end
+
+// Acknowledge the correct cache
+always_comb begin
+    ack_instr = 1'b0;
+    if(service_state == inst_t)
+        ack_instr = 1'b1;
 end
 
 endmodule : cache_arbiter
