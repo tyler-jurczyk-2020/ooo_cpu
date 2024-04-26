@@ -106,7 +106,8 @@ cache data_cache
     .dfp_write(data_bmem_write),
     .dfp_rdata(data_bmem_rdata),
     .dfp_wdata(data_bmem_wdata),
-    .dfp_resp(dmem_resp_from_bmem)
+    .dfp_resp(dmem_resp_from_bmem),
+    .ack(ack_data)
     // .in_service(in_service_data), // Need to add this back
 );
 
@@ -121,8 +122,8 @@ logic simultaneous_requests;
 logic serve_inst_cache;
 logic serve_data_cache;
 
-assign serve_inst_cache = service_state == inst_t && inst_request;
-assign serve_data_cache = (service_state == data_t || (service_state == inst_t && ~inst_request)) && data_request;
+assign serve_inst_cache = service_state == inst_t && inst_request && ~is_writing;
+assign serve_data_cache = (service_state == data_t || ~serve_inst_cache) && (data_request || is_writing);
 
 assign simultaneous_requests = inst_request && data_request;
 assign inst_request = instr_bmem_read || inst_prefetch;
@@ -164,7 +165,7 @@ always_ff @(posedge clk)begin
             read_counter <= '0;
         end
 
-        if(service_state == data_t && data_bmem_write) begin
+        if(serve_data_cache && data_bmem_write) begin
             is_writing <= 1'b1;
             dmem_writeback_addr <= data_bmem_addr;
             write_counter <= write_counter + 1'd1;
@@ -306,8 +307,11 @@ end
 // Acknowledge the correct cache
 always_comb begin
     ack_instr = 1'b0;
-    if(service_state == inst_t)
+    ack_data = 1'b0;
+    if(service_state == inst_t && ~is_writing)
         ack_instr = 1'b1;
+    if(service_state == data_t || service_state == inst_t && ~inst_request)
+        ack_data = 1'b1;
 end
 
 endmodule : cache_arbiter

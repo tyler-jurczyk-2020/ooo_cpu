@@ -38,7 +38,9 @@ import cache_types::*;
     output logic cpu_resp,
     // Drive address computation
     output logic [31:0] set_way,
-    output logic [TAG_SIZE-2:0] tag_eviction
+    output logic [TAG_SIZE-2:0] tag_eviction,
+    // Acknowledge signals
+    input logic ack
 );
 
 logic set_cache_we, active, active_wb, update_plru;
