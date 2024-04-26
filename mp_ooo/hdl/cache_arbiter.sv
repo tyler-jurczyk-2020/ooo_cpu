@@ -58,6 +58,7 @@ logic inst_prefetch;
 logic [255:0] instr_bmem_prefetch_rdata;
 logic instr_bmem_prefetch_rvalid;
 logic [31:0] instr_bmem_prefetch_addr;
+logic [31:0] instr_bmem_prefetch_raddr;
 
 servicing_t service_state, next_service_state;
 logic ack_instr, ack_data;
@@ -84,6 +85,7 @@ inst_cache #(.READ_SIZE(32*SS), .OFFSET(3)) inst_cache
     .ack(ack_instr),
     .prefetch_addr(instr_bmem_prefetch_addr),
     .prefetch_rdata(instr_bmem_prefetch_rdata),
+    .prefetch_raddr(instr_bmem_prefetch_raddr),
     .prefetch_rvalid(instr_bmem_prefetch_rvalid)
 );
 
@@ -236,6 +238,7 @@ always_comb begin
     instr_bmem_rvalid = 1'b0;
     instr_bmem_prefetch_rdata = 'x;
     instr_bmem_prefetch_rvalid = 1'b0;
+    instr_bmem_prefetch_raddr = 'x;
     for(int i = 0; i < 16; i++) begin
         if(address_table[i].valid && address_table[i].addr == bmem_itf_raddr
            && read_counter == 3'h3) begin
@@ -252,6 +255,7 @@ always_comb begin
             else if(~address_table[i].is_for_data_cache && address_table[i].prefetch) begin
                 instr_bmem_prefetch_rdata = {bmem_itf_rdata, read_dword_buffer[2], read_dword_buffer[1], read_dword_buffer[0]};
                 instr_bmem_prefetch_rvalid = 1'b1;
+                instr_bmem_prefetch_raddr = bmem_itf_raddr;
             end
             break;
         end

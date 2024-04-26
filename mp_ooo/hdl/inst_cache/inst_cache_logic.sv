@@ -24,6 +24,7 @@ import cache_types::*;
     input logic ack,
     input logic [255:0] prefetch_rdata,
     input logic prefetch_rvalid,
+    input logic [31:0] prefetch_raddr,
 
     // PLRU drivers
     output logic [2:0] set_plru_bits,
@@ -48,7 +49,8 @@ import cache_types::*;
     output logic [31:0] set_way,
     output logic [TAG_SIZE-2:0] tag_eviction,
     // Prefetch
-    input logic active_prefetch
+    input logic active_prefetch,
+    output logic [3:0] index
 );
 
 logic set_cache_we, active, active_wb, update_plru;
@@ -171,7 +173,7 @@ always_comb begin
 
     // Prefetch signals
     if(state == prefetch_s || (state == allocate_s && allocate_prefetch)) begin
-        prefetch_addr = ufp_addr + 6'h20; 
+        prefetch_addr = {ufp_addr[31:5], 5'b0} + 6'h20; 
         prefetch = 1'b1;
     end
     else begin

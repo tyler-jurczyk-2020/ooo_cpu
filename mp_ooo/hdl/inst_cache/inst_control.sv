@@ -51,8 +51,8 @@ always_ff @(posedge clk) begin
 end
 
 always_comb begin
-    if(state == idle_s && valid_cpu_rqst) begin
-       next_state = compare_tag_s; 
+    if(state == idle_s && valid_cpu_rqst && ~prefetch_rvalid) begin
+        next_state = compare_tag_s; 
     end
     else if(state == compare_tag_s) begin
         unique case(valid_hit)

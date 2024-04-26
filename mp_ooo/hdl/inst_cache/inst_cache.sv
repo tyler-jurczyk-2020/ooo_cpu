@@ -29,7 +29,8 @@ import cache_types::*;
     output logic [31:0] prefetch_addr,
     input logic [255:0] prefetch_rdata,
     input logic prefetch_rvalid,
-    output logic prefetch
+    output logic prefetch,
+    input logic [31:0] prefetch_raddr
 );
     // Prefetch
     logic active_prefetch;
@@ -54,12 +55,11 @@ import cache_types::*;
     // Memory signals
     logic mem_resp;
     // Aliases
-    logic [3:0] index;
     logic [TAG_SIZE-2:0] target_tag;
     logic [31:0] data_mask, wb_mask, set_way;
     logic [TAG_SIZE-2:0] tag_eviction;
+    logic [3:0] index;
 
-    assign index = ufp_addr[8:5];
     assign target_tag = ufp_addr[31:9];
     assign offset = ufp_addr[4:0];
 
@@ -67,7 +67,7 @@ import cache_types::*;
     always_comb begin
         if(state == compare_tag_s)
             data_mask = wb_mask;
-        else if(state == allocate_s)
+        else if(state == allocate_s || (state == idle_s && prefetch_rvalid))
             data_mask = 32'hffffffff;
         else
             data_mask = 'x;
