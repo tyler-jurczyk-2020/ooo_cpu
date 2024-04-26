@@ -72,6 +72,7 @@ fetch_output_reg_t if_id_reg, if_id_reg_next;
 instruction_info_reg_t decoded_inst [SS];
 
 super_dispatch_t rob_entries_to_commit1[SS]; 
+super_dispatch_t rob_entries_to_commit [SS];
 
 logic valid_request; 
 
@@ -172,7 +173,7 @@ instruction_info_reg_t view_inst_tail [1];
 logic [$clog2(ROB_DEPTH)-1:0] inst_tail;
 logic [$clog2(ROB_DEPTH)-1:0] sel_out_inst [1];
 assign sel_out_inst[0] = inst_tail;
-logic valid_inst_exception; 
+// logic valid_inst_exception; 
 
 // Check if next inst has rd
 logic next_inst_has_rd;
@@ -192,7 +193,7 @@ circular_queue #(.SS(SS), .IN_WIDTH(SS), .SEL_IN(SS), .SEL_OUT(1), .DEPTH(ROB_DE
                  );
                 // planning on passing dummy shit or 0 into reg_select shit
 
-super_dispatch_t rob_entries_to_commit [SS];
+
 ///////////////////// INSTRUCTION FETCH (SIMILAR TO MP2) /////////////////////
 fetch_stage #(.SS(SS)) fetch_stage_i (
     .clk(clk),
@@ -205,8 +206,7 @@ fetch_stage #(.SS(SS)) fetch_stage_i (
     .imem_addr(imem_addr), 
     .decoded_inst(decoded_inst), 
     .valid_request(valid_request), 
-    .rob_entries_to_commit1(rob_entries_to_commit1), 
-    .valid_inst_exception(valid_inst_exception)
+    .rob_entries_to_commit1(rob_entries_to_commit1)
 );
 
 

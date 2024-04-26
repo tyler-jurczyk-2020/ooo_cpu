@@ -15,8 +15,8 @@ module fetch_stage
         output logic imem_rmask,
         output logic [31:0] imem_addr, 
         input logic valid_request, 
-        input super_dispatch_t rob_entries_to_commit1[SS], 
-        output logic valid_inst_exception
+        input super_dispatch_t rob_entries_to_commit1[SS]
+        // output logic valid_inst_exception
     );
 
     assign imem_rmask = 1'b1;
@@ -34,31 +34,34 @@ module fetch_stage
     always_ff @ (posedge clk) begin
         if(rst) begin
             pc_reg[0] <= 32'h60000000;
-            valid_inst_exception <= '0; 
+            // valid_inst_exception <= '0; 
             // pc_reg[1] <= 32'h60000004;
         end
         // If we are not stalling and instruction memory is ready for a new instruction
         else if((~stall_inst && imem_resp)) begin
             for(int i = 0; i < SS; i++) begin
-                valid_inst_exception <= '0; 
+                // valid_inst_exception <= '0; 
                 // Check last instruction committed to see whether we are to branch
                 // valid_request is just a signal to see if a flush occured during an instruction request
-                if(valid_request && rob_entries_to_commit[i].inst.is_branch && rob_entries_to_commit[i].rob.commit) begin
-                    pc_reg[0] <= rob_entries_to_commit[i].rvfi.pc_wdata; 
+                if(valid_request && rob_entries_to_commit[i].inst.is_branch && rob_entries_to_commit[i].rob.commit && (pc_reg[0] != rob_entries_to_commit[i].rvfi.pc_wdata)) begin
+                        pc_reg[0] <= rob_entries_to_commit[i].rvfi.pc_wdata; 
+                        break;
                     // pc_reg[1] <= rob_entries_to_commit[i].rvfi.pc_wdata + 32'd4; 
-                    break;
+                    // break;
                 end
-                else if(~valid_request && rob_entries_to_commit1[i].inst.is_branch && rob_entries_to_commit1[i].rob.commit) begin
-                    pc_reg[0] <= rob_entries_to_commit1[i].rvfi.pc_wdata; 
-                    valid_inst_exception <= '1; 
+                else if(~valid_request && rob_entries_to_commit1[i].inst.is_branch && rob_entries_to_commit1[i].rob.commit && (pc_reg[0] != rob_entries_to_commit1[i].rvfi.pc_wdata)) begin
+                        pc_reg[0] <= rob_entries_to_commit1[i].rvfi.pc_wdata; 
+                        break; 
+                    // valid_inst_exception <= '1; 
                     // pc_reg[1] <= rob_entries_to_commit1[i].rvfi.pc_wdata + 32'd4; 
-                    break;
+                    // break;
                 end
                 // Check the decoded instructions to check for a JAL
-                else if(decoded_inst[i].is_jump || (decoded_inst[i].is_branch && decoded_inst[i].predict_branch)) begin
-                    pc_reg[0] <= decoded_inst[i].pc_next; 
+                else if((decoded_inst[i].is_jump || (decoded_inst[i].is_branch && decoded_inst[i].predict_branch)) && (pc_reg[0] != decoded_inst[i].pc_next)) begin
+                        pc_reg[0] <= decoded_inst[i].pc_next;  
+                        break; 
                     // pc_reg[1] <= decoded_inst[i].pc_next + 32'd4; 
-                    break;
+                    // break;
                 end
                 // Else just increment by two
                 else begin
