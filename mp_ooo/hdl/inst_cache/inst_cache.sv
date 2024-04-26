@@ -1,4 +1,4 @@
-module cache 
+module inst_cache 
 import cache_types::*;
 #(
     parameter               WAYS       = 4,
@@ -25,13 +25,22 @@ import cache_types::*;
     input   logic   [255:0] dfp_rdata,
     output  logic   [255:0] dfp_wdata,
     input   logic           dfp_resp,
-    input   logic           ack
+    input logic ack,
+    output logic [31:0] prefetch_addr,
+    input logic [255:0] prefetch_rdata,
+    input logic prefetch_rvalid,
+    output logic prefetch,
+    input logic [31:0] prefetch_raddr,
+    output logic flush_prefetch
 );
+    // Prefetch
+    logic active_prefetch;
 
     // 3-bit PLRU per set
     logic [2:0] plru_bits;
     logic [2:0] set_plru_bits;
     logic plru_we;
+    logic [4:0] offset;
     // Control unit inputs
     logic dirty, valid_hit, valid_cpu_rqst;
     // Control unit outputs
@@ -47,36 +56,36 @@ import cache_types::*;
     // Memory signals
     logic mem_resp;
     // Aliases
-    logic [3:0] index;
     logic [TAG_SIZE-2:0] target_tag;
     logic [31:0] data_mask, wb_mask, set_way;
     logic [TAG_SIZE-2:0] tag_eviction;
+    logic [3:0] index;
 
-    assign index = ufp_addr[8:5];
     assign target_tag = ufp_addr[31:9];
+    assign offset = ufp_addr[4:0];
 
     // Address/mask computations
     always_comb begin
         if(state == compare_tag_s)
             data_mask = wb_mask;
-        else if(state == allocate_s)
+        else if(state == allocate_s || (state == idle_s && prefetch_rvalid))
             data_mask = 32'hffffffff;
         else
             data_mask = 'x;
 
         if(state == allocate_s)
-            dfp_addr = { ufp_addr[31:5], 5'b0 }; // 32-byte aligned
+            dfp_addr = { ufp_addr[31:5], 5'b0};
         else if(state == writeback_s)
             dfp_addr = { tag_eviction, index, 5'b0 };
         else
             dfp_addr = 'x;
     end
 
-    control control_unit(.*, .mem_resp(dfp_resp), .write(dfp_write));
-    cache_logic #(.READ_SIZE(READ_SIZE)) cache_logic(.*, .wmask(ufp_wmask), .rmask(ufp_rmask), .mem_read(dfp_read), .mem_write(dfp_write),
+    inst_control control_unit(.*, .mem_resp(dfp_resp), .write(dfp_write));
+    inst_cache_logic #(.READ_SIZE(READ_SIZE)) cache_logic(.*, .wmask(ufp_wmask), .rmask(ufp_rmask), .mem_read(dfp_read), .mem_write(dfp_write),
                 .mem_line(dfp_rdata), .mem_line_wb(dfp_wdata), .mem_resp(dfp_resp), .cpu_data(ufp_rdata), .cpu_wdata(ufp_wdata), .cpu_resp(ufp_resp), .offset(ufp_addr[4:0]));
 
-    ff_array #(.WIDTH(3)) plru_array(
+    inst_ff_array #(.WIDTH(3)) plru_array(
         .clk0       (clk),
         .rst0       (rst),
         .csb0       (1'b0),
@@ -104,7 +113,7 @@ import cache_types::*;
             .din0       (set_ways_tags[i]),
             .dout0      (ways_tags[i])
         );
-        ff_array #(.WIDTH(1)) valid_array (
+        inst_ff_array #(.WIDTH(1)) valid_array (
             .clk0       (clk),
             .rst0       (rst),
             .csb0       (1'b0),
