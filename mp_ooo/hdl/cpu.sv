@@ -127,9 +127,9 @@ logic [31:0] unpacked_pc [SS];
 always_comb begin
     for(int i = 0; i < SS; i++) begin
         unpacked_imem_rdata[i] = imem_rdata[32*i+:32];
-        if (i > 0 && imem_rdata[32*0+:32] == 32'hf0002013) begin
-            unpacked_imem_rdata[i] = 32'h00000013;  // Assign nop opcode
-        end
+        // if (i > 0 && imem_rdata[32*0+:32] == 32'hf0002013) begin
+        //     unpacked_imem_rdata[i] = 32'h00000013;  // Assign nop opcode
+        // end
         unpacked_pc[i] = pc_reg[i];
     end
 end

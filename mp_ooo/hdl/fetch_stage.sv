@@ -43,13 +43,13 @@ module fetch_stage
                 // valid_inst_exception <= '0; 
                 // Check last instruction committed to see whether we are to branch
                 // valid_request is just a signal to see if a flush occured during an instruction request
-                if(valid_request && rob_entries_to_commit[i].inst.is_branch && rob_entries_to_commit[i].rob.commit && (pc_reg[0] != rob_entries_to_commit[i].rvfi.pc_wdata)) begin
+                if(valid_request && rob_entries_to_commit[i].rob.mispredict && rob_entries_to_commit[i].rob.commit && (pc_reg[0] != rob_entries_to_commit[i].rvfi.pc_wdata)) begin
                         pc_reg[0] <= rob_entries_to_commit[i].rvfi.pc_wdata; 
                         break;
                     // pc_reg[1] <= rob_entries_to_commit[i].rvfi.pc_wdata + 32'd4; 
                     // break;
                 end
-                else if(~valid_request && rob_entries_to_commit1[i].inst.is_branch && rob_entries_to_commit1[i].rob.commit && (pc_reg[0] != rob_entries_to_commit1[i].rvfi.pc_wdata)) begin
+                else if(~valid_request && rob_entries_to_commit1[i].rob.mispredict && rob_entries_to_commit1[i].rob.commit && (pc_reg[0] != rob_entries_to_commit1[i].rvfi.pc_wdata)) begin
                         pc_reg[0] <= rob_entries_to_commit1[i].rvfi.pc_wdata; 
                         break; 
                     // valid_inst_exception <= '1; 
