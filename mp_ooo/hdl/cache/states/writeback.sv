@@ -6,7 +6,7 @@ import cache_types::*;
     parameter               CACHE_LINE_SIZE = 256
 )
 (
-    input logic clk, rst, active_wb, mem_resp,
+    input logic clk, rst, active_wb,
     input state_t state,
     input logic [CACHE_LINE_SIZE-1:0] mem_line_to_wb,
     input logic [TAG_SIZE-2:0] tag_to_evict,

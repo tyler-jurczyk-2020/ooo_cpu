@@ -6,10 +6,8 @@ import cache_types::*;
     parameter               CACHE_LINE_SIZE = 256
 )
 (
-    input logic clk, rst, active, mem_resp, mem_write,
+    input logic clk, rst, active, mem_resp,
     input logic [CACHE_LINE_SIZE-1:0] mem_line,
-    input logic [31:0] ufp_addr,
-    input state_t state,
     input logic ack,
     input logic active_prefetch,
     input logic valid_hit,
