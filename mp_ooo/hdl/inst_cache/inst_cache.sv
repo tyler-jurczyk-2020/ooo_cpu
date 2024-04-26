@@ -30,7 +30,8 @@ import cache_types::*;
     input logic [255:0] prefetch_rdata,
     input logic prefetch_rvalid,
     output logic prefetch,
-    input logic [31:0] prefetch_raddr
+    input logic [31:0] prefetch_raddr,
+    output logic flush_prefetch
 );
     // Prefetch
     logic active_prefetch;

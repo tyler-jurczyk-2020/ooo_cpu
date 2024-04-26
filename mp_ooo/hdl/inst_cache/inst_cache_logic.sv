@@ -50,7 +50,8 @@ import cache_types::*;
     output logic [TAG_SIZE-2:0] tag_eviction,
     // Prefetch
     input logic active_prefetch,
-    output logic [3:0] index
+    output logic [3:0] index,
+    output logic flush_prefetch
 );
 
 logic set_cache_we, active, active_wb, update_plru;
@@ -95,6 +96,7 @@ end
 // Cache memory drivers
 always_comb begin
     // Defaults
+    flush_prefetch = 1'b0;
     for(int i = 0; i < WAYS; i++) begin
         set_ways_lines[i] = 'x;
         set_ways_data_we[i] = 1'b1;
@@ -105,6 +107,7 @@ always_comb begin
     end
     // Compare tag signals
     if(state == idle_s && prefetch_rvalid) begin
+        flush_prefetch = 1'b1;
         for(int i = 0; i < WAYS; i++) begin
             if(i == signed'(set_way)) begin
                 set_ways_tags[i] = {1'b0, set_tag};

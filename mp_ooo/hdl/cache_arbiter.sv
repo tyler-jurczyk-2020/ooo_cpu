@@ -62,6 +62,7 @@ logic [31:0] instr_bmem_prefetch_raddr;
 
 servicing_t service_state, next_service_state;
 logic ack_instr, ack_data;
+logic flush_prefetch;
 
 inst_cache #(.READ_SIZE(32*SS), .OFFSET(3)) inst_cache
 (
@@ -86,7 +87,8 @@ inst_cache #(.READ_SIZE(32*SS), .OFFSET(3)) inst_cache
     .prefetch_addr(instr_bmem_prefetch_addr),
     .prefetch_rdata(instr_bmem_prefetch_rdata),
     .prefetch_raddr(instr_bmem_prefetch_raddr),
-    .prefetch_rvalid(instr_bmem_prefetch_rvalid)
+    .prefetch_rvalid(instr_bmem_prefetch_rvalid),
+    .flush_prefetch(flush_prefetch)
 );
 
 cache data_cache
@@ -146,6 +148,26 @@ always_ff @(posedge clk) begin
     end
     else begin
         service_state <= next_service_state;
+    end
+end
+
+logic [31:0] prefetch_raddr_reg;
+logic [255:0] prefetch_rdata_reg;
+logic prefetch_rvalid_reg;
+logic prefetch_ready;
+// Holy guac
+always_ff @(posedge clk) begin
+    if(rst || flush_prefetch) begin
+        prefetch_raddr_reg <= 32'b0;
+        prefetch_rdata_reg <= 256'b0;
+        prefetch_rvalid_reg <= 1'b0;
+    end
+    else begin
+        if(prefetch_ready) begin
+            prefetch_raddr_reg <= bmem_itf_raddr;
+            prefetch_rdata_reg <= {bmem_itf_rdata, read_dword_buffer[2], read_dword_buffer[1], read_dword_buffer[0]};
+            prefetch_rvalid_reg <= 1'b1;
+        end
     end
 end
 
@@ -245,6 +267,7 @@ always_comb begin
     instr_bmem_prefetch_rdata = 'x;
     instr_bmem_prefetch_rvalid = 1'b0;
     instr_bmem_prefetch_raddr = 'x;
+    prefetch_ready = 1'b0;
     for(int i = 0; i < 16; i++) begin
         if(address_table[i].valid && address_table[i].addr == bmem_itf_raddr
            && read_counter == 3'h3) begin
@@ -259,12 +282,21 @@ always_comb begin
                 instr_bmem_rvalid = 1'b1;
             end
             else if(~address_table[i].is_for_data_cache && address_table[i].prefetch) begin
-                instr_bmem_prefetch_rdata = {bmem_itf_rdata, read_dword_buffer[2], read_dword_buffer[1], read_dword_buffer[0]};
-                instr_bmem_prefetch_rvalid = 1'b1;
-                instr_bmem_prefetch_raddr = bmem_itf_raddr;
+                prefetch_ready = 1'b1;
             end
             break;
         end
+    end
+
+    if(prefetch_ready) begin
+        instr_bmem_prefetch_rdata = {bmem_itf_rdata, read_dword_buffer[2], read_dword_buffer[1], read_dword_buffer[0]};
+        instr_bmem_prefetch_rvalid = 1'b1;
+        instr_bmem_prefetch_raddr = bmem_itf_raddr;
+    end
+    else if(prefetch_rvalid_reg) begin
+        instr_bmem_prefetch_rdata = prefetch_rdata_reg;
+        instr_bmem_prefetch_rvalid = prefetch_rvalid_reg;
+        instr_bmem_prefetch_raddr = prefetch_raddr_reg;
     end
 end
 
