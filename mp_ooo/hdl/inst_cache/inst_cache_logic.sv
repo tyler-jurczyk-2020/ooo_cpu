@@ -172,7 +172,8 @@ always_comb begin
     end
 
     // Prefetch signals
-    if(state == prefetch_s || (state == allocate_s && allocate_prefetch)) begin
+    if((state == prefetch_s || (state == allocate_s && allocate_prefetch))
+        && valid_hit) begin
         prefetch_addr = {ufp_addr[31:5], 5'b0} + 6'h20; 
         prefetch = 1'b1;
     end
