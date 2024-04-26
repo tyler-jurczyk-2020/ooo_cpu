@@ -26,10 +26,13 @@ import cache_types::*;
     output  logic   [255:0] dfp_wdata,
     input   logic           dfp_resp,
     input logic ack,
+    output logic [31:0] prefetch_addr,
     input logic [255:0] prefetch_rdata,
     input logic prefetch_rvalid,
     output logic prefetch
 );
+    // Prefetch
+    logic active_prefetch;
 
     // 3-bit PLRU per set
     logic [2:0] plru_bits;
@@ -50,7 +53,6 @@ import cache_types::*;
     logic [CACHE_LINE_SIZE-1:0] set_ways_lines [WAYS];
     // Memory signals
     logic mem_resp;
-    logic [31:0] prefetch_addr;
     // Aliases
     logic [3:0] index;
     logic [TAG_SIZE-2:0] target_tag;

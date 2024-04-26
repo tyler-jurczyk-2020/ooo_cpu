@@ -4,6 +4,7 @@ import cache_types::*;
     input logic clk, rst, valid_cpu_rqst, valid_hit, dirty, mem_resp, write,
     input logic [4:0] offset,
     input logic prefetch_rvalid,
+    output logic active_prefetch,
     
     output state_t state
 );
@@ -12,7 +13,6 @@ state_t next_state;
 logic mem_resp_reg;
 logic write_reg;
 
-logic active_prefetch;
 logic valid_hit_in_compare;
 logic dirty_in_compare;
 
@@ -41,7 +41,7 @@ always_ff @(posedge clk) begin
         else if(state != writeback_s)        
             write_reg <= 1'b0;
 
-        if(state == prefetch_s) begin
+        if(state == compare_tag_s && offset == 5'b0 && ~active_prefetch) begin
             active_prefetch <= 1'b1;
         end
         else if(state == idle_s && prefetch_rvalid) begin
@@ -55,33 +55,23 @@ always_comb begin
        next_state = compare_tag_s; 
     end
     else if(state == compare_tag_s) begin
-        if(offset == 5'b0 && ~active_prefetch) begin
-            next_state = prefetch_s;
-        end
-        else begin
-            unique case(valid_hit)
-                1'b1: begin
+        unique case(valid_hit)
+            1'b1: begin
+                if(offset == 5'b0 && ~active_prefetch)
+                    next_state = prefetch_s;
+                else
                     next_state = idle_s;
-                end
-                1'b0: begin 
-                    if(dirty)
-                        next_state = writeback_s;
-                    else
-                        next_state = allocate_s;
-                end
-            endcase
-        end
+            end
+            1'b0: begin 
+                if(dirty)
+                    next_state = writeback_s;
+                else
+                    next_state = allocate_s;
+            end
+        endcase
     end
     else if(state == prefetch_s) begin
-        if(valid_hit_in_compare) begin
-            next_state = idle_s;
-        end
-        else begin
-            if(dirty)
-                next_state = writeback_s;
-            else
-                next_state = allocate_s;
-        end
+        next_state = idle_s;
     end
     else if(state == allocate_s) begin
         if(!mem_resp_reg) 

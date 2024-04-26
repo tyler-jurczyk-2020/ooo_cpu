@@ -46,7 +46,9 @@ import cache_types::*;
     output logic cpu_resp,
     // Drive address computation
     output logic [31:0] set_way,
-    output logic [TAG_SIZE-2:0] tag_eviction
+    output logic [TAG_SIZE-2:0] tag_eviction,
+    // Prefetch
+    input logic active_prefetch
 );
 
 logic set_cache_we, active, active_wb, update_plru;
@@ -54,6 +56,9 @@ logic [TAG_SIZE-2:0] set_tag, tag_to_evict;
 way_t set_way_enum;
 logic [31:0] way_hit;
 logic [CACHE_LINE_SIZE-1:0] set_cache_line, mem_line_to_wb, aligned_wdata;
+
+// Prefetch signals
+logic allocate_prefetch;
 
 inst_plru plru(.*);
 inst_idle idle(.*);
@@ -87,38 +92,32 @@ end
 
 // Cache memory drivers
 always_comb begin
+    // Defaults
+    for(int i = 0; i < WAYS; i++) begin
+        set_ways_lines[i] = 'x;
+        set_ways_data_we[i] = 1'b1;
+        set_ways_tags[i] = 'x;
+        set_ways_tags_we[i] = 1'b1;
+        set_ways_valid[i] = 'x;
+        set_ways_valid_we[i] = 1'b1;
+    end
     // Compare tag signals
-    if(state == idle_s) begin
+    if(state == idle_s && prefetch_rvalid) begin
         for(int i = 0; i < WAYS; i++) begin
-            if(prefetch_rvalid) begin
-                if(i == signed'(set_way)) begin
-                    set_ways_tags[i] = {1'b0, set_tag};
-                    set_ways_tags_we[i] = 1'b0; // Low Active
-                    // Update to valid so when we get back to this state we get
-                    // cache hit
-                    set_ways_valid[i] = 1'b1;
-                    set_ways_valid_we[i] = 1'b0;
-                    set_ways_lines[i] = prefetch_rdata;
-                    set_ways_data_we[i] = 1'b0;
-                end
-                else begin
-                    set_ways_lines[i] = 'x;
-                    set_ways_data_we[i] = 1'b1;
-                    set_ways_tags[i] = 'x;
-                    set_ways_tags_we[i] = 1'b1;
-                    set_ways_valid[i] = 'x;
-                    set_ways_valid_we[i] = 1'b1;
-                end
-            end
-            else begin
-                set_ways_tags[i] = 'x;
-                set_ways_tags_we[i] = 1'b1;
-                set_ways_valid[i] = 'x;
-                set_ways_valid_we[i] = 1'b1;
+            if(i == signed'(set_way)) begin
+                set_ways_tags[i] = {1'b0, set_tag};
+                set_ways_tags_we[i] = 1'b0; // Low Active
+                // Update to valid so when we get back to this state we get
+                // cache hit
+                set_ways_valid[i] = 1'b1;
+                set_ways_valid_we[i] = 1'b0;
+                set_ways_lines[i] = prefetch_rdata;
+                set_ways_data_we[i] = 1'b0;
             end
         end
     end
-    if(state == compare_tag_s) begin
+
+    else if(state == compare_tag_s) begin
         for(int i = 0; i < WAYS; i++) begin
             if(i == signed'(set_way) && !valid_hit) begin
                 if(wmask != 4'b0)
@@ -136,26 +135,12 @@ always_comb begin
                     set_ways_tags[i] = {1'b1, ways_tags[i][TAG_SIZE-2:0]};
                     set_ways_tags_we[i] = 1'b0;
                 end
-                else begin
-                    set_ways_tags[i] = 'x;
-                    set_ways_tags_we[i] = 1'b1;
-                end
-                set_ways_valid[i] = 'x;
-                set_ways_valid_we[i] = 1'b1;
             end
-        end
-    end
-    else begin
-        for(int i = 0; i < WAYS; i++) begin
-            set_ways_tags[i] = 'x;
-            set_ways_tags_we[i] = 1'b1;
-            set_ways_valid[i] = 'x;
-            set_ways_valid_we[i] = 1'b1;
         end
     end
     
     // Cacheline signals
-    if(state == allocate_s || state == compare_tag_s) begin
+    else if(state == allocate_s || state == compare_tag_s) begin
         for(int i = 0; i < WAYS; i++) begin
             if(i == signed'(set_way) && state == allocate_s) begin
                 set_ways_lines[i] = set_cache_line;
@@ -165,16 +150,6 @@ always_comb begin
                 set_ways_lines[i] = aligned_wdata;
                 set_ways_data_we[i] = 1'b0;
             end
-            else begin
-                set_ways_lines[i] = 'x;
-                set_ways_data_we[i] = 1'b1;
-            end
-        end
-    end
-    else begin
-        for(int i = 0; i < WAYS; i++) begin
-            set_ways_lines[i] = 'x;
-            set_ways_data_we[i] = 1'b1;
         end
     end
 
@@ -195,7 +170,7 @@ always_comb begin
     end
 
     // Prefetch signals
-    if(state == prefetch_s) begin
+    if(state == prefetch_s || (state == allocate_s && allocate_prefetch)) begin
         prefetch_addr = ufp_addr + 6'h20; 
         prefetch = 1'b1;
     end

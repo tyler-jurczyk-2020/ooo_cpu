@@ -8,38 +8,45 @@ import cache_types::*;
 (
     input logic clk, rst, active, mem_resp, mem_write,
     input logic [CACHE_LINE_SIZE-1:0] mem_line,
+    input logic [31:0] ufp_addr,
     input state_t state,
     input logic ack,
+    input logic active_prefetch,
 
     output logic mem_read,
     output logic [CACHE_LINE_SIZE-1:0] set_cache_line,
-    output logic set_cache_we
+    output logic set_cache_we,
+    output logic allocate_prefetch
 );
 
-logic ack_reg;
+logic [1:0] ack_reg_counter;
 
 always_ff @(posedge clk) begin
     if(rst) begin
-        ack_reg <= 1'b0;
+        ack_reg_counter <= 2'b0;
     end
     else begin
         if(active) begin
-            if(~ack_reg)
-                ack_reg <= ack;
+            if(ack && ack_reg_counter < 2'h2)
+                ack_reg_counter <= ack_reg_counter + 1'b1;
         end
         else begin
-            ack_reg <= 1'b0;
+            ack_reg_counter <= 2'h0;
         end
     end
 end
 
 always_comb begin
-    // Send read request
-    if(active && ack && ~ack_reg)
+    mem_read = 1'b0;
+    if(active && ack && ack_reg_counter == 2'b0)
         mem_read = 1'b1;
-    else
-        mem_read = 1'b0;
 
+    // Send read request
+    allocate_prefetch = 1'b0;
+    if(active && ack && ack_reg_counter == 2'b1 && active_prefetch) begin
+        allocate_prefetch = 1'b1;
+    end
+    
     // Store request result in cache
     if(mem_resp) begin // AND PLRU is resolved 
         set_cache_we = 1'b0; // Low active
