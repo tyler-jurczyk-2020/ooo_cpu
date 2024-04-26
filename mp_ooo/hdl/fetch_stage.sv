@@ -4,8 +4,6 @@ module fetch_stage
     (   
         input logic clk, 
         input logic rst,
-        // For future branch predictor, if 0, then assume next inst is consecutive one
-        input logic predict_branch, 
         // If for any reason we have to stall feeding the instruction queue
         input logic stall_inst,
         input logic imem_resp, 
@@ -13,21 +11,16 @@ module fetch_stage
         input super_dispatch_t rob_entries_to_commit[SS],
         input instruction_info_reg_t decoded_inst [SS], 
         // PC to fetch
-        output logic [31:0] pc_reg,
+        output logic [31:0] pc_reg [SS],
         output logic imem_rmask,
         output logic [31:0] imem_addr, 
         input logic valid_request, 
-        input super_dispatch_t rob_entries_to_commit1[SS]
+        input super_dispatch_t rob_entries_to_commit1[SS], 
+        output logic valid_inst_exception
     );
 
-
-    // If there's a flush, update reg to flush
-    // If there is a imem_resp and reg_flush is high, then your instruction is invalid
-    // If there's a imem_resp and reg_flush is low, then your instruction is valid
-    // If there's a imem_resp, then set the flush signal to low
-
     assign imem_rmask = 1'b1;
-    assign imem_addr = pc_reg;
+    assign imem_addr = pc_reg[0];
     
     logic reset_hack;
 
@@ -38,78 +31,44 @@ module fetch_stage
             reset_hack <= 1'b0;
     end
 
-    logic [31:0] new_pc;
-
-    logic branch; 
-    logic take_branch; 
     always_ff @ (posedge clk) begin
         if(rst) begin
-            pc_reg <= 32'h60000000;
-            // valid_request <= '1; 
+            pc_reg[0] <= 32'h60000000;
+            valid_inst_exception <= '0; 
+            // pc_reg[1] <= 32'h60000004;
         end
-        // else if (flush) begin
-        //     valid_request <= '0; 
-        // end
-        // if the instructon queue is NOT stalling b/c inst. queue & res. table are NOT full, and we're not waiting on instruction memory
+        // If we are not stalling and instruction memory is ready for a new instruction
         else if((~stall_inst && imem_resp)) begin
-            // valid_request <= '1; 
-
-            // If our committed ROB is a branch and we are supposed to branch, then update to the new PC
-            // else, pc goes up by 4
-            // if(flush) begin
-            //     valid_request <= '0; 
-            // end
-
-            // BEWARE: THE BRANCH AND THE TAKE_BRANCH LOGIC DOES NOT WORK. I REPEAT, WILL NOT WORK. 
-            // WHEN YOU IMPLEMENT THE BRANCH PREDICTOR, THIS LOGIC MUST ALL BE CHANGED. THE ONLY REASON THIS WORKS IS BECAUSE THERE'S NO BRANCH PREDICTOR
-            // JANK 
             for(int i = 0; i < SS; i++) begin
-                // if an input from the rob_entries_to_commit says to branch somewhere, start fetching from there
-                // else, if the branch predictor says to branch, start fetching from the pc_next provided by decode
-                // else, start fetching from pc + 4
-            
-                pc_reg <= pc_reg + 4;
-                if(valid_request) begin
-                    if(rob_entries_to_commit[i].rob.branch_enable && rob_entries_to_commit[i].rob.commit) begin
-                        pc_reg <= rob_entries_to_commit[i].rvfi.pc_wdata; 
-                        branch <= '1; 
-                        // pc_updated = '1; 
-                        break;
-                    end
+                valid_inst_exception <= '0; 
+                // Check last instruction committed to see whether we are to branch
+                // valid_request is just a signal to see if a flush occured during an instruction request
+                if(valid_request && rob_entries_to_commit[i].inst.is_branch && rob_entries_to_commit[i].rob.commit) begin
+                    pc_reg[0] <= rob_entries_to_commit[i].rvfi.pc_wdata; 
+                    // pc_reg[1] <= rob_entries_to_commit[i].rvfi.pc_wdata + 32'd4; 
+                    break;
                 end
+                else if(~valid_request && rob_entries_to_commit1[i].inst.is_branch && rob_entries_to_commit1[i].rob.commit) begin
+                    pc_reg[0] <= rob_entries_to_commit1[i].rvfi.pc_wdata; 
+                    valid_inst_exception <= '1; 
+                    // pc_reg[1] <= rob_entries_to_commit1[i].rvfi.pc_wdata + 32'd4; 
+                    break;
+                end
+                // Check the decoded instructions to check for a JAL
+                else if(decoded_inst[i].is_jump || (decoded_inst[i].is_branch && decoded_inst[i].predict_branch)) begin
+                    pc_reg[0] <= decoded_inst[i].pc_next; 
+                    // pc_reg[1] <= decoded_inst[i].pc_next + 32'd4; 
+                    break;
+                end
+                // Else just increment by two
                 else begin
-                    if(rob_entries_to_commit1[i].rob.branch_enable && rob_entries_to_commit1[i].rob.commit) begin
-                        pc_reg <= rob_entries_to_commit1[i].rvfi.pc_wdata; 
-                        branch <= '1; 
-                        // pc_updated = '1; 
-                        break;
-                    end
+                    pc_reg[0] <= pc_reg[0] + 32'd4; 
+                    // // pc_reg[1] <= pc_reg[1] + 32'd8; 
                 end
             end
-
-            if(~branch) begin
-                for(int i = 0; i < SS; i++) begin
-                    if(decoded_inst[i].is_branch && predict_branch) begin
-                        pc_reg <= decoded_inst[i].pc_next; 
-                        take_branch <= '1; 
-                        // pc_updated <= '1; 
-                        break; 
-                    end
-                end
-                
-            end
-
-            if(~take_branch) begin
-                pc_reg <= pc_reg + 32'd4; 
-                // pc_updated <= '1; 
-            end
-
-            // valid_request <= pc_updated; 
-
         end
-
-
     end
+
 
 // U-DADDY
     endmodule : fetch_stage

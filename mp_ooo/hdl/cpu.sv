@@ -1,7 +1,7 @@
 module cpu
 import rv32i_types::*;
 #(
-    parameter SS = 2,
+    parameter SS = 1,
     parameter PR_ENTRIES = 64,
     parameter reservation_table_size = 4,
     parameter DEPTH = 4,
@@ -117,7 +117,7 @@ always_comb begin
     end
 end
 
-logic [31:0] pc_reg;
+logic [31:0] pc_reg [SS];
 
 // Decoding 8 instructions
 logic [31:0] unpacked_imem_rdata [SS];
@@ -126,14 +126,35 @@ logic [31:0] unpacked_pc [SS];
 always_comb begin
     for(int i = 0; i < SS; i++) begin
         unpacked_imem_rdata[i] = imem_rdata[32*i+:32];
-        unpacked_pc[i] = pc_reg + unsigned'(4*i);
+        if (i > 0 && imem_rdata[32*0+:32] == 32'hf0002013) begin
+            unpacked_imem_rdata[i] = 32'h00000013;  // Assign nop opcode
+        end
+        unpacked_pc[i] = pc_reg[i];
+    end
+end
+
+logic branch_taken; 
+
+always_comb begin
+    for(int i = 0; i < SS; i++) begin
+        // Check last instruction committed to see whether we are to branch
+        // valid_request is just a signal to see if a flush occured during an instruction request
+        if((valid_request && rob_entries_to_commit[i].rob.branch_enable && rob_entries_to_commit[i].rob.commit) || 
+        (~valid_request && rob_entries_to_commit1[i].rob.branch_enable && rob_entries_to_commit1[i].rob.commit))  begin
+            branch_taken = '1; 
+            break;
+        end
+        else begin
+            branch_taken = '0; 
+        end
     end
 end
 
 generate
     for(genvar i = 0; i < SS; i++) begin : parallel_decode
         id_stage id_stage_i (
-            .predict_branch('0),
+            .clk(clk), .rst(rst),
+            .branch_taken(branch_taken),
             .pc_curr(unpacked_pc[i]),
             .imem_rdata(unpacked_imem_rdata[i]),
             .instruction_info(decoded_inst[i])
@@ -151,6 +172,7 @@ instruction_info_reg_t view_inst_tail [1];
 logic [$clog2(ROB_DEPTH)-1:0] inst_tail;
 logic [$clog2(ROB_DEPTH)-1:0] sel_out_inst [1];
 assign sel_out_inst[0] = inst_tail;
+logic valid_inst_exception; 
 
 // Check if next inst has rd
 logic next_inst_has_rd;
@@ -175,7 +197,6 @@ super_dispatch_t rob_entries_to_commit [SS];
 fetch_stage #(.SS(SS)) fetch_stage_i (
     .clk(clk),
     .rst(rst),
-    .predict_branch('0), // Change this later
     .stall_inst(inst_queue_full), 
     .imem_resp(imem_resp), 
     .rob_entries_to_commit(rob_entries_to_commit), // passing branch target from rob
@@ -184,7 +205,8 @@ fetch_stage #(.SS(SS)) fetch_stage_i (
     .imem_addr(imem_addr), 
     .decoded_inst(decoded_inst), 
     .valid_request(valid_request), 
-    .rob_entries_to_commit1(rob_entries_to_commit1)
+    .rob_entries_to_commit1(rob_entries_to_commit1), 
+    .valid_inst_exception(valid_inst_exception)
 );
 
 
