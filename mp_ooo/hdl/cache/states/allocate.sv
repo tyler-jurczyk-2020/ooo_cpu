@@ -6,37 +6,44 @@ import cache_types::*;
     parameter               CACHE_LINE_SIZE = 256
 )
 (
-    input logic clk, rst, active, mem_resp,
+    input logic clk, rst, active, mem_resp, mem_write,
     input logic [CACHE_LINE_SIZE-1:0] mem_line,
-    input logic ack,
+    input state_t state,
 
     output logic mem_read,
     output logic [CACHE_LINE_SIZE-1:0] set_cache_line,
     output logic set_cache_we
 );
 
-logic [1:0] ack_reg_counter;
+logic mem_resp_reg;
+logic pulse_read;
+logic pulse_read_to_check;
+logic write_reg;
 
 always_ff @(posedge clk) begin
     if(rst) begin
-        ack_reg_counter <= 2'b0;
+        mem_resp_reg <= 1'b0;
+        pulse_read <= 1'b0;
     end
     else begin
-        if(active) begin
-            if(ack && ack_reg_counter < 2'h2)
-                ack_reg_counter <= ack_reg_counter + 1'b1;
-        end
-        else begin
-            ack_reg_counter <= 2'h0;
-        end
+        pulse_read <= active;
+        if(state == allocate_s && ~pulse_read)
+            pulse_read_to_check <= 1'b1;
+        else
+            pulse_read_to_check <= 1'b0;
+
+        if(!mem_write)
+            mem_resp_reg <= mem_resp;
     end
 end
 
 always_comb begin
-    mem_read = 1'b0;
-    if(active && ack && ack_reg_counter == 2'b0)
+    // Send read request
+    if(active && pulse_read_to_check)
         mem_read = 1'b1;
-    
+    else
+        mem_read = 1'b0;
+
     // Store request result in cache
     if(mem_resp) begin // AND PLRU is resolved 
         set_cache_we = 1'b0; // Low active

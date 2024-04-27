@@ -1,5 +1,5 @@
 module cache_arbiter
-import rv32i_types::*;
+
 #(
     parameter SS = 2
 )
@@ -49,22 +49,11 @@ logic   [255:0]      data_bmem_wdata;
 logic   [255:0]      data_bmem_rdata;
 logic               data_bmem_rvalid;
 
-logic inst_request;
-logic data_request;
 // Mux select dfp_resp on data cache
 logic dmem_resp_from_bmem;
 logic [31:0] dmem_writeback_addr;
-logic inst_prefetch;
-logic [255:0] instr_bmem_prefetch_rdata;
-logic instr_bmem_prefetch_rvalid;
-logic [31:0] instr_bmem_prefetch_addr;
-logic [31:0] instr_bmem_prefetch_raddr;
 
-servicing_t service_state, next_service_state;
-logic ack_instr, ack_data;
-logic flush_prefetch;
-
-inst_cache #(.READ_SIZE(32*SS), .OFFSET(3)) inst_cache
+cache #(.READ_SIZE(32*SS), .OFFSET(3)) inst_cache
 (
     .clk(clk),
     .rst(rst),
@@ -81,14 +70,7 @@ inst_cache #(.READ_SIZE(32*SS), .OFFSET(3)) inst_cache
     .dfp_write(instr_bmem_write),
     .dfp_rdata(instr_bmem_rdata),
     .dfp_wdata(instr_bmem_wdata),
-    .dfp_resp(instr_bmem_rvalid),
-    .prefetch(inst_prefetch),
-    .ack(ack_instr),
-    .prefetch_addr(instr_bmem_prefetch_addr),
-    .prefetch_rdata(instr_bmem_prefetch_rdata),
-    .prefetch_raddr(instr_bmem_prefetch_raddr),
-    .prefetch_rvalid(instr_bmem_prefetch_rvalid),
-    .flush_prefetch(flush_prefetch)
+    .dfp_resp(instr_bmem_rvalid)
 );
 
 cache data_cache
@@ -108,68 +90,21 @@ cache data_cache
     .dfp_write(data_bmem_write),
     .dfp_rdata(data_bmem_rdata),
     .dfp_wdata(data_bmem_wdata),
-    .dfp_resp(dmem_resp_from_bmem),
-    .ack(ack_data)
-    // .in_service(in_service_data), // Need to add this back
+    .dfp_resp(dmem_resp_from_bmem)
 );
 
 logic [63:0] read_dword_buffer [3], write_dword_buffer [3]; // No need to buffer fourth entry since we can forward it immediately
 logic [2:0] read_counter, write_counter;
 logic is_writing;
+logic inst_request;
+logic data_request;
 logic latch_data_bmem;
 logic   [31:0]      data_bmem_addr_reg;
 logic               data_bmem_read_reg;
 logic               data_bmem_write_reg;
 logic simultaneous_requests;
-logic serve_inst_cache;
-logic serve_data_cache;
-
-assign serve_inst_cache = service_state == inst_t && inst_request && ~is_writing;
-assign serve_data_cache = (service_state == data_t || ~serve_inst_cache) && (data_request || is_writing);
 
 assign simultaneous_requests = inst_request && data_request;
-assign inst_request = instr_bmem_read || inst_prefetch;
-assign data_request = data_bmem_read || data_bmem_write;
-
-
-// Next service state logic
-always_comb begin
-    if(inst_request && data_request)
-        next_service_state = data_t;
-    else if(inst_request)
-        next_service_state = inst_t;
-    else
-        next_service_state = service_state;
-    end
-
-always_ff @(posedge clk) begin
-    if(rst) begin
-        service_state <= inst_t;
-    end
-    else begin
-        service_state <= next_service_state;
-    end
-end
-
-logic [31:0] prefetch_raddr_reg;
-logic [255:0] prefetch_rdata_reg;
-logic prefetch_rvalid_reg;
-logic prefetch_ready;
-// Holy guac
-always_ff @(posedge clk) begin
-    if(rst || flush_prefetch) begin
-        prefetch_raddr_reg <= 32'b0;
-        prefetch_rdata_reg <= 256'b0;
-        prefetch_rvalid_reg <= 1'b0;
-    end
-    else begin
-        if(prefetch_ready) begin
-            prefetch_raddr_reg <= bmem_itf_raddr;
-            prefetch_rdata_reg <= {bmem_itf_rdata, read_dword_buffer[2], read_dword_buffer[1], read_dword_buffer[0]};
-            prefetch_rvalid_reg <= 1'b1;
-        end
-    end
-end
 
 always_ff @(posedge clk)begin
     if(rst) begin
@@ -187,7 +122,7 @@ always_ff @(posedge clk)begin
             read_counter <= '0;
         end
 
-        if(serve_data_cache && data_bmem_write) begin
+        if((data_bmem_write && ~simultaneous_requests) || (latch_data_bmem && data_bmem_write_reg)) begin
             is_writing <= 1'b1;
             dmem_writeback_addr <= data_bmem_addr;
             write_counter <= write_counter + 1'd1;
@@ -209,9 +144,34 @@ always_ff @(posedge clk)begin
     end
 end
 
+logic delayed_inst_request;
+
+assign inst_request = instr_bmem_read;
+assign data_request = data_bmem_read || data_bmem_write;
+
+always_ff @(posedge clk)begin
+    if(rst) begin
+        delayed_inst_request <= 1'b0;
+    end
+    else begin
+        latch_data_bmem <= inst_request && data_request;
+        if(inst_request && data_request) begin
+            data_bmem_addr_reg <= data_bmem_addr;
+            data_bmem_read_reg <= data_bmem_read;
+            data_bmem_write_reg <= data_bmem_write;
+        end
+        if(inst_request && is_writing) begin
+            delayed_inst_request <= 1'b1;
+        end
+        else if(~is_writing) begin
+            delayed_inst_request <= 1'b0;
+        end
+    end
+end
+
 // Implement address table once cache can take more than one request
 // MSB is valid, next MSB is 0 if instruction or 1 if data
-address_entry_t address_table [16];
+logic [33:0] address_table [16];
 
 // Update address table entry 
 always_ff @(posedge clk) begin
@@ -222,28 +182,21 @@ always_ff @(posedge clk) begin
     end
     else begin
         for(int i = 0; i < 16; i++) begin
-            if(~address_table[i].valid && bmem_itf_read) begin
-                if(serve_inst_cache) begin
-                   address_table[i].valid <= 1'b1;
-                   address_table[i].is_for_data_cache <= 1'b0;
-                   address_table[i].prefetch <= inst_prefetch;
-                   if(inst_prefetch)
-                       address_table[i].addr <= instr_bmem_prefetch_addr;
-                   else
-                       address_table[i].addr <= instr_bmem_addr;
+            if(~address_table[i][33] && (bmem_itf_read || delayed_inst_request)) begin
+                if(latch_data_bmem)begin
+                   address_table[i] <= {1'b1, 1'b1, data_bmem_addr};
                 end
-                else if(serve_data_cache) begin
-                    address_table[i].valid <= 1'b1;
-                    address_table[i].is_for_data_cache <= 1'b1;
-                    address_table[i].prefetch <= 1'b0;
-                    address_table[i].addr <= data_bmem_addr;
+                else if(inst_request || (delayed_inst_request && ~is_writing)) begin
+                    address_table[i] <= {1'b1, 1'b0, instr_bmem_addr};
                 end
+                else if(data_request)
+                    address_table[i] <= {1'b1, 1'b1, data_bmem_addr};
                 break;
             end
         end
         for(int i = 0; i < 16; i++) begin
-            if(address_table[i].valid && address_table[i].addr == bmem_itf_raddr && read_counter == 3'h3 && bmem_itf_rvalid) begin
-                address_table[i].valid <= 1'b0;
+            if(address_table[i][33] && address_table[i][31:0] == bmem_itf_raddr && read_counter == 3'h3 && bmem_itf_rvalid) begin
+                address_table[i][33] <= 1'b0;
                 break;
             end
         end
@@ -260,90 +213,103 @@ end
 
 // Send out data to correct cache once we receive it back
 always_comb begin
-    data_bmem_rdata = 'x;
-    data_bmem_rvalid = 1'b0;
-    instr_bmem_rdata = 'x;
-    instr_bmem_rvalid = 1'b0;
-    instr_bmem_prefetch_rdata = 'x;
-    instr_bmem_prefetch_rvalid = 1'b0;
-    instr_bmem_prefetch_raddr = 'x;
-    prefetch_ready = 1'b0;
     for(int i = 0; i < 16; i++) begin
-        if(address_table[i].valid && address_table[i].addr == bmem_itf_raddr
+        if(address_table[i][33] && address_table[i][31:0] == bmem_itf_raddr
            && read_counter == 3'h3) begin
-            // Goes to data cache
-            if(address_table[i].is_for_data_cache && ~address_table[i].prefetch) begin
-                data_bmem_rdata = {bmem_itf_rdata, read_dword_buffer[2], read_dword_buffer[1], read_dword_buffer[0]};
-                data_bmem_rvalid = 1'b1;
-            end
-            // Goes to instruction cache
-            else if(~address_table[i].is_for_data_cache && ~address_table[i].prefetch) begin
-                instr_bmem_rdata = {bmem_itf_rdata, read_dword_buffer[2], read_dword_buffer[1], read_dword_buffer[0]};
-                instr_bmem_rvalid = 1'b1;
-            end
-            else if(~address_table[i].is_for_data_cache && address_table[i].prefetch) begin
-                prefetch_ready = 1'b1;
-            end
-            break;
+                // Goes to data cache
+                if(address_table[i][32]) begin
+                    data_bmem_rdata = {bmem_itf_rdata, read_dword_buffer[2], read_dword_buffer[1], read_dword_buffer[0]};
+                    data_bmem_rvalid = 1'b1;
+                    instr_bmem_rdata = 'x;
+                    instr_bmem_rvalid = 1'b0;
+                end
+                // Goes to instruction cache
+                else begin
+                    data_bmem_rdata = 'x;
+                    data_bmem_rvalid = 1'b0;
+                    instr_bmem_rdata = {bmem_itf_rdata, read_dword_buffer[2], read_dword_buffer[1], read_dword_buffer[0]};
+                    instr_bmem_rvalid = 1'b1;
+                end
+                break;
+           end
+        else begin
+            data_bmem_rdata = 'x;
+            data_bmem_rvalid = 1'b0;
+            instr_bmem_rdata = 'x;
+            instr_bmem_rvalid = 1'b0;
         end
-    end
-
-    if(prefetch_ready) begin
-        instr_bmem_prefetch_rdata = {bmem_itf_rdata, read_dword_buffer[2], read_dword_buffer[1], read_dword_buffer[0]};
-        instr_bmem_prefetch_rvalid = 1'b1;
-        instr_bmem_prefetch_raddr = bmem_itf_raddr;
-    end
-    else if(prefetch_rvalid_reg) begin
-        instr_bmem_prefetch_rdata = prefetch_rdata_reg;
-        instr_bmem_prefetch_rvalid = prefetch_rvalid_reg;
-        instr_bmem_prefetch_raddr = prefetch_raddr_reg;
     end
 end
 
 // Send out request to bmem
 always_comb begin
-    bmem_itf_wdata = 'x;
-    bmem_itf_addr = 'x;
-    bmem_itf_read = 1'b0;
-    bmem_itf_write = 1'b0;
-    if(serve_inst_cache && bmem_itf_ready) begin
-        if(inst_prefetch) begin
-            bmem_itf_addr = instr_bmem_prefetch_addr;
-            bmem_itf_read = inst_prefetch;
+    // Data on the previous cycle that wasn't serviced
+    if(latch_data_bmem && bmem_itf_ready) begin
+        bmem_itf_addr = data_bmem_addr_reg;
+        // reading & writing data
+        if(data_bmem_read_reg) begin
+            bmem_itf_wdata = 'x;
+            bmem_itf_read = data_bmem_read_reg;
+            bmem_itf_write = '0;
         end
+        else if(data_bmem_write_reg || is_writing) begin
+            if(is_writing)
+                bmem_itf_wdata = write_dword_buffer[write_counter - 1'b1]; // Need to actually set write data
+            else
+                bmem_itf_wdata = data_bmem_wdata[63:0]; // Immediately send out lowest double word
+            bmem_itf_read = '0;
+            bmem_itf_write = 1'b1;
+        end
+        // Should never hit this
         else begin
-            bmem_itf_addr = instr_bmem_addr;
-            bmem_itf_read = instr_bmem_read;
+            bmem_itf_wdata = 'x;
+            bmem_itf_read = 'x;
+            bmem_itf_write = 'x;
         end
     end
+    // Otherwise always service instruction request first
+    // Cannot interrupt a write
+    else if(((inst_request || delayed_inst_request) && ~is_writing) && bmem_itf_ready) begin
+        bmem_itf_wdata = 'x;
+        bmem_itf_addr = instr_bmem_addr;
+        bmem_itf_read = 1'b1;
+        bmem_itf_write = '0;
+    end
     // Otherwise service data request
-    else if(serve_data_cache && bmem_itf_ready) begin
+    else if((data_request || is_writing) && bmem_itf_ready) begin
         if(is_writing)
             bmem_itf_addr = dmem_writeback_addr;
         else
             bmem_itf_addr = data_bmem_addr;
         // reading & writing data
         if(data_bmem_read) begin
+            bmem_itf_wdata = 'x;
             bmem_itf_read = data_bmem_read;
+            bmem_itf_write = '0;
         end
         else if(data_bmem_write || is_writing) begin
             if(is_writing)
                 bmem_itf_wdata = write_dword_buffer[write_counter - 1'b1]; // Need to actually set write data
             else
                 bmem_itf_wdata = data_bmem_wdata[63:0]; // Immediately send out lowest double word
+            bmem_itf_read = '0;
             bmem_itf_write = 1'b1;
         end
+        // Should never hit this
+        else begin
+            bmem_itf_wdata = 'x;
+            bmem_itf_read = 'x;
+            bmem_itf_write = 'x;
+        end
     end
-end
+    // When we have nothing to do
+    else begin
+        bmem_itf_wdata = 'x;
+        bmem_itf_addr = 'x;
+        bmem_itf_read = '0;
+        bmem_itf_write = '0;
+    end
 
-// Acknowledge the correct cache
-always_comb begin
-    ack_instr = 1'b0;
-    ack_data = 1'b0;
-    if(service_state == inst_t && ~is_writing)
-        ack_instr = 1'b1;
-    if(service_state == data_t || service_state == inst_t && ~inst_request)
-        ack_data = 1'b1;
 end
 
 endmodule : cache_arbiter
