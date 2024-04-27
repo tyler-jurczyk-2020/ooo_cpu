@@ -8,6 +8,7 @@ set hdlin_ff_always_sync_set_reset true
 set hdlin_ff_always_async_set_reset true
 set hdlin_infer_multibit default_all
 set hdlin_check_no_latch true
+set hdlin_while_loop_iterations 2000000000
 set_host_options -max_cores 4
 set_app_var report_default_significant_digits 6
 set design_toplevel cpu
@@ -73,6 +74,8 @@ suppress_message OPT-153
 suppress_message PWR-429
 # The unannotated net '%s' is driven by a black box output.
 suppress_message PWR-416
+# %s SV Assertions are ignored for synthesis since %s is not set to true.
+suppress_message ELAB-33
 
 # %s DEFAULT branch of CASE statement cannot be reached.
 suppress_message ELAB-311
