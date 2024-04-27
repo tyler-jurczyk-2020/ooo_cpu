@@ -134,28 +134,28 @@ always_comb begin
     end
 end
 
-logic branch_taken; 
+// logic branch_taken; 
 
-always_comb begin
-    for(int i = 0; i < SS; i++) begin
-        // Check last instruction committed to see whether we are to branch
-        // valid_request is just a signal to see if a flush occured during an instruction request
-        if((valid_request && rob_entries_to_commit[i].rob.branch_enable && rob_entries_to_commit[i].rob.commit) || 
-        (~valid_request && rob_entries_to_commit1[i].rob.branch_enable && rob_entries_to_commit1[i].rob.commit))  begin
-            branch_taken = '1; 
-            break;
-        end
-        else begin
-            branch_taken = '0; 
-        end
-    end
-end
+// always_comb begin
+//     for(int i = 0; i < SS; i++) begin
+//         // Check last instruction committed to see whether we are to branch
+//         // valid_request is just a signal to see if a flush occured during an instruction request
+//         if((valid_request && rob_entries_to_commit[i].rob.branch_enable && rob_entries_to_commit[i].rob.commit) || 
+//         (~valid_request && rob_entries_to_commit1[i].rob.branch_enable && rob_entries_to_commit1[i].rob.commit))  begin
+//             branch_taken = '1; 
+//             break;
+//         end
+//         else begin
+//             branch_taken = '0; 
+//         end
+//     end
+// end
 
 generate
     for(genvar i = 0; i < SS; i++) begin : parallel_decode
         id_stage id_stage_i (
             .clk(clk), .rst(rst),
-            .branch_taken(branch_taken),
+            //.branch_taken(branch_taken),
             .pc_curr(unpacked_pc[i]),
             .imem_rdata(unpacked_imem_rdata[i]),
             .instruction_info(decoded_inst[i])

@@ -4,7 +4,7 @@ module id_stage
         input clk, rst, 
         input logic [31:0] imem_rdata,
         input logic [31:0] pc_curr,
-        input logic branch_taken, 
+        // input logic branch_taken, 
 
         output instruction_info_reg_t instruction_info
         // output [31:0] pc_next
@@ -21,7 +21,7 @@ module id_stage
     logic   [4:0]   rs1_s;
     logic   [4:0]   rs2_s;
     logic   [4:0]   rd_s;   
-    logic [31:0] branch_target;
+    // logic [31:0] branch_target;
     logic   [11:0]  offset;
 
     assign funct3 = imem_rdata[14:12];
@@ -39,18 +39,19 @@ module id_stage
 
     logic predict_branch; 
 
-    gshare #(.GHR_SIZE(10), .PHT_ENTRIES(1024)) branch_predictor
-    (
-    // rst & clk
-    .rst(rst),
-    .clk(clk),
-    // is instr branch
-    .branch_taken(branch_taken),
-    // target branch addr --> this is the PC value imma xor w/
-    .branch_addr(pc_curr),
-    // branch prediction 
-    .branch_prediction(predict_branch)
-    );
+    assign predict_branch = '0;
+    // gshare #(.GHR_SIZE(10), .PHT_ENTRIES(1024)) branch_predictor
+    // (
+    // // rst & clk
+    // .rst(rst),
+    // .clk(clk),
+    // // is instr branch
+    // .branch_taken(branch_taken),
+    // // target branch addr --> this is the PC value imma xor w/
+    // .branch_addr(pc_curr),
+    // // branch prediction 
+    // .branch_prediction(predict_branch)
+    // );
 
 
     always_comb begin
