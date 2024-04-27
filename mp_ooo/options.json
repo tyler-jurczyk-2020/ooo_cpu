@@ -1,6 +1,6 @@
 {
     "clock"       : 4000,
-    "m_ext"       : false,
+    "m_ext"       : true,
     "c_ext"       : false,
     "f_ext"       : false,
     "bmem_0_on_x" : false,
