@@ -44,7 +44,7 @@ always_ff @(posedge clk)begin
         ghr <= {ghr[GHR_SIZE-2:0], branch_taken};
 
         // update pht, based on branch outcome
-        pht_index = (branch_addr[GHR_SIZE-1:0] ^ ghr) & PHT_MASK; // declarin this shit here to avoid timing mismatch
+        pht_index <= (branch_addr[GHR_SIZE-1:0] ^ ghr) & PHT_MASK; // declarin this shit here to avoid timing mismatch
         
         if(branch_taken) begin
             if (pht[pht_index] < 2'b11)

@@ -474,7 +474,7 @@ fu_input_t inst_for_fu_mult [N_MUL];
 
 // MODULE INSTANTIATION
 reservation_table #(.SS(SS), .REQUEST(N_MUL), .reservation_table_size(reservation_table_size), 
-        .ROB_DEPTH(ROB_DEPTH), .TABLE_TYPE(MUL_T)) mult_table(.clk(clk), .rst(rst),
+        .ROB_DEPTH(ROB_DEPTH), .TABLE_TYPE(MUL_T)) mult_table(.clk(clk), .rst(rst || flush),
                                                             .dispatched(rs_rob_entry1), // Dispatched shit
                                                             .avail_inst(avail_inst), // Thing
                                                             .cdb_rob_ids(cdb), // CDB 
