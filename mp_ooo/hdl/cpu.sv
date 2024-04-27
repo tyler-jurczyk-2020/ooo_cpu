@@ -72,6 +72,7 @@ fetch_output_reg_t if_id_reg, if_id_reg_next;
 instruction_info_reg_t decoded_inst [SS];
 
 super_dispatch_t rob_entries_to_commit1[SS]; 
+super_dispatch_t rob_entries_to_commit [SS];
 
 logic valid_request; 
 
@@ -117,7 +118,7 @@ always_comb begin
     end
 end
 
-logic [31:0] pc_reg;
+logic [31:0] pc_reg [SS];
 
 // Decoding 8 instructions
 logic [31:0] unpacked_imem_rdata [SS];
@@ -126,14 +127,35 @@ logic [31:0] unpacked_pc [SS];
 always_comb begin
     for(int i = 0; i < SS; i++) begin
         unpacked_imem_rdata[i] = imem_rdata[32*i+:32];
-        unpacked_pc[i] = pc_reg + unsigned'(4*i);
+        // if (i > 0 && imem_rdata[32*0+:32] == 32'hf0002013) begin
+        //     unpacked_imem_rdata[i] = 32'h00000013;  // Assign nop opcode
+        // end
+        unpacked_pc[i] = pc_reg[i];
+    end
+end
+
+logic branch_taken; 
+
+always_comb begin
+    for(int i = 0; i < SS; i++) begin
+        // Check last instruction committed to see whether we are to branch
+        // valid_request is just a signal to see if a flush occured during an instruction request
+        if((valid_request && rob_entries_to_commit[i].rob.branch_enable && rob_entries_to_commit[i].rob.commit) || 
+        (~valid_request && rob_entries_to_commit1[i].rob.branch_enable && rob_entries_to_commit1[i].rob.commit))  begin
+            branch_taken = '1; 
+            break;
+        end
+        else begin
+            branch_taken = '0; 
+        end
     end
 end
 
 generate
     for(genvar i = 0; i < SS; i++) begin : parallel_decode
         id_stage id_stage_i (
-            .predict_branch('0),
+            .clk(clk), .rst(rst),
+            .branch_taken(branch_taken),
             .pc_curr(unpacked_pc[i]),
             .imem_rdata(unpacked_imem_rdata[i]),
             .instruction_info(decoded_inst[i])
@@ -151,6 +173,7 @@ instruction_info_reg_t view_inst_tail [1];
 logic [$clog2(ROB_DEPTH)-1:0] inst_tail;
 logic [$clog2(ROB_DEPTH)-1:0] sel_out_inst [1];
 assign sel_out_inst[0] = inst_tail;
+// logic valid_inst_exception; 
 
 // Check if next inst has rd
 logic next_inst_has_rd;
@@ -170,12 +193,11 @@ circular_queue #(.SS(SS), .IN_WIDTH(SS), .SEL_IN(SS), .SEL_OUT(1), .DEPTH(ROB_DE
                  );
                 // planning on passing dummy shit or 0 into reg_select shit
 
-super_dispatch_t rob_entries_to_commit [SS];
+
 ///////////////////// INSTRUCTION FETCH (SIMILAR TO MP2) /////////////////////
 fetch_stage #(.SS(SS)) fetch_stage_i (
     .clk(clk),
     .rst(rst),
-    .predict_branch('0), // Change this later
     .stall_inst(inst_queue_full), 
     .imem_resp(imem_resp), 
     .rob_entries_to_commit(rob_entries_to_commit), // passing branch target from rob
@@ -452,7 +474,7 @@ fu_input_t inst_for_fu_mult [N_MUL];
 
 // MODULE INSTANTIATION
 reservation_table #(.SS(SS), .REQUEST(N_MUL), .reservation_table_size(reservation_table_size), 
-        .ROB_DEPTH(ROB_DEPTH), .TABLE_TYPE(MUL_T)) mult_table(.clk(clk), .rst(rst),
+        .ROB_DEPTH(ROB_DEPTH), .TABLE_TYPE(MUL_T)) mult_table(.clk(clk), .rst(rst || flush),
                                                             .dispatched(rs_rob_entry1), // Dispatched shit
                                                             .avail_inst(avail_inst), // Thing
                                                             .cdb_rob_ids(cdb), // CDB 
