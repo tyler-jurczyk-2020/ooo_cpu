@@ -154,7 +154,7 @@ end
 generate
     for(genvar i = 0; i < SS; i++) begin : parallel_decode
         id_stage id_stage_i (
-            .clk(clk), .rst(rst),
+            // .clk(clk), .rst(rst),
             //.branch_taken(branch_taken),
             .pc_curr(unpacked_pc[i]),
             .imem_rdata(unpacked_imem_rdata[i]),

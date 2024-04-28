@@ -1,7 +1,7 @@
 module id_stage
     import rv32i_types::*;
     (   
-        input clk, rst, 
+        // input clk, rst, 
         input logic [31:0] imem_rdata,
         input logic [31:0] pc_curr,
         // input logic branch_taken, 
