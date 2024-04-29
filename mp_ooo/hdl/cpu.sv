@@ -214,7 +214,7 @@ fetch_stage #(.SS(SS)) fetch_stage_i (
 
 
 cdb_t cdb;
-fu_output_t alu_cmp_output [N_ALU], mul_output [N_MUL], lsq_output;
+fu_output_t alu_cmp_output [N_ALU], mul_output [N_MUL], div_output [N_DIV], lsq_output;
 // Merge cdb 
 // ALU entries come first, then MUL, then LSQ last
 always_comb begin
@@ -223,6 +223,8 @@ always_comb begin
             cdb[i] = alu_cmp_output[i];
         else if(i < N_ALU + N_MUL)
             cdb[i] = mul_output [i - N_ALU];
+        else if(i < N_ALU + N_MUL + N_DIV)
+            cdb[i] = div_output [i - N_DIV];
         else
             cdb[i] = lsq_output;
     end
@@ -232,7 +234,7 @@ end
 ///////////////////// Rename/Dispatch: Physical Register File /////////////////////
 // MODULE INPUTS DECLARATION 
 physical_reg_request_t dispatch_request[SS];
-physical_reg_request_t alu_request [N_ALU] , mul_request [N_MUL];
+physical_reg_request_t alu_request [N_ALU] , mul_request [N_MUL], div_request [N_DIV];
 physical_reg_request_t lsq_request;
 
 // INPUTS FROM THE RESERVATION TABLE FROM THE ALU
@@ -240,7 +242,7 @@ physical_reg_request_t lsq_request;
 
 // MODULE OUTPUT DECLARATION
 physical_reg_response_t dispatch_reg_data [SS];
-physical_reg_response_t alu_reg_data [N_ALU], mul_reg_data [N_MUL];
+physical_reg_response_t alu_reg_data [N_ALU], mul_reg_data [N_MUL], div_reg_data [N_DIV];
 physical_reg_response_t lsq_reg_data;
 
 // MODULE INSTANTIATION
@@ -250,6 +252,7 @@ phys_reg_file #(.SS(SS), .TABLE_ENTRIES(TABLE_ENTRIES)) reg_file (
                 .dispatch_request(dispatch_request), .dispatch_reg_data(dispatch_reg_data),
                 .alu_request(alu_request), .alu_reg_data(alu_reg_data),
                 .mul_request(mul_request), .mul_reg_data(mul_reg_data),
+                .div_request(div_request), .div_reg_data(div_reg_data),
                 .lsq_request(lsq_request), .lsq_reg_data(lsq_reg_data)
                 );
 
@@ -288,6 +291,7 @@ super_dispatch_t rs_rob_entry [SS];
 // Full Signals
 logic alu_table_full; 
 logic mult_table_full; 
+logic div_table_full; 
 
 // MODULE INSTANTIATION
 dispatcher #(.SS(SS), .PR_ENTRIES(PR_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) dispatcher_i(
@@ -295,7 +299,7 @@ dispatcher #(.SS(SS), .PR_ENTRIES(PR_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) dispatcher
              .pop_inst_q(pop_inst_q), // Needs to connect to free list as well
              .avail_inst(avail_inst),
              
-             .rs_full(alu_table_full || mult_table_full), // Resevation station informs that must stall pipeline (stop requesting pops)
+             .rs_full(alu_table_full || mult_table_full || div_table_full), // Resevation station informs that must stall pipeline (stop requesting pops)
              .inst_q_empty(inst_q_empty), // to prevent pop requests to free list
              .rob_full(rob_full),
              .inst(instruction), 
@@ -503,6 +507,51 @@ for(genvar i = 0; i < N_MUL; i++) begin : fu_muls
         ); 
 end
 endgenerate
+
+// Cycle 1: 
+///////////////////// Issue: MULT Reservation Station /////////////////////
+// MODULE INPUTS DECLARATION 
+logic FU_ready_div [N_DIV];
+
+// MODULE OUTPUT DECLARATION
+fu_input_t inst_for_fu_div [N_DIV]; 
+
+
+// MODULE INSTANTIATION
+reservation_table_div #(.SS(SS), .REQUEST(N_DIV), .reservation_table_size(reservation_table_size), 
+        .ROB_DEPTH(ROB_DEPTH), .TABLE_TYPE(DIV_T)) div_table(.clk(clk), .rst(rst || flush),
+                                                            .dispatched(rs_rob_entry1), // Dispatched shit
+                                                            .avail_inst(avail_inst), // Thing
+                                                            .cdb_rob_ids(cdb), // CDB 
+                                                            .inst_for_fu(inst_for_fu_div), // send instruction to be caluclated to fu
+                                                            .fu_request(div_request), // get vars from phys reg file
+                                                            .FU_Ready(FU_ready_div), // ALU FU will never be full 
+                                                            .table_full(div_table_full) // Signal that the res table full 
+                                                            );                
+                                        
+
+// Cycle 2: 
+///////////////////// Execute: FU - MULT /////////////////////
+// MODULE INPUTS DECLARATION 
+// MODULE OUTPUT DECLARATION
+                                        
+// MODULE INSTANTIATION      
+                                                            
+fu_wrapper_divide  #(.sign(1)) fuck_div_1 (
+    .clk(clk),.rst(rst || flush),
+    .to_be_multiplied(inst_for_fu_div[0]),
+    .mul_output(div_output[0]),
+    .FU_ready(FU_ready_div[0]),
+    .fu_reg_data(div_reg_data[0])
+); 
+
+fu_wrapper_divide  #(.sign(0)) fuck_div_2 (
+    .clk(clk),.rst(rst || flush),
+    .to_be_multiplied(inst_for_fu_div[1]),
+    .mul_output(div_output[1]),
+    .FU_ready(FU_ready_div[1]),
+    .fu_reg_data(div_reg_data[1])
+); 
 
 // Cycle 1: 
 ///////////////////// Issue: Load Store Queue /////////////////////

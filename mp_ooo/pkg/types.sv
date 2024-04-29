@@ -10,7 +10,8 @@ package rv32i_types;
     localparam LD_ST = 8;
     localparam N_MUL = 1;
     localparam N_ALU = 1;
-    localparam CDB = N_ALU + N_MUL + 1; // Don't touch this, + 1 is for LSQ
+    localparam N_DIV = 1;
+    localparam CDB = N_ALU + N_MUL + N_DIV + 1; // Don't touch this, + 1 is for LSQ
     localparam freelistdepth = 32;
 
     typedef enum logic [6:0] {
@@ -85,6 +86,7 @@ package rv32i_types;
             logic [2:0] cmp_operation;
             // type of multiplication operation
             logic [1:0] mul_type;
+            logic [1:0] div_type;
 
             // Hold whether we had branched or not
             logic predict_branch; 
@@ -97,7 +99,10 @@ package rv32i_types;
             logic is_jumpr;
 
             // to let shift_add_multiplier know we multiplyin
-            logic is_mul;
+            // add is 00
+            // mul is 01
+            // div is 10
+            logic [1:0] is_mul;
 
             bit valid;
 
@@ -199,7 +204,8 @@ package rv32i_types;
 
     typedef enum logic {
         ALU_T,
-        MUL_T
+        MUL_T, 
+        DIV_T
     } reservation_table_type_t;
 
     typedef struct packed {
@@ -245,6 +251,13 @@ package rv32i_types;
         logic start; 
         super_dispatch_t inst_info; 
     } multiply_FUs_t; 
+
+    typedef struct packed {
+        logic what_we_want;
+        logic [31:0] a; 
+        logic [31:0] b; 
+        super_dispatch_t inst_info; 
+    } divide_FUs_t; 
 
     typedef enum logic [2:0] {
         wait_s_load_p,
