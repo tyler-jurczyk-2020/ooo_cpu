@@ -10,6 +10,6 @@
         "ungroup"       : true,
         "gate_clock"    : true,
         "retime"        : true,
-        "min_power"     : true
+        "min_power"     : false
     }
 }
