@@ -539,16 +539,16 @@ reservation_table_div #(.SS(SS), .REQUEST(N_DIV), .reservation_table_size(reserv
                                                             
 fu_wrapper_divide  #(.sign(1)) fuck_div_1 (
     .clk(clk),.rst(rst || flush),
-    .to_be_multiplied(inst_for_fu_div[0]),
-    .mul_output(div_output[0]),
+    .to_be_divided(inst_for_fu_div[0]),
+    .div_output(div_output[0]),
     .FU_ready(FU_ready_div[0]),
     .fu_reg_data(div_reg_data[0])
 ); 
 
 fu_wrapper_divide  #(.sign(0)) fuck_div_2 (
     .clk(clk),.rst(rst || flush),
-    .to_be_multiplied(inst_for_fu_div[1]),
-    .mul_output(div_output[1]),
+    .to_be_divided(inst_for_fu_div[1]),
+    .div_output(div_output[1]),
     .FU_ready(FU_ready_div[1]),
     .fu_reg_data(div_reg_data[1])
 ); 

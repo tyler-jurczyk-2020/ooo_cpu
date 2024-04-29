@@ -10,7 +10,7 @@ package rv32i_types;
     localparam LD_ST = 8;
     localparam N_MUL = 1;
     localparam N_ALU = 1;
-    localparam N_DIV = 1;
+    localparam N_DIV = 2;
     localparam CDB = N_ALU + N_MUL + N_DIV + 1; // Don't touch this, + 1 is for LSQ
     localparam freelistdepth = 32;
 
@@ -202,7 +202,7 @@ package rv32i_types;
         BACKUP_FREE_LIST
     } initialization_t;
 
-    typedef enum logic {
+    typedef enum logic [1:0] {
         ALU_T,
         MUL_T, 
         DIV_T

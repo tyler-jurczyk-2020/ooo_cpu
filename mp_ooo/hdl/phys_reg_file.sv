@@ -42,7 +42,7 @@ import rv32i_types::*;
 
     // DIV Requests
     input physical_reg_request_t div_request [N_DIV],
-    output physical_reg_response_t div_reg_data [N_DIV],
+    output physical_reg_response_t div_reg_data [N_DIV]
 );
 
     physical_reg_data_t  data [TABLE_ENTRIES];
