@@ -20,16 +20,21 @@ module cache_arbiter
     // Data Memory
     input  logic    [31:0]   dmem_itf_addr,
     input  logic             dmem_itf_rmask,
-    input  logic    [3:0]    dmem_itf_wmask,
+    input  logic    [31:0]    dmem_itf_wmask,
     output logic    [31:0]   dmem_itf_rdata,
-    input  logic    [31:0]   dmem_itf_wdata,
+    input  logic    [255:0]   dmem_itf_wdata,
     output logic             dmem_itf_resp,
 
     // Instruction Memory
     input  logic    [31:0]   imem_itf_addr,
     input  logic             imem_itf_rmask,
     output logic    [(32*SS)-1:0]  imem_itf_rdata,
-    output logic             imem_itf_resp
+    output logic             imem_itf_resp,
+
+    //PCS
+    input logic [255:0] pcs_cacheline,
+    input logic write_pcs_cacheline,
+    input logic [31:0] pcs_cacheline_mask
 
 );
 
@@ -73,7 +78,7 @@ cache #(.READ_SIZE(32*SS), .OFFSET(3)) inst_cache
     .dfp_resp(instr_bmem_rvalid)
 );
 
-cache data_cache
+pcs_cache data_cache
 (
     .clk(clk),
     .rst(rst),
@@ -90,7 +95,10 @@ cache data_cache
     .dfp_write(data_bmem_write),
     .dfp_rdata(data_bmem_rdata),
     .dfp_wdata(data_bmem_wdata),
-    .dfp_resp(dmem_resp_from_bmem)
+    .dfp_resp(dmem_resp_from_bmem),
+    .write_pcs_cacheline(write_pcs_cacheline),
+    .pcs_cacheline_mask(pcs_cacheline_mask),
+    .pcs_cacheline(pcs_cacheline)
 );
 
 logic [63:0] read_dword_buffer [3], write_dword_buffer [3]; // No need to buffer fourth entry since we can forward it immediately

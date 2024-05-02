@@ -32,13 +32,16 @@ logic            imem_resp;
 // dmem interface signals
 logic   [31:0]  dmem_addr;
 logic           dmem_rmask;
-logic   [3:0]   dmem_wmask;
+logic   [31:0]   dmem_wmask;
 logic   [31:0]  dmem_rdata;
-logic   [31:0]  dmem_wdata;
+logic   [255:0]  dmem_wdata;
 logic           dmem_resp;
 
 ///////////////////// CACHE /////////////////////
 // Instantiate caches here
+logic write_pcs_cacheline;
+logic [31:0] pcs_cacheline_mask;
+logic [255:0] pcs_cacheline;
 
 cache_arbiter #(.SS(SS)) 
                 ca(.clk(clk), .rst(rst),
@@ -61,7 +64,10 @@ cache_arbiter #(.SS(SS))
                 .dmem_itf_wmask(dmem_wmask),
                 .dmem_itf_wdata(dmem_wdata),
                 .dmem_itf_rdata(dmem_rdata),
-                .dmem_itf_resp(dmem_resp)
+                .dmem_itf_resp(dmem_resp),
+                .write_pcs_cacheline(write_pcs_cacheline),
+                .pcs_cacheline(pcs_cacheline),
+                .pcs_cacheline_mask(pcs_cacheline_mask)
 );
 
 ///////////////////// INSTRUCTION QUEUE /////////////////////
@@ -575,7 +581,10 @@ load_store_queue #(.SS(SS)) lsq(
     .dmem_resp(dmem_resp),
     .cdb_in(cdb),
     .cdb_out(lsq_output),
-    .commit_store(commit_store)
+    .commit_store(commit_store),
+    .write_pcs_cacheline(write_pcs_cacheline),
+    .pcs_cacheline_mask(pcs_cacheline_mask),
+    .pcs_cacheline(pcs_cacheline)
 );
 
 // //RVFI Signals

@@ -182,9 +182,17 @@ package rv32i_types;
     } reservation_entry_t; 
 
     typedef struct packed {
+        logic [31:0] rs1_data;
+        logic [31:0] rs2_data;
+        logic [31:0] immediate;
+        logic [3:0] wmask;
+    } pcs_t;
+
+    typedef struct packed {
        logic [$clog2(LD_ST)-1:0] pointer;
        logic cross_dep_met;
        logic valid;
+       pcs_t pcs;
     } cross_t;
 
     typedef struct packed {
@@ -260,22 +268,25 @@ package rv32i_types;
     } divide_FUs_t; 
 
     typedef enum logic [2:0] {
-        wait_s_load_p,
-        wait_s_store_p,
+        wait_s,
         request_load_s,
         latch_load_s,
         request_store_s,
-        latch_store_s
+        latch_store_s,
+        commit_to_pcs_s,
+        check_pcs_s
     } ld_st_controller_t;
 
 endpackage
 
 package cache_types;
-    typedef enum bit [1:0] {
+    typedef enum bit [2:0] {
         idle_s,
         compare_tag_s,
         allocate_s,
-        writeback_s
+        writeback_s,
+        pcs_write_s,
+        pcs_buf_s
     } state_t;
 
     typedef enum bit [2:0] {

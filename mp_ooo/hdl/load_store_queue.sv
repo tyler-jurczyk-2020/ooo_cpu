@@ -13,9 +13,9 @@ import rv32i_types::*;
     // dmem interface signals
     output logic   [31:0]  dmem_addr,
     output logic           dmem_rmask,
-    output logic   [3:0]   dmem_wmask,
+    output logic   [31:0]   dmem_wmask,
     input logic   [31:0]  dmem_rdata,
-    output logic   [31:0]  dmem_wdata,
+    output logic   [255:0]  dmem_wdata,
     input logic          dmem_resp,
 
     // Regfile io
@@ -29,10 +29,14 @@ import rv32i_types::*;
     input cdb_t cdb_in,
 
     // Rob comm on when to commit a store
-    input logic commit_store
+    input logic commit_store,
 
+    // Signals to writeback pcsb to cache
+    output logic write_pcs_cacheline,
+    output logic [31:0] pcs_cacheline_mask,
+    output logic [255:0] pcs_cacheline 
 );
-
+logic [31:0] pcs_addr;
 logic push_load, push_store, pop_load_ready, pop_store_ready, pop_load, pop_store;
 logic [$clog2(LD_ST_DEPTH)-1:0] load_tail, store_tail, load_head, store_head;
 logic load_full, store_full;
@@ -54,6 +58,8 @@ logic [LD_ST_DEPTH-1:0] load_in_bit, store_in_bit;
 super_dispatch_t load_in [LD_ST_DEPTH], load_out [LD_ST_DEPTH];
 super_dispatch_t store_in [LD_ST_DEPTH], store_out [LD_ST_DEPTH];
 
+logic clear_pcs;
+
 // For now only properly support non-superscalar
 assign push_load = avail_inst && ~load_full && dispatch_entry[0].inst.rmask != 4'b0;
 assign push_store = avail_inst && ~store_full && dispatch_entry[0].inst.wmask != 4'b0;
@@ -61,7 +67,7 @@ assign pop_load_ready = load_out[load_tail].cross_entry.cross_dep_met && load_ou
                     && load_out[load_tail].rs_entry.input2_met && load_out[load_tail].cross_entry.valid;
 assign pop_store_ready = store_out[store_tail].cross_entry.cross_dep_met && store_out[store_tail].rs_entry.input1_met
                       && store_out[store_tail].rs_entry.input2_met && store_out[store_tail].cross_entry.valid
-                      && commit_store;
+                      && commit_store && ~clear_pcs;
 
 // Setup inputs to queues
 always_comb begin
@@ -135,27 +141,37 @@ ld_st_controller_t state, next_state;
 
 always_ff @(posedge clk) begin
     if(rst)
-        state <= wait_s_load_p;
+        state <= wait_s;
     else
         state <= next_state;
 end
 
+logic pcs_hit;
+logic move_to_load, move_to_store, move_to_pcs;
 
 // Next state logic
 always_comb begin
     // Depending on current wait state, prioritize load or store
     if(pop_load_ready && pop_store_ready 
-       && (state == wait_s_load_p || state == wait_s_store_p)) begin
-        unique case (state)
-            wait_s_load_p : next_state = request_load_s;
-            wait_s_store_p : next_state = request_store_s;
-            default : next_state = state;
-        endcase
+       && (state == wait_s)) begin
+            next_state = request_load_s;
     end
-    else if(pop_load_ready && (state == wait_s_load_p || state == wait_s_store_p) && ~flush) begin
-        next_state = request_load_s;
+    else if(pop_load_ready && state == wait_s && ~flush && ~clear_pcs) begin
+        next_state = check_pcs_s;
     end
-    else if(pop_store_ready && (state == wait_s_load_p || state == wait_s_store_p) && ~flush) begin
+    else if(state == check_pcs_s) begin
+        if(pcs_hit)
+            next_state = latch_load_s;
+        else
+            next_state = request_load_s;
+    end
+    else if(pop_store_ready && state == wait_s && ~flush) begin
+        next_state = commit_to_pcs_s;
+    end
+    else if(state == commit_to_pcs_s) begin
+        next_state = wait_s;
+    end
+    else if(move_to_store) begin
         next_state = request_store_s;
     end
     else if((state == request_load_s || state == request_store_s) && dmem_resp) begin
@@ -166,20 +182,119 @@ always_comb begin
             default : next_state = state;
         endcase
     end
-    else if(state == latch_load_s) begin
-        next_state = wait_s_store_p;
+    else if(state == latch_load_s || state == latch_store_s) begin
+        next_state = wait_s;
     end
-    else if(state == latch_store_s) begin
-        next_state = wait_s_load_p;
+    else if(state == request_store_s && ~clear_pcs) begin
+        next_state = wait_s;
     end
     else begin
         next_state = state;
     end
 end
 
-logic move_to_load, move_to_store;
-assign move_to_load = (pop_load_ready && (state == wait_s_load_p || (state == wait_s_store_p && ~pop_store_ready)));
-assign move_to_store = (pop_store_ready && (state == wait_s_store_p || (state == wait_s_load_p && ~pop_load_ready)));
+// Latches for response
+logic [31:0] dmem_rdata_out_reg, dmem_rdata_reg;
+// Latches for sending out to dram (load)
+logic [31:0] cdb_rs1_register_value_reg, immediate_reg;
+// Latches for sending out to dram (store)
+logic [31:0] cdb_rs2_register_value_reg;
+
+// Masked read data returned from memory appropriately
+logic [31:0] dmem_rdata_masked, dmem_rdata_out, dmem_addr_latched, dmem_comb_addr_load, dmem_comb_addr_store;
+logic [3:0] dmem_rmask_reg, dmem_wmask_reg;
+
+// Info for latched instructions
+super_dispatch_t entry_latch;
+
+// Used to check if we just came from pcs state
+logic was_pcs;
+
+// PCS stuff
+super_dispatch_t store_queue_out_pcs;
+pcs_t pcs_entry;
+
+assign move_to_load = (pop_load_ready && state == wait_s && ~flush && ~clear_pcs);
+assign move_to_pcs = (pop_store_ready && state == wait_s && ~flush && ~pop_load_ready && ~clear_pcs);
+// Need state to write back cacheline
+assign move_to_store = clear_pcs; // Used only when buffer is full and we must do a "conventional" write
+
+always_ff @(posedge clk) begin
+    if(rst) begin
+        dmem_rdata_out_reg <= '0;
+        dmem_rdata_reg <= '0;
+        dmem_rmask_reg <= '0;
+        dmem_wmask_reg <= '0;
+
+        cdb_rs1_register_value_reg <= '0;
+        immediate_reg <= '0;
+        cdb_rs2_register_value_reg <= '0;
+
+        entry_latch <= '0;
+
+        was_pcs <= 1'b0;
+    end
+    else begin
+        was_pcs <= state == check_pcs_s;
+
+        if(dmem_resp) begin
+            dmem_rdata_out_reg <= dmem_rdata_out;
+            dmem_rdata_reg <= dmem_rdata;
+        end
+
+        if(move_to_load && ~flush) begin
+            cdb_rs1_register_value_reg <= lsq_reg_data.rs1_v.register_value;
+            immediate_reg <= load_out[load_tail].inst.immediate;
+            dmem_rmask_reg <= load_out[load_tail].inst.rmask << dmem_comb_addr_load[1:0];
+            entry_latch <= load_out[load_tail];
+        end
+
+        if((move_to_pcs || move_to_store) && ~flush) begin
+            cdb_rs1_register_value_reg <= lsq_reg_data.rs1_v.register_value;
+            cdb_rs2_register_value_reg <= lsq_reg_data.rs2_v.register_value;
+            immediate_reg <= store_out[store_tail].inst.immediate;
+            dmem_wmask_reg <= store_out[store_tail].inst.wmask << dmem_comb_addr_store[1:0];
+            entry_latch <= store_out[store_tail];
+        end
+    end
+end
+
+logic [31:0] store_queue_out_preshift;
+logic [3:0] preshift_mask;
+
+always_comb begin
+    preshift_mask = dmem_wmask_reg >> {cdb_rs1_register_value_reg + immediate_reg}[1:0];
+    store_queue_out_pcs = store_queue_out[0];
+    store_queue_out_pcs.cross_entry.pcs.rs1_data = cdb_rs1_register_value_reg;
+    store_queue_out_pcs.cross_entry.pcs.immediate = immediate_reg;
+    store_queue_out_pcs.cross_entry.pcs.wmask = dmem_wmask_reg;
+    for(int i = 0; i < 4; i++) begin
+        if(preshift_mask[i])
+            store_queue_out_preshift[8*i+:8] = cdb_rs2_register_value_reg[8*i+:8];
+        else
+            store_queue_out_preshift[8*i+:8] = 8'b0;
+    end
+    store_queue_out_pcs.cross_entry.pcs.rs2_data = store_queue_out_preshift << 8*{cdb_rs1_register_value_reg + immediate_reg}[1:0];
+end
+
+pcs_buffer pcsb(
+    .clk(clk), .rst(rst),
+    .store_queue_out(store_queue_out_pcs),
+    .push_pcs(state == commit_to_pcs_s),
+    .pcs_entry(pcs_entry),
+    .pcs_hit(pcs_hit),
+    .check_pcs_addr(state == check_pcs_s),
+    .pcs_addr(cdb_rs1_register_value_reg + immediate_reg),
+    .pcs_rmask(dmem_rmask_reg),
+    .lsq_state(state),
+    .write_pcs_cacheline(write_pcs_cacheline),
+    .pcs_cacheline_mask(pcs_cacheline_mask),
+    .pcs_cacheline(pcs_cacheline),
+    .pcs_addr_req(pcs_addr),
+    .dmem_resp(dmem_resp),
+    .clear_pcs(clear_pcs)
+);
+
 
 // Modify entries up receiving updates from cdb
 always_comb begin
@@ -233,7 +348,7 @@ always_comb begin
             load_in[d].cross_entry.valid = 1'b0;
             load_in_bit[d] = 1'b1;
         end
-        if(move_to_store && (unsigned'(($clog2(LD_ST_DEPTH))'(d))) == store_tail) begin
+        if(move_to_pcs && (unsigned'(($clog2(LD_ST_DEPTH))'(d))) == store_tail) begin
             store_in[d].cross_entry.valid = 1'b0;
             store_in_bit[d] = 1'b1;
         end
@@ -241,19 +356,8 @@ always_comb begin
 end
 
 
-// Latches for response
-logic [31:0] dmem_rdata_out_reg, dmem_rdata_reg;
-// Latches for sending out to dram (load)
-logic [31:0] cdb_rs1_register_value_reg, immediate_reg;
-// Latches for sending out to dram (store)
-logic [31:0] cdb_rs2_register_value_reg;
 
-// Masked read data returned from memory appropriately
-logic [31:0] dmem_rdata_masked, dmem_rdata_out, dmem_addr_latched, dmem_comb_addr_load, dmem_comb_addr_store;
-logic [3:0] dmem_rmask_reg, dmem_wmask_reg;
 
-// Info for latched instructions
-super_dispatch_t entry_latch;
 
 // Addr that held during request states
 assign dmem_addr_latched = cdb_rs1_register_value_reg + immediate_reg;
@@ -266,53 +370,28 @@ always_ff @(posedge clk) begin
     if(rst)
         block_cdb <= 1'b0;
     else begin
-        if(flush && (state == request_load_s || state == request_store_s))
+        if(flush && (state == request_load_s || state == request_store_s || state == check_pcs_s))
             block_cdb <= 1'b1;
         else if(state != request_load_s && state != request_store_s)
             block_cdb <= 1'b0;
     end
 end
 
-always_ff @(posedge clk) begin
-    if(rst) begin
-        dmem_rdata_out_reg <= '0;
-        dmem_rdata_reg <= '0;
-        dmem_rmask_reg <= '0;
-        dmem_wmask_reg <= '0;
-
-        cdb_rs1_register_value_reg <= '0;
-        immediate_reg <= '0;
-        cdb_rs2_register_value_reg <= '0;
-
-        entry_latch <= '0;
-    end
-    else begin
-        if(dmem_resp) begin
-            dmem_rdata_out_reg <= dmem_rdata_out;
-            dmem_rdata_reg <= dmem_rdata;
-        end
-
-        if(move_to_load && ~flush) begin
-            cdb_rs1_register_value_reg <= lsq_reg_data.rs1_v.register_value;
-            immediate_reg <= load_out[load_tail].inst.immediate;
-            dmem_rmask_reg <= load_out[load_tail].inst.rmask << dmem_comb_addr_load[1:0];
-            entry_latch <= load_out[load_tail];
-        end
-
-        if(move_to_store && ~flush) begin
-            cdb_rs1_register_value_reg <= lsq_reg_data.rs1_v.register_value;
-            cdb_rs2_register_value_reg <= lsq_reg_data.rs2_v.register_value;
-            immediate_reg <= store_out[store_tail].inst.immediate;
-            dmem_wmask_reg <= store_out[store_tail].inst.wmask << dmem_comb_addr_store[1:0];
-            entry_latch <= store_out[store_tail];
-        end
-    end
-end
 
 logic [31:0] shift_amt;
 logic signed [31:0] dmem_rdata_signed;
+logic [31:0] dmem_rdata_mux;
 assign shift_amt =  8*(dmem_addr_latched[1:0]);
 assign dmem_rdata_signed = signed'(dmem_rdata_masked);
+
+always_comb begin
+    if(~was_pcs) begin
+        dmem_rdata_mux = dmem_rdata;
+    end
+    else begin
+        dmem_rdata_mux = pcs_entry.rs2_data;
+    end
+end
 
 // Used on data response
 always_comb begin
@@ -325,11 +404,11 @@ always_comb begin
     for(int i = 0; i < 4; i++) begin
         // Differentiate between signed and unsigned
         if(~entry_latch.inst.is_signed) begin
-            dmem_rdata_masked[8*i+:8] = dmem_rdata[8*i+:8] & {8{dmem_rmask_reg[i]}}; 
+            dmem_rdata_masked[8*i+:8] = dmem_rdata_mux[8*i+:8] & {8{dmem_rmask_reg[i]}}; 
         end
         else begin
             if(dmem_rmask_reg[i])
-                dmem_rdata_masked[8*i+:8] = dmem_rdata[8*i+:8]; 
+                dmem_rdata_masked[8*i+:8] = dmem_rdata_mux[8*i+:8]; 
             else begin
                 if(i > 0)
                     dmem_rdata_masked[8*i+:8] = {8{dmem_rdata_masked[(8*i)-1]}}; 
@@ -344,28 +423,28 @@ end
 always_comb begin
     // Send out to data cache based on state of controller
     unique case (state)
-    wait_s_load_p, wait_s_store_p : begin
+    wait_s : begin
         dmem_addr = 'x;
         dmem_rmask = 1'b0;
-        dmem_wmask = 4'b0;
+        dmem_wmask = 32'b0;
         dmem_wdata = 'x;
     end
     request_load_s : begin
         dmem_addr = dmem_addr_latched;
         dmem_rmask = 1'b1;
-        dmem_wmask = 4'b0;
+        dmem_wmask = 32'b0;
         dmem_wdata = 'x;
     end
     request_store_s : begin
-        dmem_addr = dmem_addr_latched; // NOT CORRECT!!
+        dmem_addr = {pcs_addr[31:5], 5'b0};
         dmem_rmask = 1'b0;
-        dmem_wmask = dmem_wmask_reg;
-        dmem_wdata = cdb_rs2_register_value_reg;
+        dmem_wmask = pcs_cacheline_mask;
+        dmem_wdata = pcs_cacheline;
     end
     default : begin
         dmem_addr = 'x;
         dmem_rmask = 1'b0;
-        dmem_wmask = 4'b0;
+        dmem_wmask = 32'b0;
         dmem_wdata = 'x;
     end
     endcase
@@ -374,7 +453,7 @@ always_comb begin
         pop_load = 1'b1;
         pop_store = 1'b0;
     end
-    else if (move_to_store) begin
+    else if(move_to_pcs) begin
         pop_load = 1'b0;
         pop_store = 1'b1;
     end
@@ -395,7 +474,7 @@ always_comb begin
         cdb_out.ready_for_writeback = 1'b0;
         cdb_out.branch_result = '0;
     end
-    else if(move_to_store && ~flush) begin
+    else if((move_to_pcs || move_to_store) && ~flush) begin
         lsq_request.rs1_s = store_out[store_tail].rat.rs1;
         lsq_request.rs2_s = store_out[store_tail].rat.rs2;
         lsq_request.rd_s = 'x;
@@ -412,19 +491,34 @@ always_comb begin
         lsq_request.rd_s = 'x;
         lsq_request.rd_en = 1'b0;
         lsq_request.rd_v = 'x;
-        cdb_out.inst_info = entry_latch;
-        cdb_out.register_value = dmem_rdata_out_reg;
-        cdb_out.ready_for_writeback = 1'b1;
-        cdb_out.inst_info.rvfi.rd_wdata = dmem_rdata_out_reg;
-        cdb_out.inst_info.rvfi.rs1_rdata = cdb_rs1_register_value_reg;
-        cdb_out.inst_info.rvfi.rs2_rdata = '0;
-        cdb_out.inst_info.rvfi.mem_rdata = dmem_rdata_reg;
-        cdb_out.inst_info.rvfi.mem_wdata = 'x;
-        cdb_out.inst_info.rvfi.mem_rmask = dmem_rmask_reg; 
-        cdb_out.inst_info.rvfi.mem_addr = cdb_rs1_register_value_reg + immediate_reg;
-        cdb_out.branch_result = '0;
+        if(~was_pcs) begin
+            cdb_out.inst_info = entry_latch;
+            cdb_out.register_value = dmem_rdata_out_reg;
+            cdb_out.ready_for_writeback = 1'b1;
+            cdb_out.inst_info.rvfi.rd_wdata = dmem_rdata_out_reg;
+            cdb_out.inst_info.rvfi.rs1_rdata = cdb_rs1_register_value_reg;
+            cdb_out.inst_info.rvfi.rs2_rdata = '0;
+            cdb_out.inst_info.rvfi.mem_rdata = dmem_rdata_reg;
+            cdb_out.inst_info.rvfi.mem_wdata = 'x;
+            cdb_out.inst_info.rvfi.mem_rmask = dmem_rmask_reg; 
+            cdb_out.inst_info.rvfi.mem_addr = cdb_rs1_register_value_reg + immediate_reg;
+            cdb_out.branch_result = '0;
+        end
+        else begin
+            cdb_out.inst_info = entry_latch;
+            cdb_out.register_value = dmem_rdata_out;
+            cdb_out.ready_for_writeback = 1'b1;
+            cdb_out.inst_info.rvfi.rd_wdata = dmem_rdata_out;
+            cdb_out.inst_info.rvfi.rs1_rdata = cdb_rs1_register_value_reg;
+            cdb_out.inst_info.rvfi.rs2_rdata = '0;
+            cdb_out.inst_info.rvfi.mem_rdata = pcs_entry.rs2_data;
+            cdb_out.inst_info.rvfi.mem_wdata = 'x;
+            cdb_out.inst_info.rvfi.mem_rmask = dmem_rmask_reg; 
+            cdb_out.inst_info.rvfi.mem_addr = cdb_rs1_register_value_reg + immediate_reg;
+            cdb_out.branch_result = '0;
+        end
     end
-    else if(state == latch_store_s && ~block_cdb) begin
+    else if((state == latch_store_s || state == commit_to_pcs_s) && ~block_cdb) begin
         lsq_request.rs1_s = 'x;
         lsq_request.rs2_s = 'x;
         lsq_request.rd_s = 'x;
