@@ -5,14 +5,14 @@ module top_tb;
     timeunit 1ps;
     timeprecision 1ps;
 
-    int clock_half_period_ps = getenv("CLOCK_PERIOD_PS").atoi() / 2;
+    int clock_half_period_ps = getenv("ECE411_CLOCK_PERIOD_PS").atoi() / 2;
 
     bit clk;
     always #(clock_half_period_ps) clk = ~clk;
 
     bit rst;
 
-    int timeout = 1000000000; // in cycles, change according to your needs
+    int timeout = 10000000; // in cycles, change according to your needs
 
     // Explicit dual port connections when caches are not integrated into design yet (Before CP3)
     // mem_itf mem_itf_i(.*);
@@ -26,7 +26,7 @@ module top_tb;
     mon_itf mon_itf(.*);
     monitor monitor(.itf(mon_itf));
 
-    cpu #(.SS(1)) dut(
+    cpu #(.SS(2)) dut(
         .clk            (clk),
         .rst            (rst),
 

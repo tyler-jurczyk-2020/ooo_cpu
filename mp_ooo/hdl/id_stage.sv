@@ -1,10 +1,11 @@
 module id_stage
     import rv32i_types::*;
     (   
-
+        input clk, rst, 
         input logic [31:0] imem_rdata,
         input logic [31:0] pc_curr,
-        input logic predict_branch,
+        input logic branch_taken, 
+        input logic no_commit,
 
         output instruction_info_reg_t instruction_info
         // output [31:0] pc_next
@@ -37,6 +38,22 @@ module id_stage
     assign rd_s   = imem_rdata[11:7];
     assign offset = imem_rdata[31:20];
 
+    logic predict_branch; 
+
+    gshare #(.GHR_SIZE(10), .PHT_ENTRIES(1024)) branch_predictor
+    (
+    // rst & clk
+    .rst(rst),
+    .clk(clk),
+    // is instr branch
+    .branch_taken(branch_taken),
+    // target branch addr --> this is the PC value imma xor w/
+    .branch_addr(pc_curr),
+    // branch prediction 
+    .branch_prediction(predict_branch)
+    );
+
+
     always_comb begin
         instruction_info.funct3 = funct3; 
         instruction_info.funct7 = funct7; 
@@ -45,6 +62,7 @@ module id_stage
         instruction_info.rs2_s = rs2_s; 
         instruction_info.rd_s = rd_s; 
         instruction_info.valid = '1; // Instruction going into instruction queue will always be valid 
+        instruction_info.bad_but_pop_rob_anyway = no_commit; 
         // Replace immediate with one immediate 
         instruction_info.immediate = u_imm; 
 
@@ -101,14 +119,10 @@ module id_stage
 
 
         // set pc_next to branch target ---------> Soumil is Asleep and i put a bug in his waterbottle 
-   
+        instruction_info.pc_next = pc_curr + 4; 
+        
 
-        // branch
-        if(predict_branch)
-            instruction_info.pc_next = pc_curr + b_imm;
-        // not branch incr pc 
-        else
-            instruction_info.pc_next = pc_curr + 4; 
+
 
         //pc_next = instruction_info.pc_next;
 
@@ -215,6 +229,12 @@ module id_stage
                 instruction_info.is_branch = '1;   
                 instruction_info.rd_s = '0; 
                 instruction_info.has_rd ='0;
+                        // branch
+                if(predict_branch)
+                    instruction_info.pc_next = pc_curr + b_imm;
+                // not branch incr pc 
+                else
+                    instruction_info.pc_next = pc_curr + 4; 
 
             end
             op_b_jal : begin
@@ -223,6 +243,7 @@ module id_stage
                 instruction_info.immediate = j_imm; 
                 instruction_info.is_jump = '1;   
                 instruction_info.cmp_en = '0;  
+                instruction_info.pc_next = pc_curr + j_imm;
                 // instruction_info.jump = '1; 
             end
             op_b_jalr : begin

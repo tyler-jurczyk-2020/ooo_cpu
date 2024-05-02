@@ -29,14 +29,19 @@ import rv32i_types::*;
     input cdb_t cdb_in,
 
     // Rob comm on when to commit a store
-    input logic commit_store
+    input logic commit_store,
+
+    output logic full
 
 );
 
 logic push_load, push_store, pop_load_ready, pop_store_ready, pop_load, pop_store;
 logic [$clog2(LD_ST_DEPTH)-1:0] load_tail, store_tail, load_head, store_head;
 logic load_full, store_full;
+logic preempt_load_full, preempt_store_full;
 logic block_cdb;
+
+assign full = preempt_load_full || preempt_store_full;
 
 // Hardcoded reg select
 logic [$clog2(LD_ST_DEPTH)-1:0] reg_select_queue [LD_ST_DEPTH];
@@ -47,16 +52,31 @@ always_comb begin
 end
 
 // Input into queues
-super_dispatch_t load_queue_in [SS], load_queue_out [SS], store_queue_in [SS] , store_queue_out [SS];
+super_dispatch_t load_queue_in [SS], load_queue_out, store_queue_in [SS] , store_queue_out;
 
 // Entries of the queue to fw
 logic [LD_ST_DEPTH-1:0] load_in_bit, store_in_bit;
 super_dispatch_t load_in [LD_ST_DEPTH], load_out [LD_ST_DEPTH];
 super_dispatch_t store_in [LD_ST_DEPTH], store_out [LD_ST_DEPTH];
 
+// Amount to push into lsq
+logic[31:0] push_load_amt, push_store_amt;
+
+always_comb begin
+    push_load_amt = '0;
+    push_store_amt = '0;
+    for(int i = 0; i < SS; i++) begin
+        if(dispatch_entry[i].inst.rmask != 4'b0)
+            push_load_amt = push_load_amt + 1'b1;
+
+        if(dispatch_entry[i].inst.wmask != 4'b0)
+            push_store_amt = push_store_amt + 1'b1;
+    end
+end
+
 // For now only properly support non-superscalar
-assign push_load = avail_inst && ~load_full && dispatch_entry[0].inst.rmask != 4'b0;
-assign push_store = avail_inst && ~store_full && dispatch_entry[0].inst.wmask != 4'b0;
+assign push_load = avail_inst && ~load_full && push_load_amt > 0;
+assign push_store = avail_inst && ~store_full && push_store_amt > 0;
 assign pop_load_ready = load_out[load_tail].cross_entry.cross_dep_met && load_out[load_tail].rs_entry.input1_met
                     && load_out[load_tail].rs_entry.input2_met && load_out[load_tail].cross_entry.valid;
 assign pop_store_ready = store_out[store_tail].cross_entry.cross_dep_met && store_out[store_tail].rs_entry.input1_met
@@ -66,32 +86,73 @@ assign pop_store_ready = store_out[store_tail].cross_entry.cross_dep_met && stor
 // Setup inputs to queues
 always_comb begin
     for(int i = 0; i < SS; i++) begin
-        load_queue_in[i] = dispatch_entry[i];
-        load_queue_in[i].cross_entry.pointer = store_head;
-        load_queue_in[i].cross_entry.cross_dep_met = 1'b0;
-        load_queue_in[i].cross_entry.valid = 1'b1;
+        load_queue_in[i] = 'x;
+        load_queue_in[i].cross_entry.pointer = 'x;
+        load_queue_in[i].cross_entry.cross_dep_met = 'x;
+        load_queue_in[i].cross_entry.valid = 1'b0;
+        if(push_load_amt == SS) begin
+            load_queue_in[i] = dispatch_entry[i];
+            load_queue_in[i].cross_entry.pointer = store_head;
+            load_queue_in[i].cross_entry.cross_dep_met = 1'b0;
+            load_queue_in[i].cross_entry.valid = 1'b1;
+        end
+        else if(dispatch_entry[i].inst.rmask != 4'b0) begin
+            load_queue_in[0] = dispatch_entry[i];
+            load_queue_in[0].cross_entry.cross_dep_met = 1'b0;
+            load_queue_in[0].cross_entry.valid = 1'b1;
 
-        store_queue_in[i] = dispatch_entry[i];
-        store_queue_in[i].cross_entry.pointer = load_head;
-        store_queue_in[i].cross_entry.cross_dep_met = 1'b0;
-        store_queue_in[i].cross_entry.valid = 1'b1;
+            if(dispatch_entry[0].inst.wmask != '0)
+                load_queue_in[0].cross_entry.pointer = store_head + 1'b1;
+            else
+                load_queue_in[0].cross_entry.pointer = store_head;
+        end
+
+
+        store_queue_in[i] = 'x;
+        store_queue_in[i].cross_entry.pointer = 'x;
+        store_queue_in[i].cross_entry.cross_dep_met = 'x;
+        store_queue_in[i].cross_entry.valid = 1'b0;
+        if(push_store_amt == SS) begin
+            store_queue_in[i] = dispatch_entry[i];
+            store_queue_in[i].cross_entry.pointer = load_head;
+            store_queue_in[i].cross_entry.cross_dep_met = 1'b0;
+            store_queue_in[i].cross_entry.valid = 1'b1;
+        end
+        else if(dispatch_entry[i].inst.wmask != 4'b0) begin
+            store_queue_in[0] = dispatch_entry[i];
+            store_queue_in[0].cross_entry.cross_dep_met = 1'b0;
+            store_queue_in[0].cross_entry.valid = 1'b1;
+
+            if(dispatch_entry[0].inst.rmask != '0)
+                store_queue_in[0].cross_entry.pointer = load_head + 1'b1;
+            else
+                store_queue_in[0].cross_entry.pointer = load_head;
+        end
 
         // Transparency for dependencies
-        // for(int j = 0; j < CDB; j++) begin
-            if(cdb_in[0].ready_for_writeback && (cdb_in[0].inst_info.rat.rd == dispatch_entry[0].rat.rs1)) begin
-                load_queue_in[0].rs_entry.input1_met = 1'b1;
-                store_queue_in[0].rs_entry.input1_met = 1'b1;
+        for(int i = 0; i < SS; i++) begin
+            for(int j = 0; j < CDB; j++) begin
+                if(cdb_in[j].ready_for_writeback && (cdb_in[j].inst_info.rat.rd == load_queue_in[i].rat.rs1)) begin
+                    load_queue_in[i].rs_entry.input1_met = 1'b1;
+                end
+
+                if(cdb_in[j].ready_for_writeback && (cdb_in[j].inst_info.rat.rd == store_queue_in[i].rat.rs1)) begin
+                    store_queue_in[i].rs_entry.input1_met = 1'b1;
+                end
+                
+                if(cdb_in[j].ready_for_writeback && (cdb_in[j].inst_info.rat.rd == load_queue_in[i].rat.rs2)) begin
+                    load_queue_in[i].rs_entry.input2_met = 1'b1;
+                end
+                 
+                if(cdb_in[j].ready_for_writeback && (cdb_in[j].inst_info.rat.rd == store_queue_in[i].rat.rs2)) begin
+                    store_queue_in[i].rs_entry.input2_met = 1'b1;
+                end
             end
-            
-            if(cdb_in[0].ready_for_writeback && (cdb_in[0].inst_info.rat.rd == dispatch_entry[0].rat.rs2)) begin
-                load_queue_in[0].rs_entry.input2_met = 1'b1;
-                store_queue_in[0].rs_entry.input2_met = 1'b1;
-            end
-         end
-    //end
+        end
+    end
 end
 
-circular_queue #(.QUEUE_TYPE(super_dispatch_t), .SS(SS), .SEL_IN(LD_ST_DEPTH), .SEL_OUT(LD_ST_DEPTH),
+ls_queue #(.SS(SS), .SEL_IN(LD_ST_DEPTH), .SEL_OUT(LD_ST_DEPTH),
                  .DEPTH(LD_ST_DEPTH)) 
 load_queue(
     .clk(clk), .rst(rst || flush),
@@ -106,12 +167,14 @@ load_queue(
     .reg_out(load_out),
     .in_bitmask(load_in_bit),
     .out_bitmask('1),
+    .full(preempt_load_full),
     .full_inst(load_full),
     .push(push_load),
-    .pop(pop_load)
+    .pop(pop_load),
+    .push_amt(push_load_amt)
 );
 
-circular_queue #(.QUEUE_TYPE(super_dispatch_t), .SS(SS), .SEL_IN(LD_ST_DEPTH), .SEL_OUT(LD_ST_DEPTH),
+ls_queue #(.SS(SS), .SEL_IN(LD_ST_DEPTH), .SEL_OUT(LD_ST_DEPTH),
                  .DEPTH(LD_ST_DEPTH))
 store_queue(
     .clk(clk), .rst(rst || flush),
@@ -126,9 +189,11 @@ store_queue(
     .reg_out(store_out),
     .in_bitmask(store_in_bit),
     .out_bitmask('1),
+    .full(preempt_store_full),
     .full_inst(store_full),
     .push(push_store),
-    .pop(pop_store)
+    .pop(pop_store),
+    .push_amt(push_store_amt)
 );
 
 ld_st_controller_t state, next_state;

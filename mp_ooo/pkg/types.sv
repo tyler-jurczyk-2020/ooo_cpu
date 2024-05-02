@@ -6,10 +6,10 @@
 package rv32i_types;
 
     localparam TABLE_ENTRIES = 64;
-    localparam ROB_D = 8;
+    localparam ROB_D = 16;
     localparam LD_ST = 8;
-    localparam N_MUL = 1;
-    localparam N_ALU = 1;
+    localparam N_MUL = 2; // hardcoded 2 for 2-way superscalar!
+    localparam N_ALU = 2; // hardcoded 2 for 2-way superscalar!
     localparam CDB = N_ALU + N_MUL + 1; // Don't touch this, + 1 is for LSQ
     localparam freelistdepth = 32;
 
@@ -113,6 +113,7 @@ package rv32i_types;
             logic has_rd;
             logic [3:0] rmask;
             logic [3:0] wmask;
+            logic bad_but_pop_rob_anyway; 
 
             logic is_signed;
 
@@ -255,28 +256,14 @@ package rv32i_types;
         latch_store_s
     } ld_st_controller_t;
 
-    typedef struct packed {
-        logic valid;
-        logic is_for_data_cache;
-        logic prefetch;
-        logic [31:0] addr;
-    } address_entry_t;
-
-    typedef enum logic [1:0] {
-        inst_t,
-        data_t
-    } servicing_t;
-
 endpackage
 
 package cache_types;
-    typedef enum bit [2:0] {
+    typedef enum bit [1:0] {
         idle_s,
         compare_tag_s,
         allocate_s,
-        writeback_s,
-        prefetch_s,
-        post_prefetch_s
+        writeback_s
     } state_t;
 
     typedef enum bit [2:0] {

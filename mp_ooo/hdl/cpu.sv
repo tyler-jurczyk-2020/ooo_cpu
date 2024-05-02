@@ -3,9 +3,9 @@ import rv32i_types::*;
 #(
     parameter SS = 2,
     parameter PR_ENTRIES = 64,
-    parameter reservation_table_size = 4,
+    parameter reservation_table_size = 8,
     parameter DEPTH = 4,
-    parameter ROB_DEPTH = 8
+    parameter ROB_DEPTH = 16
 )
 (
     input   logic           clk,
@@ -71,7 +71,9 @@ fetch_output_reg_t if_id_reg, if_id_reg_next;
 // Parsed out decoded cacheline
 instruction_info_reg_t decoded_inst [SS];
 
+
 super_dispatch_t rob_entries_to_commit1[SS]; 
+super_dispatch_t rob_entries_to_commit [SS];
 
 logic valid_request; 
 
@@ -117,26 +119,73 @@ always_comb begin
     end
 end
 
-logic [31:0] pc_reg;
+logic [31:0] pc_reg [SS];
 
 // Decoding 8 instructions
 logic [31:0] unpacked_imem_rdata [SS];
 logic [31:0] unpacked_pc [SS];
+logic no_commit [SS]; 
 
 always_comb begin
     for(int i = 0; i < SS; i++) begin
         unpacked_imem_rdata[i] = imem_rdata[32*i+:32];
-        unpacked_pc[i] = pc_reg + unsigned'(4*i);
+        no_commit[i] = '0; 
+        if (i > 0 && (imem_rdata[32*0+:32] == 32'hf0002013 || pc_reg[0][4:0] == 5'h1c)) begin
+            unpacked_imem_rdata[i] = 32'h00000013;  // Assign nop opcode
+            no_commit[i] = '1; 
+        end
+        unpacked_pc[i] = pc_reg[i];
     end
 end
+
+logic branch_taken; 
+
+always_comb begin
+    for(int i = 0; i < SS; i++) begin
+        // Check last instruction committed to see whether we are to branch
+        // valid_request is just a signal to see if a flush occured during an instruction request
+        if((valid_request && rob_entries_to_commit[i].rob.branch_enable && rob_entries_to_commit[i].rob.commit) || 
+        (~valid_request && rob_entries_to_commit1[i].rob.branch_enable && rob_entries_to_commit1[i].rob.commit))  begin
+            branch_taken = '1; 
+            break;
+        end
+        else begin
+            branch_taken = '0; 
+        end
+    end
+end
+
+instruction_info_reg_t decoded_inst_v [SS];
+
+always_comb begin
+    decoded_inst_v[0] = decoded_inst[0];
+    decoded_inst_v[1] = decoded_inst[1];  
+    if(decoded_inst[0].is_branch || decoded_inst[0].is_jumpr || decoded_inst[0].is_jump) begin
+        decoded_inst_v[1] = '0; 
+        decoded_inst_v[1].opcode = 7'h13; 
+        decoded_inst_v[1].mul_type = 'x; 
+        decoded_inst_v[1].alu_en = '1; 
+        decoded_inst_v[1].cmp_en = '1; 
+        decoded_inst_v[1].valid = '1; 
+        decoded_inst_v[1].inst = 32'h00000013; 
+        decoded_inst_v[1].execute_operand2 = 2'b11; 
+        decoded_inst_v[1].has_rd = '1;
+        decoded_inst_v[1].pc_curr = decoded_inst[1].pc_curr; 
+        decoded_inst_v[1].pc_next = decoded_inst[1].pc_next; 
+        decoded_inst_v[1].bad_but_pop_rob_anyway = '1;         
+    end
+end
+
 
 generate
     for(genvar i = 0; i < SS; i++) begin : parallel_decode
         id_stage id_stage_i (
-            .predict_branch('0),
+            .clk(clk), .rst(rst),
+            .branch_taken(branch_taken),
             .pc_curr(unpacked_pc[i]),
             .imem_rdata(unpacked_imem_rdata[i]),
-            .instruction_info(decoded_inst[i])
+            .instruction_info(decoded_inst[i]), 
+            .no_commit(no_commit[i])
             // .pc_next(pc_next[i])
         );
     end
@@ -146,22 +195,27 @@ endgenerate
 instruction_info_reg_t instruction [SS];
 logic inst_q_empty, pop_inst_q;
 
-instruction_info_reg_t view_inst_tail [1];
+instruction_info_reg_t view_inst_tail [SS];
 
 logic [$clog2(ROB_DEPTH)-1:0] inst_tail;
-logic [$clog2(ROB_DEPTH)-1:0] sel_out_inst [1];
-assign sel_out_inst[0] = inst_tail;
+logic [$clog2(ROB_DEPTH)-1:0] sel_out_inst[SS];
 
+assign sel_out_inst[0] = inst_tail;
+assign sel_out_inst[1] = inst_tail + 1'd1;
 // Check if next inst has rd
 logic next_inst_has_rd;
 assign next_inst_has_rd = view_inst_tail[0].has_rd && view_inst_tail[0].rd_s != '0;
 
+logic next_inst_has_rd2;
+assign next_inst_has_rd2 = view_inst_tail[1].has_rd && view_inst_tail[1].rd_s != '0;
+
 // if we have a pop_from_rob, then we set a flag high (because that is the closest thing to knowing when pc is updated to some shit)
 // if we have a flush, we set that flag low, meaning we shouldn't push 
 
-circular_queue #(.SS(SS), .IN_WIDTH(SS), .SEL_IN(SS), .SEL_OUT(1), .DEPTH(ROB_DEPTH)) instruction_queue
+// soumil is doodoo dogshit @ coding
+circular_queue #(.SS(SS), .IN_WIDTH(SS), .SEL_IN(SS), .SEL_OUT(SS), .DEPTH(ROB_DEPTH)) instruction_queue
                 (.clk(clk), .rst(rst || flush),
-                 .full_inst(inst_queue_full), .in(decoded_inst),
+                 .full_inst(inst_queue_full), .in(decoded_inst_v),
                  .out(instruction),
                  .push(valid_request && ~inst_queue_full), .pop(pop_inst_q), .empty(inst_q_empty),
                  .out_bitmask('1), .in_bitmask(d_bitmask), .tail_out(inst_tail),
@@ -170,19 +224,18 @@ circular_queue #(.SS(SS), .IN_WIDTH(SS), .SEL_IN(SS), .SEL_OUT(1), .DEPTH(ROB_DE
                  );
                 // planning on passing dummy shit or 0 into reg_select shit
 
-super_dispatch_t rob_entries_to_commit [SS];
+
 ///////////////////// INSTRUCTION FETCH (SIMILAR TO MP2) /////////////////////
 fetch_stage #(.SS(SS)) fetch_stage_i (
     .clk(clk),
     .rst(rst),
-    .predict_branch('0), // Change this later
     .stall_inst(inst_queue_full), 
     .imem_resp(imem_resp), 
     .rob_entries_to_commit(rob_entries_to_commit), // passing branch target from rob
     .pc_reg(pc_reg),
     .imem_rmask(imem_rmask),
     .imem_addr(imem_addr), 
-    .decoded_inst(decoded_inst), 
+    .decoded_inst(decoded_inst_v), 
     .valid_request(valid_request), 
     .rob_entries_to_commit1(rob_entries_to_commit1)
 );
@@ -237,6 +290,7 @@ phys_reg_file #(.SS(SS), .TABLE_ENTRIES(TABLE_ENTRIES)) reg_file (
 // MODULE INPUTS DECLARATION 
 logic rs_full; 
 logic rob_full;
+logic lsq_full; 
 
 // Input Arch. Reg. for RAT
 logic [4:0] isa_rs1[SS], isa_rs2[SS]; // OUTPUTS
@@ -259,7 +313,7 @@ logic [$clog2(ROB_DEPTH)-1:0] rob_id_next [SS]; // INPUTS
 logic avail_inst; 
 
 // MODULE OUTPUT DECLARATION
-logic update_rat;
+logic [1:0] update_rat;
 super_dispatch_t rs_rob_entry [SS]; 
 
 
@@ -273,9 +327,10 @@ dispatcher #(.SS(SS), .PR_ENTRIES(PR_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) dispatcher
              .pop_inst_q(pop_inst_q), // Needs to connect to free list as well
              .avail_inst(avail_inst),
              
-             .rs_full(alu_table_full || mult_table_full), // Resevation station informs that must stall pipeline (stop requesting pops)
+             .alu_table_full(alu_table_full), .mult_table_full(mult_table_full), 
+             .view_inst_tail(view_inst_tail), // Resevation station informs that must stall pipeline (stop requesting pops)
              .inst_q_empty(inst_q_empty), // to prevent pop requests to free list
-             .rob_full(rob_full),
+             .rob_full(rob_full), .lsq_full(lsq_full),
              .inst(instruction), 
              
              // RAT
@@ -301,7 +356,7 @@ dispatcher #(.SS(SS), .PR_ENTRIES(PR_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) dispatcher
 ///////////////////// Rename/Dispatch: RAT + RRAT /////////////////////
 // MODULE INPUTS DECLARATION 
 logic pop_from_rob;
-logic push_to_free_list;
+logic push_to_free_list [SS];
 logic [5:0] retire_to_free_list [SS];
 
 logic [5:0] backup_retired_rat [32];
@@ -348,8 +403,10 @@ end
 // free list 
 freelist #( .SS(SS), .SEL_IN(SS), .SEL_OUT(SS), .DEPTH(freelistdepth))
       free_list(.clk(clk), .rst(rst), .in(retire_to_free_list), 
-      .push(push_to_free_list), 
+      .push(push_to_free_list[0]), .push2(push_to_free_list[1]), 
       .pop(pop_inst_q && next_inst_has_rd),
+      .pop2(pop_inst_q && next_inst_has_rd2),
+      
       .flush(flush),
       .reg_in(d_free_reg_in), .reg_select_in(d_free_reg_sel), .reg_select_out(d_free_reg_sel),
       .out_bitmask('0), .in_bitmask('0),
@@ -452,7 +509,7 @@ fu_input_t inst_for_fu_mult [N_MUL];
 
 // MODULE INSTANTIATION
 reservation_table #(.SS(SS), .REQUEST(N_MUL), .reservation_table_size(reservation_table_size), 
-        .ROB_DEPTH(ROB_DEPTH), .TABLE_TYPE(MUL_T)) mult_table(.clk(clk), .rst(rst),
+        .ROB_DEPTH(ROB_DEPTH), .TABLE_TYPE(MUL_T)) mult_table(.clk(clk), .rst(rst || flush),
                                                             .dispatched(rs_rob_entry1), // Dispatched shit
                                                             .avail_inst(avail_inst), // Thing
                                                             .cdb_rob_ids(cdb), // CDB 
@@ -504,7 +561,8 @@ load_store_queue #(.SS(SS)) lsq(
     .dmem_resp(dmem_resp),
     .cdb_in(cdb),
     .cdb_out(lsq_output),
-    .commit_store(commit_store)
+    .commit_store(commit_store), 
+    .full(lsq_full)
 );
 
 // //RVFI Signals

@@ -14,7 +14,9 @@ module dispatcher
         output logic pop_inst_q, 
         output logic avail_inst, 
         // This is based on whether the reservation station is full or not
-        input logic rs_full, 
+        input logic alu_table_full, 
+        input logic mult_table_full, 
+        input instruction_info_reg_t view_inst_tail [SS], 
         input logic inst_q_empty, 
         input logic rob_full,
 
@@ -48,7 +50,9 @@ module dispatcher
         
         // Build a super dispatch struct to feed into the ROB and the Reservation Station
         output super_dispatch_t rs_rob_entry [SS],
-        output logic update_rat
+        output logic [1:0] update_rat, 
+
+        input logic lsq_full
     ); 
 
     // We want to gain new input every clock cycle from the free list and inst queues
@@ -65,16 +69,32 @@ module dispatcher
         end
     end
 
-    assign update_rat = avail_inst && inst[0].has_rd;
-
-    assign pop_inst_q = ~rs_full && ~inst_q_empty && ~rob_full; 
-    
+    // assign update_rat = avail_inst && inst[0].has_rd;
+    // if both the tables are available OR if the multiplication table is not available but the next two insructions are addition based
+    assign pop_inst_q = ~inst_q_empty && ~rob_full && ~lsq_full && 
+    ((~alu_table_full && ~mult_table_full) || (alu_table_full && (view_inst_tail[0].is_mul && view_inst_tail[1].is_mul)) || (mult_table_full && (~view_inst_tail[0].is_mul && ~view_inst_tail[1].is_mul))); 
+    logic alpha; 
+    assign alpha = ~inst_q_empty && ~rob_full && ~(alu_table_full || mult_table_full);
     
     always_comb begin
         if(avail_inst) begin
             // need to build rat signals, rvfi signals
+            // if the second way source registers depend on the first way destination registers, the CDB will directly update those
+            // if the first way source registers depend on the last pair's second way's destination register the mappings should be intact
+            // if two instructions in the same way write to the same isa, then the first way shouldn't update the rat
+            // if two instructions, one in the second way of the previous pair, then both should update the rat 
 
             for(int i = 0; i < SS; i++) begin
+                if(avail_inst && inst[i].has_rd && (inst[i].rd_s != '0)) begin
+                    // if two instructions in the same way write to the same isa, then the first way shouldn't update the rat
+                    update_rat[i] = '1; 
+                    if((i == 0) && (isa_rd[1] == isa_rd[0])) begin
+                        update_rat[i] = '0; 
+                    end
+                end
+                else begin
+                    update_rat[i] = '0; 
+                end
                 // Get the ISA Regs to read
                 isa_rs1[i] = inst[i].rs1_s;
                 isa_rs2[i] = inst[i].rs2_s;
@@ -83,9 +103,9 @@ module dispatcher
                 rat_rd[i] = free_rat_rds[i];
                 // Set the inputs to the phys. reg. file that we would like to read
                 // We get the phys. eg. to read from by the RAT
-                dispatch_request[i].rs1_s = rat_rs1[i];
-                dispatch_request[i].rs2_s = rat_rs2[i];
-                if(inst[0].has_rd && inst[0].rd_s != '0) begin
+                // dispatch_request[i].rs1_s = rat_rs1[i];
+                // dispatch_request[i].rs2_s = rat_rs2[i];
+                if(inst[i].has_rd && inst[i].rd_s != '0) begin
                     dispatch_request[i].rd_s = free_rat_rds[i];
                     dispatch_request[i].rd_en = 1'b1;
                 end
@@ -107,14 +127,40 @@ module dispatcher
                 rs_rob_entry[i].rs_entry.rs2_source = dispatch_reg_data[i].rs2_v.ROB_ID;
                 rs_rob_entry[i].rs_entry.full = 1'b0; // Mark as effectively empty
 
-                if(~inst[i].execute_operand1[0] || inst[i].is_branch || inst[i].is_jump) begin
+                
+                if(i == 1 && (isa_rs1[1] == isa_rd[0]) && (isa_rs1[1] != '0)) begin
+                    dispatch_request[i].rs1_s = rat_rd[0];
+                    rs_rob_entry[i].rat.rs1 = rat_rd[0]; 
+                    rs_rob_entry[i].rs_entry.rs1_source = rob_id_next[0];
+                end
+                else begin
+                    rs_rob_entry[i].rat.rs1 = rat_rs1[i];
+                    dispatch_request[i].rs1_s = rat_rs1[i];
+                end
+                if(i == 1 && (isa_rs2[1] == isa_rd[0]) && (isa_rs2[1] != '0)) begin
+                    dispatch_request[i].rs2_s = rat_rd[0]; 
+                    rs_rob_entry[i].rat.rs2 = rat_rd[0]; 
+                    rs_rob_entry[i].rs_entry.rs2_source = rob_id_next[0];
+                end
+                else begin
+                    dispatch_request[i].rs2_s = rat_rs2[i];
+                    rs_rob_entry[i].rat.rs2 = rat_rs2[i];
+                end
+
+                if(i == 1 && (isa_rs1[1] == isa_rd[0]) && (isa_rs1[1] != '0)) begin
+                    rs_rob_entry[i].rs_entry.input1_met = '0;  
+                end 
+                else if(~inst[i].execute_operand1[0] || inst[i].is_branch || inst[i].is_jump) begin
                     rs_rob_entry[i].rs_entry.input1_met = ~dispatch_reg_data[i].rs1_v.dependency; 
                 end
                 else begin
                     rs_rob_entry[i].rs_entry.input1_met = '1;  
                 end
 
-                if(~inst[i].execute_operand2[0] || inst[i].is_branch || inst[i].is_jump) begin
+                if(i == 1 && (isa_rs2[1] == isa_rd[0]) && (isa_rs2[1] != '0)) begin
+                    rs_rob_entry[i].rs_entry.input2_met = '0; 
+                end
+                else if(~inst[i].execute_operand2[0] || inst[i].is_branch || inst[i].is_jump) begin
                     rs_rob_entry[i].rs_entry.input2_met = ~dispatch_reg_data[i].rs2_v.dependency; 
                 end
                 else begin
@@ -148,10 +194,10 @@ module dispatcher
                 //Rat Registers
                 // If ISA is R0, then since we don't update the RAT we'll always get rat_r = PR0
                 // The only issue is we pop a free list reg regardless which could cause problems
-                rs_rob_entry[i].rat.rs1 = rat_rs1[i];
-                rs_rob_entry[i].rat.rs2 = rat_rs2[i];
+                // rs_rob_entry[i].rat.rs1 = rat_rs1[i];
+                // rs_rob_entry[i].rat.rs2 = rat_rs2[i];
                 // Don't need to save the mapping we are overwritting because that is in the RRAT
-                if(inst[0].has_rd && inst[0].rd_s != '0)
+                if(inst[i].has_rd && inst[i].rd_s != '0)
                     rs_rob_entry[i].rat.rd = free_rat_rds[i];
                 else
                     rs_rob_entry[i].rat.rd = '0;
@@ -162,6 +208,7 @@ module dispatcher
         end
         else begin
             for(int i = 0; i < SS; i++) begin
+                update_rat[i] = '0; 
                 isa_rs1[i] = 'x;
                 isa_rs2[i] = 'x;
                 isa_rd[i] = 'x;
