@@ -118,9 +118,6 @@ module fu_wrapper
             if(cmp_res) begin
                 alu_cmp_out_driver.inst_info.inst.pc_next <= alu_res; 
             end
-            else begin
-                alu_cmp_out_driver.inst_info.inst.pc_next <= alu_input_a + 32'd4; 
-            end
             // alu_cmp_out_driver.rvfi.pc_wdata <= alu_res;
         end
         else if(internal_operand.inst_info.inst.is_jump) begin

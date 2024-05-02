@@ -1,9 +1,12 @@
-module pcs_plru
+module inst_plru
 import cache_types::*;
 (
     input logic [2:0] plru_bits,
     input logic [31:0] way_hit,
     input logic update_plru,
+    input state_t state,
+    input prefetch_rvalid,
+    input logic [31:0] set_way,
 
     output logic [2:0] set_plru_bits,
     output logic plru_we,
@@ -14,13 +17,24 @@ assign plru_we = ~update_plru;
 
 // PLRU bits to set upon update
 always_comb begin
-    unique case(way_hit)
-        0: set_plru_bits = { plru_bits[2], 2'b00 };
-        1: set_plru_bits = { plru_bits[2], 2'b10 };
-        2: set_plru_bits = { 1'b0, plru_bits[1], 1'b1 };
-        3: set_plru_bits = { 1'b1, plru_bits[1], 1'b1 };
-        default: set_plru_bits = 'x;
-    endcase
+    if(state == idle_s && prefetch_rvalid) begin
+        unique case(set_way)
+            0: set_plru_bits = { plru_bits[2], 2'b00 };
+            1: set_plru_bits = { plru_bits[2], 2'b10 };
+            2: set_plru_bits = { 1'b0, plru_bits[1], 1'b1 };
+            3: set_plru_bits = { 1'b1, plru_bits[1], 1'b1 };
+            default: set_plru_bits = 'x;
+        endcase
+    end
+    else begin
+        unique case(way_hit)
+            0: set_plru_bits = { plru_bits[2], 2'b00 };
+            1: set_plru_bits = { plru_bits[2], 2'b10 };
+            2: set_plru_bits = { 1'b0, plru_bits[1], 1'b1 };
+            3: set_plru_bits = { 1'b1, plru_bits[1], 1'b1 };
+            default: set_plru_bits = 'x;
+        endcase
+    end
 end
 
 // Determine plru to update if necessary
@@ -46,4 +60,4 @@ always_comb begin
     endcase
 end
 
-endmodule : pcs_plru
+endmodule : inst_plru

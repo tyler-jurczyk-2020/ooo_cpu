@@ -69,7 +69,7 @@ module rob
                     rob_entry_in[i].rob.branch_enable = '0; 
                 end
 
-                if((cdb[i].inst_info.inst.is_branch && (cdb[i].branch_result ^ cdb[i].inst_info.inst.predict_branch)) || cdb[i].inst_info.inst.is_jumpr) begin
+                if((cdb[i].inst_info.inst.is_branch && (cdb[i].branch_result ^ cdb[i].inst_info.inst.predict_branch)) || (cdb[i].inst_info.inst.is_jump || cdb[i].inst_info.inst.is_jumpr)) begin
                     rob_entry_in[i].rob.mispredict = '1;
                 end
                 else begin

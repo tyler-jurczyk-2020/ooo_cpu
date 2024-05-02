@@ -1,4 +1,4 @@
-module pcs_compare_tag 
+module inst_compare_tag 
 import cache_types::*;
 #(
     parameter               WAYS       = 4,
@@ -10,7 +10,7 @@ import cache_types::*;
     input logic [TAG_SIZE-2:0] target_tag,
     input logic ways_valid [WAYS],
     input logic [TAG_SIZE-1:0] ways_tags [WAYS],
-    input logic [31:0] wmask,
+    input logic [3:0] wmask,
     input logic [4:0] offset,
 
     output logic valid_hit, dirty,
@@ -49,10 +49,10 @@ always_comb begin
         way_hit = 'x;
     end
 
-    if(valid_hit && state == compare_tag_s && wmask != 32'b0)
+    if(valid_hit && state == compare_tag_s && wmask != 4'b0)
         wb_mask = aligned_mask;
     else
         wb_mask = 'x;
 end
 
-endmodule : pcs_compare_tag
+endmodule : inst_compare_tag

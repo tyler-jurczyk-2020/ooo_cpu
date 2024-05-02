@@ -1,4 +1,4 @@
-module pcs_cache 
+module inst_cache 
 import cache_types::*;
 #(
     parameter               WAYS       = 4,
@@ -13,9 +13,9 @@ import cache_types::*;
     // cpu side signals, ufp -> upward facing port
     input   logic   [31:0]  ufp_addr,
     input   logic   ufp_rmask,
-    input   logic   [31:0]   ufp_wmask,
+    input   logic   [3:0]   ufp_wmask,
     output  logic   [READ_SIZE-1:0]  ufp_rdata,
-    input   logic   [255:0]  ufp_wdata,
+    input   logic   [31:0]  ufp_wdata,
     output  logic           ufp_resp,
 
     // memory side signals, dfp -> downward facing port
@@ -25,18 +25,22 @@ import cache_types::*;
     input   logic   [255:0] dfp_rdata,
     output  logic   [255:0] dfp_wdata,
     input   logic           dfp_resp,
-
-    // Signals specific to post commit store buffer
-    input logic write_pcs_cacheline,
-    input logic [31:0] pcs_cacheline_mask,
-    input logic [255:0] pcs_cacheline
+    input logic ack,
+    output logic [31:0] prefetch_addr,
+    input logic [255:0] prefetch_rdata,
+    input logic prefetch_rvalid,
+    output logic prefetch,
+    input logic [31:0] prefetch_raddr,
+    output logic flush_prefetch
 );
-    // PCS
-    logic write_pcs_cacheline_reg;
+    // Prefetch
+    logic active_prefetch;
+
     // 3-bit PLRU per set
     logic [2:0] plru_bits;
     logic [2:0] set_plru_bits;
     logic plru_we;
+    logic [4:0] offset;
     // Control unit inputs
     logic dirty, valid_hit, valid_cpu_rqst;
     // Control unit outputs
@@ -52,38 +56,45 @@ import cache_types::*;
     // Memory signals
     logic mem_resp;
     // Aliases
-    logic [3:0] index;
     logic [TAG_SIZE-2:0] target_tag;
     logic [31:0] data_mask, wb_mask, set_way;
     logic [TAG_SIZE-2:0] tag_eviction;
+    logic [3:0] index;
+    logic [31:0] addr_to_prefetch;
+    
+    assign addr_to_prefetch = { ufp_addr[31:5], 5'b0} + 6'h20;
+    assign offset = ufp_addr[4:0];
 
-    assign index = ufp_addr[8:5];
-    assign target_tag = ufp_addr[31:9];
+    // Assign correct target tag
+    always_comb begin
+        if(state == post_prefetch_s || state == allocate_s)
+            target_tag = addr_to_prefetch[31:9];
+        else
+            target_tag = ufp_addr[31:9];
+    end
 
     // Address/mask computations
     always_comb begin
         if(state == compare_tag_s)
-            data_mask = ufp_wmask;
-        else if(state == allocate_s)
+            data_mask = wb_mask;
+        else if(state == allocate_s || (state == idle_s && prefetch_rvalid))
             data_mask = 32'hffffffff;
-        else if(state == pcs_write_s)
-            data_mask = pcs_cacheline_mask;
         else
             data_mask = 'x;
 
         if(state == allocate_s)
-            dfp_addr = { ufp_addr[31:5], 5'b0 }; // 32-byte aligned
+            dfp_addr = { ufp_addr[31:5], 5'b0};
         else if(state == writeback_s)
             dfp_addr = { tag_eviction, index, 5'b0 };
         else
             dfp_addr = 'x;
     end
 
-    pcs_control control_unit(.*, .mem_resp(dfp_resp), .write(dfp_write));
-    pcs_cache_logic #(.READ_SIZE(READ_SIZE)) cache_logic(.*, .wmask(ufp_wmask), .rmask(ufp_rmask), .mem_read(dfp_read), .mem_write(dfp_write),
+    inst_control control_unit(.*, .mem_resp(dfp_resp), .write(dfp_write));
+    inst_cache_logic #(.READ_SIZE(READ_SIZE)) cache_logic(.*, .wmask(ufp_wmask), .rmask(ufp_rmask), .mem_read(dfp_read), .mem_write(dfp_write),
                 .mem_line(dfp_rdata), .mem_line_wb(dfp_wdata), .mem_resp(dfp_resp), .cpu_data(ufp_rdata), .cpu_wdata(ufp_wdata), .cpu_resp(ufp_resp), .offset(ufp_addr[4:0]));
 
-    pcs_ff_array #(.WIDTH(3)) plru_array(
+    inst_ff_array #(.WIDTH(3)) plru_array(
         .clk0       (clk),
         .rst0       (rst),
         .csb0       (1'b0),
@@ -111,7 +122,7 @@ import cache_types::*;
             .din0       (set_ways_tags[i]),
             .dout0      (ways_tags[i])
         );
-        pcs_ff_array #(.WIDTH(1)) valid_array (
+        inst_ff_array #(.WIDTH(1)) valid_array (
             .clk0       (clk),
             .rst0       (rst),
             .csb0       (1'b0),

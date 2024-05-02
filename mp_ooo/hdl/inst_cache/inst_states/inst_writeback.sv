@@ -1,4 +1,4 @@
-module pcs_writeback 
+module inst_writeback 
 import cache_types::*;
 #(
     parameter               WAYS       = 4,
@@ -47,4 +47,4 @@ always_comb begin
     end
 end
 
-endmodule : pcs_writeback
+endmodule : inst_writeback

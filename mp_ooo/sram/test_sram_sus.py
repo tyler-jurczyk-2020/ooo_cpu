@@ -1,6 +1,4 @@
 import sys
-import os
-import string
 import ast
 
 allowed_class = (
@@ -16,34 +14,24 @@ allowed_class = (
     ast.Store,
     ast.Str,
 )
-allowed_char = set(string.ascii_lowercase + string.ascii_uppercase + string.digits + "._-/")
 
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
-os.chdir("config")
+if len(sys.argv) != 2:
+    exit(1)
 
-found = False
-log = ""
+with open (sys.argv[1]) as f:
+    node = ast.parse(f.read(), filename=sys.argv[1])
 
-for n in os.listdir("."):
+failed = False
 
-    if not set(n) <= allowed_char:
-        found = True
-        log += n + '\n'
+for i in ast.walk(node):
+    if not isinstance(i, allowed_class):
+        failed = True
+        try:
+            print(f"disallowed class {type(i)} found on line {i.lineno} col {i.col_offset}")
+        except:
+            print(f"disallowed class {type(i)} found")
 
-    with open(n) as f:
-        node = ast.parse(f.read(), filename=n)
-
-        for i in ast.walk(node):
-            if not isinstance(i, allowed_class):
-                found = True
-                try:
-                    log += f"disallowed class {type(i)} found on line {i.lineno} col {i.col_offset}\n"
-                except:
-                    log += f"disallowed class {type(i)} found\n"
-
-if found:
-    print("\033[31m" + "SRAM sus: " + "\033[0m", file=sys.stderr)
-    print(log, file=sys.stderr)
+if failed:
     exit(1)
 else:
     exit(0)

@@ -24,7 +24,8 @@ import cache_types::*;
     output  logic           dfp_write,
     input   logic   [255:0] dfp_rdata,
     output  logic   [255:0] dfp_wdata,
-    input   logic           dfp_resp
+    input   logic           dfp_resp,
+    input   logic           ack
 );
 
     // 3-bit PLRU per set

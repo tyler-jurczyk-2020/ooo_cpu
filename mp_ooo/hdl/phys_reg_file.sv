@@ -38,11 +38,7 @@ import rv32i_types::*;
 
     // LSQ Requests
     input physical_reg_request_t lsq_request,
-    output physical_reg_response_t lsq_reg_data, 
-
-    // DIV Requests
-    input physical_reg_request_t div_request [N_DIV],
-    output physical_reg_response_t div_reg_data [N_DIV]
+    output physical_reg_response_t lsq_reg_data
 );
 
     physical_reg_data_t  data [TABLE_ENTRIES];
@@ -163,28 +159,6 @@ import rv32i_types::*;
                     mul_reg_data[r].rs2_v.register_value = cdb[i].register_value;
                     mul_reg_data[r].rs2_v.dependency = ~cdb[i].inst_info.rs_entry.input2_met;
                     mul_reg_data[r].rs2_v.ROB_ID = cdb[i].inst_info.rob.rob_id;
-                end
-            end
-        end
-    end
-
-    always_comb begin
-        for(int r = 0; r < N_DIV; r++) begin
-            for(int i = 0; i < CDB; i++) begin
-                // RS1 Default
-                div_reg_data[r].rs1_v = data[div_request[r].rs1_s];
-                if(cdb[i].inst_info.rat.rd != '0 && cdb[i].ready_for_writeback && (div_request[r].rs1_s == cdb[i].inst_info.rat.rd)) begin
-                    div_reg_data[r].rs1_v.register_value = cdb[i].register_value;
-                    div_reg_data[r].rs1_v.dependency = ~cdb[i].inst_info.rs_entry.input1_met;
-                    div_reg_data[r].rs1_v.ROB_ID = cdb[i].inst_info.rob.rob_id;
-                end
-
-                // RS2 Default
-                div_reg_data[r].rs2_v = data[div_request[r].rs2_s];
-                if(cdb[i].inst_info.rat.rd != '0 && cdb[i].ready_for_writeback && (div_request[r].rs2_s == cdb[i].inst_info.rat.rd)) begin
-                    div_reg_data[r].rs2_v.register_value = cdb[i].register_value;
-                    div_reg_data[r].rs2_v.dependency = ~cdb[i].inst_info.rs_entry.input2_met;
-                    div_reg_data[r].rs2_v.ROB_ID = cdb[i].inst_info.rob.rob_id;
                 end
             end
         end

@@ -1,4 +1,4 @@
-module pcs_ff_array #(
+module inst_ff_array #(
             parameter               S_INDEX     = 4,
             parameter               WIDTH       = 1
 )(
@@ -49,4 +49,4 @@ module pcs_ff_array #(
         dout0 = internal_array[addr0_reg];
     end
 
-endmodule : pcs_ff_array
+endmodule : inst_ff_array

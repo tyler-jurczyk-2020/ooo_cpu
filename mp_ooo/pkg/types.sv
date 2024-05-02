@@ -10,8 +10,7 @@ package rv32i_types;
     localparam LD_ST = 8;
     localparam N_MUL = 1;
     localparam N_ALU = 1;
-    localparam N_DIV = 2;
-    localparam CDB = N_ALU + N_MUL + N_DIV + 1; // Don't touch this, + 1 is for LSQ
+    localparam CDB = N_ALU + N_MUL + 1; // Don't touch this, + 1 is for LSQ
     localparam freelistdepth = 32;
 
     typedef enum logic [6:0] {
@@ -86,7 +85,6 @@ package rv32i_types;
             logic [2:0] cmp_operation;
             // type of multiplication operation
             logic [1:0] mul_type;
-            logic [1:0] div_type;
 
             // Hold whether we had branched or not
             logic predict_branch; 
@@ -99,10 +97,7 @@ package rv32i_types;
             logic is_jumpr;
 
             // to let shift_add_multiplier know we multiplyin
-            // add is 00
-            // mul is 01
-            // div is 10
-            logic [1:0] is_mul;
+            logic is_mul;
 
             bit valid;
 
@@ -182,17 +177,9 @@ package rv32i_types;
     } reservation_entry_t; 
 
     typedef struct packed {
-        logic [31:0] rs1_data;
-        logic [31:0] rs2_data;
-        logic [31:0] immediate;
-        logic [3:0] wmask;
-    } pcs_t;
-
-    typedef struct packed {
        logic [$clog2(LD_ST)-1:0] pointer;
        logic cross_dep_met;
        logic valid;
-       pcs_t pcs;
     } cross_t;
 
     typedef struct packed {
@@ -210,10 +197,9 @@ package rv32i_types;
         BACKUP_FREE_LIST
     } initialization_t;
 
-    typedef enum logic [1:0] {
+    typedef enum logic {
         ALU_T,
-        MUL_T, 
-        DIV_T
+        MUL_T
     } reservation_table_type_t;
 
     typedef struct packed {
@@ -260,22 +246,26 @@ package rv32i_types;
         super_dispatch_t inst_info; 
     } multiply_FUs_t; 
 
-    typedef struct packed {
-        logic what_we_want;
-        logic [31:0] a; 
-        logic [31:0] b; 
-        super_dispatch_t inst_info; 
-    } divide_FUs_t; 
-
     typedef enum logic [2:0] {
-        wait_s,
+        wait_s_load_p,
+        wait_s_store_p,
         request_load_s,
         latch_load_s,
         request_store_s,
-        latch_store_s,
-        commit_to_pcs_s,
-        check_pcs_s
+        latch_store_s
     } ld_st_controller_t;
+
+    typedef struct packed {
+        logic valid;
+        logic is_for_data_cache;
+        logic prefetch;
+        logic [31:0] addr;
+    } address_entry_t;
+
+    typedef enum logic [1:0] {
+        inst_t,
+        data_t
+    } servicing_t;
 
 endpackage
 
@@ -285,8 +275,8 @@ package cache_types;
         compare_tag_s,
         allocate_s,
         writeback_s,
-        pcs_write_s,
-        pcs_buf_s
+        prefetch_s,
+        post_prefetch_s
     } state_t;
 
     typedef enum bit [2:0] {
