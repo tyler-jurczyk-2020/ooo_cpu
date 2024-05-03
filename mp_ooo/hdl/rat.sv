@@ -6,7 +6,7 @@ import rv32i_types::*;
 (
     input   logic           clk,
     input   logic           rst,
-    input   logic [1:0]          regf_we,
+    input   logic           regf_we,
     input   logic           flush,
     input   logic [5:0]     retired_rat_backup[32],
     // Physical register
@@ -29,12 +29,11 @@ always_ff @(posedge clk) begin
     else if (flush) begin
         data <= retired_rat_backup;
     end
-    else begin
-        if (regf_we[0]) begin
-            data[isa_rd[0]] <= rat_rd[0];
-        end
-        if(regf_we[1]) begin
-            data[isa_rd[1]] <= rat_rd[1];
+    
+    else if (regf_we) begin
+        for (int i = 0; i < SS; i++) begin
+            if(isa_rd[i] != 5'd0)
+                data[isa_rd[i]] <= rat_rd[i];
         end
     end
 end

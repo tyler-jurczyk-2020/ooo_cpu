@@ -1,11 +1,10 @@
 module id_stage
     import rv32i_types::*;
     (   
-        input clk, rst, 
+        // input clk, rst, 
         input logic [31:0] imem_rdata,
         input logic [31:0] pc_curr,
-        input logic branch_taken, 
-        input logic no_commit,
+        // input logic branch_taken, 
 
         output instruction_info_reg_t instruction_info
         // output [31:0] pc_next
@@ -22,7 +21,7 @@ module id_stage
     logic   [4:0]   rs1_s;
     logic   [4:0]   rs2_s;
     logic   [4:0]   rd_s;   
-    logic [31:0] branch_target;
+    // logic [31:0] branch_target;
     logic   [11:0]  offset;
 
     assign funct3 = imem_rdata[14:12];
@@ -40,18 +39,19 @@ module id_stage
 
     logic predict_branch; 
 
-    gshare #(.GHR_SIZE(10), .PHT_ENTRIES(1024)) branch_predictor
-    (
-    // rst & clk
-    .rst(rst),
-    .clk(clk),
-    // is instr branch
-    .branch_taken(branch_taken),
-    // target branch addr --> this is the PC value imma xor w/
-    .branch_addr(pc_curr),
-    // branch prediction 
-    .branch_prediction(predict_branch)
-    );
+    assign predict_branch = '0;
+    // gshare #(.GHR_SIZE(10), .PHT_ENTRIES(1024)) branch_predictor
+    // (
+    // // rst & clk
+    // .rst(rst),
+    // .clk(clk),
+    // // is instr branch
+    // .branch_taken(branch_taken),
+    // // target branch addr --> this is the PC value imma xor w/
+    // .branch_addr(pc_curr),
+    // // branch prediction 
+    // .branch_prediction(predict_branch)
+    // );
 
 
     always_comb begin
@@ -62,7 +62,6 @@ module id_stage
         instruction_info.rs2_s = rs2_s; 
         instruction_info.rd_s = rd_s; 
         instruction_info.valid = '1; // Instruction going into instruction queue will always be valid 
-        instruction_info.bad_but_pop_rob_anyway = no_commit; 
         // Replace immediate with one immediate 
         instruction_info.immediate = u_imm; 
 
@@ -94,7 +93,7 @@ module id_stage
 
         instruction_info.pc_curr = pc_curr; 
 
-        instruction_info.is_mul = 1'b0;
+        instruction_info.is_mul = 2'b00;
         instruction_info.mul_type = 'x;
         
         instruction_info.has_rd = '1;
@@ -120,7 +119,7 @@ module id_stage
 
         // set pc_next to branch target ---------> Soumil is Asleep and i put a bug in his waterbottle 
         instruction_info.pc_next = pc_curr + 4; 
-        
+        instruction_info.div_type = 2'd3;
 
 
 
@@ -138,16 +137,38 @@ module id_stage
                     unique case (funct3)
                         3'b000, 3'b001: begin// mulh: signed * signed
                             instruction_info.mul_type = 2'b01; // signed multiplication
+                            instruction_info.is_mul = 2'b01; // this instr is multiplying
                         end
                         3'b010: begin// mulhsu: signed * unsigned
                             instruction_info.mul_type = 2'b10; // mixed un/signed multiplication
+                            instruction_info.is_mul = 2'b01; // this instr is multiplying
                         end
                         3'b011: begin// mulhu: unsigned * unsigned
                             instruction_info.mul_type = 2'b00; // unsigned multiplication
+                            instruction_info.is_mul = 2'b01; // this instr is multiplying
                         end
-                        default : instruction_info.mul_type = 'x;
+                        3'b100: begin
+                            instruction_info.div_type = 2'd0; 
+                            instruction_info.is_mul = 2'b10; // this instr is dividing
+                        end
+                        3'b101: begin
+                            instruction_info.div_type = 2'd1; 
+                            instruction_info.is_mul = 2'b10; // this instr is dividing
+                        end
+                        3'b110: begin
+                            instruction_info.div_type = 2'd2; 
+                            instruction_info.is_mul = 2'b10; // this instr is dividing
+                        end
+                        3'b111: begin
+                            instruction_info.div_type = 2'd3; 
+                            instruction_info.is_mul = 2'b10; // this instr is dividing
+                        end
+                        default: begin
+                            instruction_info.mul_type = 'x;
+                            instruction_info.div_type = 'x; 
+                            instruction_info.is_mul = 2'b00; // this instr is adding
+                        end
                     endcase
-                    instruction_info.is_mul = 1'b1; // this instr is multiplying
                     instruction_info.alu_en = '0;
                     instruction_info.cmp_en = '0;
                     instruction_info.alu_operation = '0;

@@ -1,11 +1,11 @@
 module cpu
 import rv32i_types::*;
 #(
-    parameter SS = 2,
+    parameter SS = 1,
     parameter PR_ENTRIES = 64,
-    parameter reservation_table_size = 8,
+    parameter reservation_table_size = 4,
     parameter DEPTH = 4,
-    parameter ROB_DEPTH = 16
+    parameter ROB_DEPTH = 8
 )
 (
     input   logic           clk,
@@ -71,7 +71,6 @@ fetch_output_reg_t if_id_reg, if_id_reg_next;
 // Parsed out decoded cacheline
 instruction_info_reg_t decoded_inst [SS];
 
-
 super_dispatch_t rob_entries_to_commit1[SS]; 
 super_dispatch_t rob_entries_to_commit [SS];
 
@@ -124,68 +123,42 @@ logic [31:0] pc_reg [SS];
 // Decoding 8 instructions
 logic [31:0] unpacked_imem_rdata [SS];
 logic [31:0] unpacked_pc [SS];
-logic no_commit [SS]; 
 
 always_comb begin
     for(int i = 0; i < SS; i++) begin
         unpacked_imem_rdata[i] = imem_rdata[32*i+:32];
-        no_commit[i] = '0; 
-        if (i > 0 && (imem_rdata[32*0+:32] == 32'hf0002013 || pc_reg[0][4:0] == 5'h1c)) begin
-            unpacked_imem_rdata[i] = 32'h00000013;  // Assign nop opcode
-            no_commit[i] = '1; 
-        end
+        // if (i > 0 && imem_rdata[32*0+:32] == 32'hf0002013) begin
+        //     unpacked_imem_rdata[i] = 32'h00000013;  // Assign nop opcode
+        // end
         unpacked_pc[i] = pc_reg[i];
     end
 end
 
-logic branch_taken; 
+// logic branch_taken; 
 
-always_comb begin
-    for(int i = 0; i < SS; i++) begin
-        // Check last instruction committed to see whether we are to branch
-        // valid_request is just a signal to see if a flush occured during an instruction request
-        if((valid_request && rob_entries_to_commit[i].rob.branch_enable && rob_entries_to_commit[i].rob.commit) || 
-        (~valid_request && rob_entries_to_commit1[i].rob.branch_enable && rob_entries_to_commit1[i].rob.commit))  begin
-            branch_taken = '1; 
-            break;
-        end
-        else begin
-            branch_taken = '0; 
-        end
-    end
-end
-
-instruction_info_reg_t decoded_inst_v [SS];
-
-always_comb begin
-    decoded_inst_v[0] = decoded_inst[0];
-    decoded_inst_v[1] = decoded_inst[1];  
-    if(decoded_inst[0].is_branch || decoded_inst[0].is_jumpr || decoded_inst[0].is_jump) begin
-        decoded_inst_v[1] = '0; 
-        decoded_inst_v[1].opcode = 7'h13; 
-        decoded_inst_v[1].mul_type = 'x; 
-        decoded_inst_v[1].alu_en = '1; 
-        decoded_inst_v[1].cmp_en = '1; 
-        decoded_inst_v[1].valid = '1; 
-        decoded_inst_v[1].inst = 32'h00000013; 
-        decoded_inst_v[1].execute_operand2 = 2'b11; 
-        decoded_inst_v[1].has_rd = '1;
-        decoded_inst_v[1].pc_curr = decoded_inst[1].pc_curr; 
-        decoded_inst_v[1].pc_next = decoded_inst[1].pc_next; 
-        decoded_inst_v[1].bad_but_pop_rob_anyway = '1;         
-    end
-end
-
+// always_comb begin
+//     for(int i = 0; i < SS; i++) begin
+//         // Check last instruction committed to see whether we are to branch
+//         // valid_request is just a signal to see if a flush occured during an instruction request
+//         if((valid_request && rob_entries_to_commit[i].rob.branch_enable && rob_entries_to_commit[i].rob.commit) || 
+//         (~valid_request && rob_entries_to_commit1[i].rob.branch_enable && rob_entries_to_commit1[i].rob.commit))  begin
+//             branch_taken = '1; 
+//             break;
+//         end
+//         else begin
+//             branch_taken = '0; 
+//         end
+//     end
+// end
 
 generate
     for(genvar i = 0; i < SS; i++) begin : parallel_decode
         id_stage id_stage_i (
-            .clk(clk), .rst(rst),
-            .branch_taken(branch_taken),
+            // .clk(clk), .rst(rst),
+            //.branch_taken(branch_taken),
             .pc_curr(unpacked_pc[i]),
             .imem_rdata(unpacked_imem_rdata[i]),
-            .instruction_info(decoded_inst[i]), 
-            .no_commit(no_commit[i])
+            .instruction_info(decoded_inst[i])
             // .pc_next(pc_next[i])
         );
     end
@@ -195,27 +168,23 @@ endgenerate
 instruction_info_reg_t instruction [SS];
 logic inst_q_empty, pop_inst_q;
 
-instruction_info_reg_t view_inst_tail [SS];
+instruction_info_reg_t view_inst_tail [1];
 
 logic [$clog2(ROB_DEPTH)-1:0] inst_tail;
-logic [$clog2(ROB_DEPTH)-1:0] sel_out_inst[SS];
-
+logic [$clog2(ROB_DEPTH)-1:0] sel_out_inst [1];
 assign sel_out_inst[0] = inst_tail;
-assign sel_out_inst[1] = inst_tail + 1'd1;
+// logic valid_inst_exception; 
+
 // Check if next inst has rd
 logic next_inst_has_rd;
 assign next_inst_has_rd = view_inst_tail[0].has_rd && view_inst_tail[0].rd_s != '0;
 
-logic next_inst_has_rd2;
-assign next_inst_has_rd2 = view_inst_tail[1].has_rd && view_inst_tail[1].rd_s != '0;
-
 // if we have a pop_from_rob, then we set a flag high (because that is the closest thing to knowing when pc is updated to some shit)
 // if we have a flush, we set that flag low, meaning we shouldn't push 
 
-// soumil is doodoo dogshit @ coding
-circular_queue #(.SS(SS), .IN_WIDTH(SS), .SEL_IN(SS), .SEL_OUT(SS), .DEPTH(ROB_DEPTH)) instruction_queue
+circular_queue #(.SS(SS), .IN_WIDTH(SS), .SEL_IN(SS), .SEL_OUT(1), .DEPTH(ROB_DEPTH)) instruction_queue
                 (.clk(clk), .rst(rst || flush),
-                 .full_inst(inst_queue_full), .in(decoded_inst_v),
+                 .full_inst(inst_queue_full), .in(decoded_inst),
                  .out(instruction),
                  .push(valid_request && ~inst_queue_full), .pop(pop_inst_q), .empty(inst_q_empty),
                  .out_bitmask('1), .in_bitmask(d_bitmask), .tail_out(inst_tail),
@@ -235,7 +204,7 @@ fetch_stage #(.SS(SS)) fetch_stage_i (
     .pc_reg(pc_reg),
     .imem_rmask(imem_rmask),
     .imem_addr(imem_addr), 
-    .decoded_inst(decoded_inst_v), 
+    .decoded_inst(decoded_inst), 
     .valid_request(valid_request), 
     .rob_entries_to_commit1(rob_entries_to_commit1)
 );
@@ -245,7 +214,7 @@ fetch_stage #(.SS(SS)) fetch_stage_i (
 
 
 cdb_t cdb;
-fu_output_t alu_cmp_output [N_ALU], mul_output [N_MUL], lsq_output;
+fu_output_t alu_cmp_output [N_ALU], mul_output [N_MUL], div_output [N_DIV], lsq_output;
 // Merge cdb 
 // ALU entries come first, then MUL, then LSQ last
 always_comb begin
@@ -254,6 +223,8 @@ always_comb begin
             cdb[i] = alu_cmp_output[i];
         else if(i < N_ALU + N_MUL)
             cdb[i] = mul_output [i - N_ALU];
+        else if(i < N_ALU + N_MUL + N_DIV)
+            cdb[i] = div_output [i - N_DIV];
         else
             cdb[i] = lsq_output;
     end
@@ -263,7 +234,7 @@ end
 ///////////////////// Rename/Dispatch: Physical Register File /////////////////////
 // MODULE INPUTS DECLARATION 
 physical_reg_request_t dispatch_request[SS];
-physical_reg_request_t alu_request [N_ALU] , mul_request [N_MUL];
+physical_reg_request_t alu_request [N_ALU] , mul_request [N_MUL], div_request [N_DIV];
 physical_reg_request_t lsq_request;
 
 // INPUTS FROM THE RESERVATION TABLE FROM THE ALU
@@ -271,7 +242,7 @@ physical_reg_request_t lsq_request;
 
 // MODULE OUTPUT DECLARATION
 physical_reg_response_t dispatch_reg_data [SS];
-physical_reg_response_t alu_reg_data [N_ALU], mul_reg_data [N_MUL];
+physical_reg_response_t alu_reg_data [N_ALU], mul_reg_data [N_MUL], div_reg_data [N_DIV];
 physical_reg_response_t lsq_reg_data;
 
 // MODULE INSTANTIATION
@@ -281,6 +252,7 @@ phys_reg_file #(.SS(SS), .TABLE_ENTRIES(TABLE_ENTRIES)) reg_file (
                 .dispatch_request(dispatch_request), .dispatch_reg_data(dispatch_reg_data),
                 .alu_request(alu_request), .alu_reg_data(alu_reg_data),
                 .mul_request(mul_request), .mul_reg_data(mul_reg_data),
+                .div_request(div_request), .div_reg_data(div_reg_data),
                 .lsq_request(lsq_request), .lsq_reg_data(lsq_reg_data)
                 );
 
@@ -290,7 +262,6 @@ phys_reg_file #(.SS(SS), .TABLE_ENTRIES(TABLE_ENTRIES)) reg_file (
 // MODULE INPUTS DECLARATION 
 logic rs_full; 
 logic rob_full;
-logic lsq_full; 
 
 // Input Arch. Reg. for RAT
 logic [4:0] isa_rs1[SS], isa_rs2[SS]; // OUTPUTS
@@ -313,13 +284,14 @@ logic [$clog2(ROB_DEPTH)-1:0] rob_id_next [SS]; // INPUTS
 logic avail_inst; 
 
 // MODULE OUTPUT DECLARATION
-logic [1:0] update_rat;
+logic update_rat;
 super_dispatch_t rs_rob_entry [SS]; 
 
 
 // Full Signals
 logic alu_table_full; 
 logic mult_table_full; 
+logic div_table_full; 
 
 // MODULE INSTANTIATION
 dispatcher #(.SS(SS), .PR_ENTRIES(PR_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) dispatcher_i(
@@ -327,10 +299,9 @@ dispatcher #(.SS(SS), .PR_ENTRIES(PR_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) dispatcher
              .pop_inst_q(pop_inst_q), // Needs to connect to free list as well
              .avail_inst(avail_inst),
              
-             .alu_table_full(alu_table_full), .mult_table_full(mult_table_full), 
-             .view_inst_tail(view_inst_tail), // Resevation station informs that must stall pipeline (stop requesting pops)
+             .rs_full(alu_table_full || mult_table_full || div_table_full), // Resevation station informs that must stall pipeline (stop requesting pops)
              .inst_q_empty(inst_q_empty), // to prevent pop requests to free list
-             .rob_full(rob_full), .lsq_full(lsq_full),
+             .rob_full(rob_full),
              .inst(instruction), 
              
              // RAT
@@ -356,7 +327,7 @@ dispatcher #(.SS(SS), .PR_ENTRIES(PR_ENTRIES), .ROB_DEPTH(ROB_DEPTH)) dispatcher
 ///////////////////// Rename/Dispatch: RAT + RRAT /////////////////////
 // MODULE INPUTS DECLARATION 
 logic pop_from_rob;
-logic push_to_free_list [SS];
+logic push_to_free_list;
 logic [5:0] retire_to_free_list [SS];
 
 logic [5:0] backup_retired_rat [32];
@@ -403,10 +374,8 @@ end
 // free list 
 freelist #( .SS(SS), .SEL_IN(SS), .SEL_OUT(SS), .DEPTH(freelistdepth))
       free_list(.clk(clk), .rst(rst), .in(retire_to_free_list), 
-      .push(push_to_free_list[0]), .push2(push_to_free_list[1]), 
+      .push(push_to_free_list), 
       .pop(pop_inst_q && next_inst_has_rd),
-      .pop2(pop_inst_q && next_inst_has_rd2),
-      
       .flush(flush),
       .reg_in(d_free_reg_in), .reg_select_in(d_free_reg_sel), .reg_select_out(d_free_reg_sel),
       .out_bitmask('0), .in_bitmask('0),
@@ -540,6 +509,51 @@ end
 endgenerate
 
 // Cycle 1: 
+///////////////////// Issue: MULT Reservation Station /////////////////////
+// MODULE INPUTS DECLARATION 
+logic FU_ready_div [N_DIV];
+
+// MODULE OUTPUT DECLARATION
+fu_input_t inst_for_fu_div [N_DIV]; 
+
+
+// MODULE INSTANTIATION
+reservation_table_div #(.SS(SS), .REQUEST(N_DIV), .reservation_table_size(reservation_table_size), 
+        .ROB_DEPTH(ROB_DEPTH), .TABLE_TYPE(DIV_T)) div_table(.clk(clk), .rst(rst || flush),
+                                                            .dispatched(rs_rob_entry1), // Dispatched shit
+                                                            .avail_inst(avail_inst), // Thing
+                                                            .cdb_rob_ids(cdb), // CDB 
+                                                            .inst_for_fu(inst_for_fu_div), // send instruction to be caluclated to fu
+                                                            .fu_request(div_request), // get vars from phys reg file
+                                                            .FU_Ready(FU_ready_div), // ALU FU will never be full 
+                                                            .table_full(div_table_full) // Signal that the res table full 
+                                                            );                
+                                        
+
+// Cycle 2: 
+///////////////////// Execute: FU - MULT /////////////////////
+// MODULE INPUTS DECLARATION 
+// MODULE OUTPUT DECLARATION
+                                        
+// MODULE INSTANTIATION      
+                                                            
+fu_wrapper_divide  #(.sign(1)) fuck_div_1 (
+    .clk(clk),.rst(rst || flush),
+    .to_be_divided(inst_for_fu_div[0]),
+    .div_output(div_output[0]),
+    .FU_ready(FU_ready_div[0]),
+    .fu_reg_data(div_reg_data[0])
+); 
+
+fu_wrapper_divide  #(.sign(0)) fuck_div_2 (
+    .clk(clk),.rst(rst || flush),
+    .to_be_divided(inst_for_fu_div[1]),
+    .div_output(div_output[1]),
+    .FU_ready(FU_ready_div[1]),
+    .fu_reg_data(div_reg_data[1])
+); 
+
+// Cycle 1: 
 ///////////////////// Issue: Load Store Queue /////////////////////
 // MODULE INPUTS DECLARATION 
 
@@ -561,8 +575,7 @@ load_store_queue #(.SS(SS)) lsq(
     .dmem_resp(dmem_resp),
     .cdb_in(cdb),
     .cdb_out(lsq_output),
-    .commit_store(commit_store), 
-    .full(lsq_full)
+    .commit_store(commit_store)
 );
 
 // //RVFI Signals

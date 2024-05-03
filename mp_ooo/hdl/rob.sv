@@ -55,7 +55,7 @@ module rob
             rob_entry_in[i] = 'x;
             bitmask[i] = 1'b0;
             if(cdb[i].ready_for_writeback) begin
-                rob_id_reg_select[i] = cdb[i].inst_info.rob.rob_id; // Need to fix
+                rob_id_reg_select[i] = cdb[i].inst_info.rob.rob_id[2:0]; // Need to fix
                 rob_entry_in[i] = cdb[i].inst_info;
                 rob_entry_in[i].rob.commit = 1'b1;
                 bitmask[i] = 1'b1; 
@@ -91,47 +91,13 @@ module rob
         end
     end
 
-    // always_comb begin
-    //     // if(inspect_queue[0].rob.mispredict) begin
-    //     //     pop_from_rob = inspect_queue[0].rob.commit && !rob_empty;
-    //     // end
-    //     // else begin
-    //     //     pop_from_rob = '1;
-    //     // //     // Dispatch:
-    //     //     for(int unsigned i = 0; i < SS; i++)begin
-    //     //         // setting up to read the first SS entries in the rob
-    //     //         //inspect_queue[i].rob.commit = cdb[i].inst_info.reservation_entry.rob.commit;
-    //     //         pop_from_rob &= inspect_queue[i].rob.commit && !rob_empty; //pop from queue if instr at the head is ready to commit
-    //     //         rob_id_next[i] = head + ($clog2(ROB_DEPTH)-1)'(i);
-    //     //         rob_id_out[i] = tail + ($clog2(ROB_DEPTH)-1)'(i);
-    //     //     end
-    //     // end
-    //     for(int unsigned i = 0; i < SS; i++)begin
-    //         // setting up to read the first SS entries in the rob
-    //         //inspect_queue[i].rob.commit = cdb[i].inst_info.reservation_entry.rob.commit;
-    //         pop_from_rob &= inspect_queue[i].rob.commit && !rob_empty; //pop from queue if instr at the head is ready to commit
-    //         rob_id_next[i] = head + ($clog2(ROB_DEPTH)-1)'(i);
-    //         rob_id_out[i] = tail + ($clog2(ROB_DEPTH)-1)'(i);
-    //     end
-    // end
     always_comb begin
-        // pop_from_rob = '1;
-
-        if(inspect_queue[0].rob.commit && inspect_queue[0].rob.mispredict && !rob_empty) begin
-            pop_from_rob = '1; 
-        end
-        else if(inspect_queue[0].rob.commit && inspect_queue[1].rob.commit && !rob_empty) begin
-            pop_from_rob = '1; 
-        end
-        else begin
-            pop_from_rob = '0; 
-        end
-
+        pop_from_rob = '1;
         // Dispatch:
         for(int unsigned i = 0; i < SS; i++)begin
             // setting up to read the first SS entries in the rob
             //inspect_queue[i].rob.commit = cdb[i].inst_info.reservation_entry.rob.commit;
-            // pop_from_rob &= inspect_queue[i].rob.commit && !rob_empty; //pop from queue if instr at the head is ready to commit
+            pop_from_rob &= inspect_queue[i].rob.commit && !rob_empty; //pop from queue if instr at the head is ready to commit
             rob_id_next[i] = head + ($clog2(ROB_DEPTH)-1)'(i);
             rob_id_out[i] = tail + ($clog2(ROB_DEPTH)-1)'(i);
         end
@@ -172,75 +138,31 @@ module rob
         end
     end
 
-    // take the previous entry's mispredict bit and the current mispredict bit'
-    
-    // Set a valid_commit signal, so that when rob pops, only the valid signals are popped
-    // this valid signal will also drive the order signal 
-
-    // if first way is a mispredicted branch (we need to flush pipeline & second way)
-    // if second way is a mispredicted branch (we need to flush pipeline, but not either of the ways to be committed)
-
-    // if there's a mispredict on the first branch, we are committing and thus should flush
-    // if there's a mispredict on the second branch, we are committing and thus should flush 
-    // if at least the first instruction is ready to be committed and is a mispredict, we should flush
-
+    // take the previous entry's mispredict bit and the current mispredict bit
 
     always_comb begin
         valid_commit[0] = inspect_queue[0].rob.commit; 
-        // the first way will always have a valid commit
-        // if the second way is to incurr a flush, we need the second way to be valid for commit and the first way to be valid for commit
-        // writing the logic like this allows you to 
+        // comb loops r dum
+        flush = inspect_queue[0].rob.mispredict;
 
-        // you flush due to the first way if the first way has a mispredict and is a valid instruction 
-        // you flush due to the second way if the second way isn't a bad instruction, and is a valid instruction, and has a mispredict
-
-        // an instruction in the first way is valid if it exists
-        // an instruction in the second way is valid if it exists, its not a bad instruction, and the first instruction isn't a branch, jump, or jumpr
-
-        if(inspect_queue[0].rob.commit && inspect_queue[1].rob.commit && !(inspect_queue[0].inst.is_branch || inspect_queue[0].inst.is_jump || inspect_queue[0].inst.is_jumpr) && ~inspect_queue[1].inst.bad_but_pop_rob_anyway) begin
-            valid_commit[1] = '1; 
-        end
-        else begin
-            valid_commit[1] = '0; 
-        end
-
-        flush = (inspect_queue[0].rob.commit && inspect_queue[0].rob.mispredict) || (valid_commit[1] && inspect_queue[1].rob.mispredict);
-
-
-        // if(inspect_queue[0].rob.commit) begin
-        //     flush = (valid_commit[0] && inspect_queue[0].rob.mispredict) || (valid_commit[1] && inspect_queue[1].rob.mispredict); 
-        // end
-        // else begin
-        //     flush = '0; 
-        // end
-
-        // if(~inspect_queue[1].rob.commit || (inspect_queue[0].inst.is_branch || inspect_queue[0].inst.is_jump || inspect_queue[0].inst.is_jumpr)) begin
-        //     valid_commit[1] = '0; 
-        // end
-        // else begin
-        //     valid_commit[1] = inspect_queue[1].rob.commit && ~inspect_queue[1].inst.bad_but_pop_rob_anyway; 
-        // end
-
-    end
-    
-    logic [63:0] counter; 
-    always_comb begin
-        counter = order_counter; 
-        if(pop_from_rob) begin
-            // Set order on rvfi struct and commit to rrat (checking the tail)
-            for(int i = 0; i < SS; i++) begin
-                if(valid_commit[i])
-                    counter = counter + 1'd1;
-            end
+        for(int i = 1; i < SS; i++) begin
+            flush = flush | inspect_queue[i].rob.mispredict;
+            if(flush || ~inspect_queue[i].rob.commit) 
+                valid_commit[i] = '0; 
+            else 
+                valid_commit[i] = '1; 
         end
     end
-
+        
     always_ff @(posedge clk) begin
         if(rst)
            order_counter <= 64'b0; 
         else if(pop_from_rob) begin
             // Set order on rvfi struct and commit to rrat (checking the tail)
-            order_counter <= counter; 
+            for(int i = 0; i < SS; i++) begin
+                if(valid_commit[i])
+                    order_counter <= order_counter + 1'd1;
+            end
         end
     end
     
